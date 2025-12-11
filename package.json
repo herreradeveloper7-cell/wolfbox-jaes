@@ -1,0 +1,30 @@
+{
+  "name": "wolfbox_jaes",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@headlessui/react": "^2.2.4",
+    "@tailwindcss/vite": "^4.0.17",
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsbarcode": "^3.11.6",
+    "json2csv": "^6.0.0-alpha.2",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
+    "mssql": "^11.0.1",
+    "multer": "^2.0.2",
+    "qrcode.react": "^4.2.0",
+    "tailwindcss": "^4.0.17"
+  }
+}
