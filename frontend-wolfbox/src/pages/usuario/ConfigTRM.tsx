@@ -24,7 +24,7 @@ export default function ConfigTRM() {
   const cargarTRM = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get(`http://localhost:3000/api/trm`);
+      const { data } = await axios.get(`/api/trm`);
       setLista(data);
     } catch (e) {
       console.log(e);
@@ -47,7 +47,7 @@ export default function ConfigTRM() {
     if (!confirmar.isConfirmed) return;
 
     try {
-        await axios.delete(`http://localhost:3000/api/trm/${trm.id}`);
+        await axios.delete(`/api/trm/${trm.id}`);
         await cargarTRM();
 
         Swal.fire("Eliminado", "TRM eliminado correctamente", "success");

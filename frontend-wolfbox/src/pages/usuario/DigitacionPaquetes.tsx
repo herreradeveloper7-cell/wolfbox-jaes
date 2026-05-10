@@ -42,7 +42,7 @@ export default function DigitacionPaquetes() {
     useEffect(() => {
       const cargarServicios = async () => {
         try {
-          const res = await fetch("http://localhost:3000/api/servicios");
+          const res = await fetch("/api/servicios");
           const data = await res.json();
           if (data.ok) {
             setServicios(data.servicios);
@@ -59,7 +59,7 @@ export default function DigitacionPaquetes() {
     const handleBuscarPaquetes = async () => {
       try {
         const response = await fetch(
-          "http://localhost:3000/api/paquetes/buscar",
+          "/api/paquetes/buscar",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -95,7 +95,7 @@ export default function DigitacionPaquetes() {
       }
 
       try {
-        const res = await fetch(`http://localhost:3000/api/clientes/buscar/${texto}`);
+        const res = await fetch(`/api/clientes/buscar/${texto}`);
         const data = await res.json();
 
         if (data.ok) {
@@ -115,7 +115,7 @@ export default function DigitacionPaquetes() {
       }
 
       try {
-        const res = await fetch(`http://localhost:3000/api/usuarios/buscar/${texto}`);
+        const res = await fetch(`/api/usuarios/buscar/${texto}`);
         const data = await res.json();
 
         if (data.ok) {
@@ -320,7 +320,7 @@ export default function DigitacionPaquetes() {
     
     const cargarPaquetes = async () => {
       try {
-        const res = await fetch(`http://localhost:3000/api/paquetes`);
+        const res = await fetch(`/api/paquetes`);
         const data = await res.json();
         setPaquetes(data);
       } catch (error) {
@@ -446,7 +446,7 @@ export default function DigitacionPaquetes() {
 
             };
 
-            const response = await fetch(`http://localhost:3000/api/paquetes/editar/${paqueteFila.id}`, {
+            const response = await fetch(`/api/paquetes/editar/${paqueteFila.id}`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(paquete),
@@ -527,7 +527,7 @@ export default function DigitacionPaquetes() {
             let ultimaUrlPDF = "";
 
             for (const paquete of paquetesARegistrar) {
-              const response = await fetch("http://localhost:3000/api/paquetes/registrar", {
+              const response = await fetch("/api/paquetes/registrar", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(paquete),
@@ -616,7 +616,7 @@ export default function DigitacionPaquetes() {
       setModoEdicion(true);
       
       try {
-        const res = await fetch(`http://localhost:3000/api/clientes/buscar/${paquete.codigo_referencia}`);
+        const res = await fetch(`/api/clientes/buscar/${paquete.codigo_referencia}`);
         const data = await res.json();
         if (data.ok && data.clientes.length > 0) {
           const cliente = data.clientes[0];
@@ -629,7 +629,7 @@ export default function DigitacionPaquetes() {
 
           setClienteInput(`${paquete.codigo_referencia} - ${nombreCliente}`);
           
-          const rDest = await fetch(`http://localhost:3000/api/destinatarios/${cliente.id}`);
+          const rDest = await fetch(`/api/destinatarios/${cliente.id}`);
           const dataDest = await rDest.json();
           setDestinatarios(dataDest);
           setCargandoDestinatarios(false);
@@ -651,7 +651,7 @@ export default function DigitacionPaquetes() {
 
       const delayDebounce = setTimeout(async () => {
         try {
-        const res = await fetch(`http://localhost:3000/api/clientes/buscar/${clienteInput}`);
+        const res = await fetch(`/api/clientes/buscar/${clienteInput}`);
         const data = await res.json();
         if (data.ok) {
             setClientesSugeridos(data.clientes);
@@ -682,7 +682,7 @@ export default function DigitacionPaquetes() {
           setCargandoDestinatarios(true);
 
           const res = await fetch(
-            `http://localhost:3000/api/destinatarios/por-cliente/${codigoCasillero}`
+            `/api/destinatarios/por-cliente/${codigoCasillero}`
           );
 
           const data = await res.json();
@@ -722,13 +722,13 @@ export default function DigitacionPaquetes() {
     useEffect(() => {
       const validarCampos = async () => {
         if (paqueteFila.tracking.length > 3) {
-          const res = await fetch(`http://localhost:3000/api/paquetes/validar/tracking/${paqueteFila.tracking}`);
+          const res = await fetch(`/api/paquetes/validar/tracking/${paqueteFila.tracking}`);
           const data = await res.json();
           setTrackingExistente(data.existe);
         }
     
         if (paqueteFila.referencia.length > 3) {
-          const res = await fetch(`http://localhost:3000/api/paquetes/validar/referencia/${paqueteFila.referencia}`);
+          const res = await fetch(`/api/paquetes/validar/referencia/${paqueteFila.referencia}`);
           const data = await res.json();
           setReferenciaExistente(data.existe);
         }

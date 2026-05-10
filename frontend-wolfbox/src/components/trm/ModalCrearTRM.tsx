@@ -16,7 +16,7 @@ export default function ModalCrearTRM({ onClose, onSave }: { onClose: () => void
     }
 
     try {
-      await axios.post("http://localhost:3000/api/trm", {
+      await axios.post("/api/trm", {
         fecha,
         valor: Number(valor)
       });

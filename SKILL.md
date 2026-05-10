@@ -41,7 +41,7 @@ WolfBox is a comprehensive package tracking and management system for internatio
 - Animations: `animate-fade-in`, `animate-scale-in`, `animate-slide-up`, `animate-fade-out`
 
 ### API Integration
-- Base URL: `http://localhost:3000/api/`
+- Base URL: `https://wolfbox-jaes-production.up.railway.app/api/`
 - Common endpoints:
   - `/solicitudes/` - Request management
   - `/paquetes/` - Package operations

@@ -48,7 +48,7 @@ export default function ModalCliente({ cliente, onClose }: Props) {
     const handleGuardarCambios = async () => {
         try {
             await axios.put(
-            `http://localhost:3000/api/clientes/${cliente.id}`,
+            `/api/clientes/${cliente.id}`,
             form
             );
 

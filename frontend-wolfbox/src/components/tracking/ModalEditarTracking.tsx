@@ -84,7 +84,7 @@ const ModalEditarTracking: React.FC<Props> = ({
       const responsable = usuario.nombre || "Usuario desconocido";
 
       await axios.put(
-        `http://localhost:3000/api/paquetes/tracking/estado/historial/${trackingActual.id}`,
+        `/api/paquetes/tracking/estado/historial/${trackingActual.id}`,
         {
           estado: estadoFinal,
           punto_control: puntoControl,

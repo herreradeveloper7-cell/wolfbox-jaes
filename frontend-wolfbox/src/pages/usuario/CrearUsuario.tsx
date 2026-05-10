@@ -22,7 +22,7 @@ export default function CrearUsuario() {
     if (!email) return;
 
     try {
-      const { data } = await axios.get(`http://localhost:3000/api/usuarios/validar-email/${email}`);
+      const { data } = await axios.get(`/api/usuarios/validar-email/${email}`);
       setEmailExistente(data.existe);
     } catch (error) {
       console.error("Error validando email", error);
@@ -163,7 +163,7 @@ export default function CrearUsuario() {
     }
 
   try {
-      await axios.post("http://localhost:3000/api/usuarios/crear", {
+      await axios.post("/api/usuarios/crear", {
         ...formData,
         permisos: permisosSeleccionados,
       });

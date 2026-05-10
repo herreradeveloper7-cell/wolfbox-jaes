@@ -28,7 +28,7 @@ export default function ModalCrearDestinatario({ onClose, onSave }: Props) {
   useEffect(() => {
   const cargarPaises = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/catalogos/paises");
+      const res = await fetch("/api/catalogos/paises");
       const data = await res.json();
       setPaises(data);
     } catch (error) {
@@ -49,7 +49,7 @@ export default function ModalCrearDestinatario({ onClose, onSave }: Props) {
     const cargarRegiones = async () => {
       try {
         const res = await fetch(
-          `http://localhost:3000/api/catalogos/regiones/${form.pais_id}`
+          `/api/catalogos/regiones/${form.pais_id}`
         );
         const data = await res.json();
         setRegiones(data);
@@ -71,7 +71,7 @@ export default function ModalCrearDestinatario({ onClose, onSave }: Props) {
     const cargarCiudades = async () => {
       try {
         const res = await fetch(
-          `http://localhost:3000/api/catalogos/ciudades/${form.region_id}`
+          `/api/catalogos/ciudades/${form.region_id}`
         );
         const data = await res.json();
         setCiudades(data);

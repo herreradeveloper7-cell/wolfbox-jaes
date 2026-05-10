@@ -24,7 +24,7 @@ export default function AgruparSolicitud() {
 
     const cargarSolicitud = async () => {
         try {
-        const { data } = await axios.get(`http://localhost:3000/api/solicitudes/detalle/${id}`);
+        const { data } = await axios.get(`/api/solicitudes/detalle/${id}`);
 
         setSolicitud(data.solicitud);
 
@@ -60,11 +60,11 @@ const ejecutarAgrupacion = async () => {
     try {
 
         const { data } = await axios.post(
-        `http://localhost:3000/api/solicitudes/agrupar/${id}`,
+        `/api/solicitudes/agrupar/${id}`,
         { hawbs: hawbsSeleccionados }
         );
 
-        const urlEtiqueta = `http://localhost:3000/api/solicitudes/etiqueta/${data.hawb_agrupado}`;
+        const urlEtiqueta = `/api/solicitudes/etiqueta/${data.hawb_agrupado}`;
 
         window.open(urlEtiqueta, "_blank");
 

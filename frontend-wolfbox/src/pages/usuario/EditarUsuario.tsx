@@ -36,7 +36,7 @@ export default function EditarUsuario() {
 
   const obtenerUsuario = async () => {
     try {
-      const { data } = await axios.get(`http://localhost:3000/api/usuarios/detalle/${id}`);
+      const { data } = await axios.get(`/api/usuarios/detalle/${id}`);
 
       setFormData({
         nombre: data.nombre,
@@ -59,7 +59,7 @@ export default function EditarUsuario() {
 
     try {
       const { data } = await axios.get(
-        `http://localhost:3000/api/usuarios/validar-email/${email}?id=${id}`
+        `/api/usuarios/validar-email/${email}?id=${id}`
       );
 
       setEmailExistente(data.existe);
@@ -115,7 +115,7 @@ export default function EditarUsuario() {
 
     try {
       await axios.put(
-        `http://localhost:3000/api/usuarios/editar/${id}`,
+        `/api/usuarios/editar/${id}`,
         formData
       );
 

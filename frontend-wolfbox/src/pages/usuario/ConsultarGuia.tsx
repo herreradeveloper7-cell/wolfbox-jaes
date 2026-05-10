@@ -72,7 +72,7 @@ const ConsultarGuia: React.FC = () => {
   useEffect(() => {
     const fetchServicios = async () => {
       try {
-        const res = await axios.get("http://localhost:3000/api/servicios");
+        const res = await axios.get("/api/servicios");
 
         if (res.data.ok) {
           setServicios(res.data.servicios);
@@ -89,7 +89,7 @@ const ConsultarGuia: React.FC = () => {
   useEffect(() => {
     const fetchUsuarios = async () => {
       try {
-        const res = await axios.get("http://localhost:3000/api/usuarios/select");
+        const res = await axios.get("/api/usuarios/select");
         if (res.data.ok) {
           setUsuarios(res.data.usuarios);
         }
@@ -104,7 +104,7 @@ const ConsultarGuia: React.FC = () => {
   useEffect(() => {
     const fetchTiendas = async () => {
       try {
-        const res = await axios.get("http://localhost:3000/api/guias/tiendas");
+        const res = await axios.get("/api/guias/tiendas");
 
         if (res.data.ok) {
           // res.data.tiendas = [{tienda:"Amazon"}, {tienda:"eBay"}...]
@@ -134,7 +134,7 @@ const ConsultarGuia: React.FC = () => {
     try {
 
       const res = await axios.get(
-        `http://localhost:3000/api/clientes/buscar/${encodeURIComponent(filtros.cliente)}`
+        `/api/clientes/buscar/${encodeURIComponent(filtros.cliente)}`
       );
 
       if (res.data.ok) {
@@ -156,7 +156,7 @@ const ConsultarGuia: React.FC = () => {
   setMensaje("");
 
   try {
-    const response = await axios.post("http://localhost:3000/api/guias/buscar", {
+    const response = await axios.post("/api/guias/buscar", {
       ...filtros,
       fechaDesde: filtros.fechaDesde || null,
       fechaHasta: filtros.fechaHasta || null,

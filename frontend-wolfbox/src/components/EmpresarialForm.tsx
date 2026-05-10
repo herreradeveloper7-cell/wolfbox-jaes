@@ -79,7 +79,7 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
       console.log("Datos a enviar:", data); // 👈 Agrega este log
     
       try {
-        const validarDuplicado = await fetch(`http://localhost:3000/api/clientes/validar`, {
+        const validarDuplicado = await fetch(`/api/clientes/validar`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, numeroIdentificacion }),
@@ -96,7 +96,7 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
           return;
         }
 
-        const res = await fetch("http://localhost:3000/api/clientes", {
+        const res = await fetch("/api/clientes", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -148,7 +148,7 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
   useEffect(() => {
     const cargarPaises = async () => {
       try {
-        const res = await fetch("http://localhost:3000/api/catalogos/paises");
+        const res = await fetch("/api/catalogos/paises");
         const data = await res.json();
         setPaises(data);
       } catch (error) {
@@ -171,7 +171,7 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
 
       try {
         const res = await fetch(
-          `http://localhost:3000/api/catalogos/regiones/${selectedCountry}`
+          `/api/catalogos/regiones/${selectedCountry}`
         );
         const data = await res.json();
 
@@ -197,7 +197,7 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
 
       try {
         const res = await fetch(
-          `http://localhost:3000/api/catalogos/ciudades/${selectedRegion}`
+          `/api/catalogos/ciudades/${selectedRegion}`
         );
         const data = await res.json();
 

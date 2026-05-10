@@ -73,7 +73,7 @@ export default function CrearTracking() {
             return;
             }
 
-            const { data } = await axios.get(`http://localhost:3000/api/paquetes/tracking/hawb/${hawb}`);
+            const { data } = await axios.get(`/api/paquetes/tracking/hawb/${hawb}`);
 
             if (!data?.length) {
             setModalError("El paquete no existe con el dato suministrado");
@@ -98,7 +98,7 @@ export default function CrearTracking() {
 
             const fechaCompleta = `${fecha} ${horas}:${minutos}:00`;
 
-            await axios.post("http://localhost:3000/api/paquetes/tracking/estado", {
+            await axios.post("/api/paquetes/tracking/estado", {
             hawb,
             estado: estadoFinal,
             punto_control: puntoControl,
@@ -157,7 +157,7 @@ export default function CrearTracking() {
     try {
 
         const { data } = await axios.get(
-        "http://localhost:3000/api/paquetes/catalogo-estados"
+        "/api/paquetes/catalogo-estados"
         );
 
         setCatalogoEstados(data);

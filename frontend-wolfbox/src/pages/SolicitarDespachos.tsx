@@ -31,7 +31,7 @@ export default function SolicitarDespachos() {
   const eliminarSolicitud = async (solicitud: Solicitud) => {
   try {
     const { data } = await axios.delete(
-      `http://localhost:3000/api/solicitudes/eliminar/${solicitud.id}`
+      `/api/solicitudes/eliminar/${solicitud.id}`
     );
 
     Swal.fire("✅ Eliminada", data.mensaje, "success");
@@ -89,7 +89,7 @@ export default function SolicitarDespachos() {
     try {
       const encoded = encodeURIComponent(valor);
       const { data } = await axios.get(
-      `http://localhost:3000/api/clientes/buscar/${encoded}`
+      `/api/clientes/buscar/${encoded}`
       );
 
         if (data.ok && Array.isArray(data.clientes)) {
@@ -112,7 +112,7 @@ export default function SolicitarDespachos() {
 
     try {
       const { data } = await axios.get(
-        `http://localhost:3000/api/paquetes/por-cliente/${cliente.codigo_referencia}`
+        `/api/paquetes/por-cliente/${cliente.codigo_referencia}`
       );
 
       if (Array.isArray(data)) {
@@ -127,7 +127,7 @@ export default function SolicitarDespachos() {
         setPaquetesCliente([]);
       }
 
-      const rDest = await axios.get(`http://localhost:3000/api/destinatarios/${cliente.id}`);
+      const rDest = await axios.get(`/api/destinatarios/${cliente.id}`);
       setDestinatariosCliente(Array.isArray(rDest.data) ? rDest.data : []);
 
     } catch (error) {
@@ -143,7 +143,7 @@ export default function SolicitarDespachos() {
   const obtenerSolicitudesCliente = async (codigoReferencia: string) => {
     try {
       const { data } = await axios.get(
-        `http://localhost:3000/api/solicitudes/listar?codigo=${codigoReferencia}`
+        `/api/solicitudes/listar?codigo=${codigoReferencia}`
       );
 
       if (Array.isArray(data)) {
@@ -217,7 +217,7 @@ export default function SolicitarDespachos() {
 
 
       const { data } = await axios.post(
-        "http://localhost:3000/api/solicitudes/crear",
+        "/api/solicitudes/crear",
         payload
       );
 

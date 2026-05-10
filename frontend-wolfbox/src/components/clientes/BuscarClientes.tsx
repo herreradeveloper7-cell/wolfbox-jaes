@@ -94,7 +94,7 @@ export default function BuscarClientes({ value, onChange, onSelect }: Props) {
         setLoading(true);
 
         const { data } = await axios.get(
-          `http://localhost:3000/api/clientes/buscar/${encodeURIComponent(texto)}`
+          `/api/clientes/buscar/${encodeURIComponent(texto)}`
         );
 
         const clientes = Array.isArray(data) ? data : data.clientes || [];
