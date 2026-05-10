@@ -19,7 +19,6 @@ export default function SolicitarDespachos() {
   asegurado: number;
   }
 
-
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [destinatariosCliente, setDestinatariosCliente] = useState<any[]>([]);
 
@@ -42,52 +41,28 @@ export default function SolicitarDespachos() {
     if (clienteSeleccionado?.codigo_referencia) {
       seleccionarCliente(clienteSeleccionado); 
     }
-  } catch (error) {
-    Swal.fire("Error", "No se pudo eliminar la solicitud.", "error");
+  } catch (error: any) {
+      Swal.fire({
+    icon: "warning",
+    title: "No se puede eliminar",
+    text: error.response?.data?.mensaje || "La solicitud no puede eliminarse"
+  });
   }
   };
 
   const handleImprimirSolicitud = async (solicitud: Solicitud) => {
     try {
-      const { data } = await axios.get(`/api/solicitudes/pdf-data/${solicitud.id}`);
+      const { data } = await axios.get(
+        `/api/solicitudes/pdf-data/${solicitud.id}`
+      );
 
+      generarPdfSolicitud(data.solicitud);
 
-      const solicitudPDFData = {
-        id: data.id,
-        fecha: data.fecha,
-
-        cliente_nombre: data.cliente_nombre,
-        codigoCasillero: data.codigoCasillero,
-
-        destinatario_nombre: data.destinatario_nombre,
-        destinatario_ciudad: data.destinatario_ciudad,
-        destinatario_direccion: data.destinatario_direccion,
-        destinatario_telefono: data.destinatario_telefono,
-
-        paquetes: data.paquetes,
-        cargos: data.cargos,  
-
-        totalAseguradoUSD: data.totalAseguradoUSD,
-        seguroUSD: data.seguroUSD,
-        totalUSD: data.totalUSD,
-
-        totalCargosUSD: data.totalCargosUSD,      
-        totalCargosCOP: data.totalCargosCOP,      
-        totalUSDConCargos: data.totalUSDConCargos, 
-        totalCOPConCargos: data.totalCOPConCargos, 
-
-        trm: data.trm,
-        totalCOP: data.totalCOP,
-      };
-
-
-      generarPdfSolicitud(solicitudPDFData);
     } catch (err) {
       console.error(err);
       Swal.fire("Error", "No se pudo generar el PDF", "error");
     }
   };
-
 
   const [search, setSearch] = useState("");
   const [clientes, setClientes] = useState<any[]>([]);
@@ -140,11 +115,9 @@ export default function SolicitarDespachos() {
         `http://localhost:3000/api/paquetes/por-cliente/${cliente.codigo_referencia}`
       );
 
-      console.log("📦 Respuesta del backend:", data);
-
       if (Array.isArray(data)) {
         const disponibles = data.filter(
-          (p) => p.estado_actual?.toLowerCase() !== "solicitado"
+          (p) => p.estado?.toLowerCase() !== "solicitado"
         );
 
         setPaquetesCliente(disponibles);
@@ -182,6 +155,16 @@ export default function SolicitarDespachos() {
       console.error("❌ Error obteniendo solicitudes del cliente:", error);
       setSolicitudes([]);
     }
+  };
+
+  const formatearFechaRegistro = (fecha?: string) => {
+    if (!fecha) return "—";
+    const fechaObj = new Date(fecha);
+    if (Number.isNaN(fechaObj.getTime())) return "—";
+    const yyyy = fechaObj.getFullYear();
+    const mm = String(fechaObj.getMonth() + 1).padStart(2, "0");
+    const dd = String(fechaObj.getDate()).padStart(2, "0");
+    return `${yyyy}/${mm}/${dd}`;
   };
 
   const toggleSeleccion = (id: number) => {
@@ -250,8 +233,6 @@ export default function SolicitarDespachos() {
     }
   };
 
-  
-
 
   return (
     <UserDashboardLayout scrollable>
@@ -272,7 +253,6 @@ export default function SolicitarDespachos() {
         </p>
 
         <div className="relative mb-6">
-          {/* Icono de lupa */}
           <svg
             xmlns="http://www.w3.org/2000/svg"
               className="absolute left-3 top-2.5 h-5 w-5 text-gray-400"
@@ -288,7 +268,6 @@ export default function SolicitarDespachos() {
               />
             </svg>
 
-            {/* Input de búsqueda */}
             <input
               type="text"
               className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 shadow-sm 
@@ -316,7 +295,6 @@ export default function SolicitarDespachos() {
             )}
         </div>
 
-        {/* ───── TABLA DE PAQUETES ───── */}
         {clienteSeleccionado && (
           <>
             <h3 className="mt-6 font-bold text-gray-700 text-lg">
@@ -339,7 +317,11 @@ export default function SolicitarDespachos() {
                     <thead className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 text-sm uppercase font-semibold tracking-wide">
                       <tr>
                         <th className="py-3 px-4 text-center">Seleccionar</th>
+                        <th className="py-3 px-4 text-left">HAWB</th>
                         <th className="py-3 px-4 text-left">Tracking</th>
+                        <th className="py-3 px-4 text-left">Fecha</th>
+                        <th className="py-3 px-4 text-left">Servicio</th>
+                        <th className="py-3 px-4 text-left">Tienda</th> 
                         <th className="py-3 px-4 text-left">Contenido</th>
                         <th className="py-3 px-4 text-center">Peso (lb)</th>
                         <th className="py-3 px-4 text-center">Estado</th>
@@ -356,26 +338,40 @@ export default function SolicitarDespachos() {
                           }`}
                         >
                           <td className="p-3 text-center">
-                            <input
-                              type="checkbox"
-                              checked={seleccionados.includes(p.id)}
-                              onChange={() => toggleSeleccion(p.id)}
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          <button
+                            onClick={() => toggleSeleccion(p.id)}
+                            className={`relative inline-flex h-7 w-14 items-center rounded-full transition-all duration-300
+                              ${seleccionados.includes(p.id) ? "bg-green-600" : "bg-red-600"}
+                            `}
+                          >
+                            <span
+                              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-all duration-300
+                                ${seleccionados.includes(p.id) ? "translate-x-8" : "translate-x-1"}
+                              `}
                             />
+                          </button>
+                          </td>
+                          <td className="p-3 font-mono text-red-800 font-semibold">
+                            {p.hawb}
                           </td>
                           <td className="p-3 font-medium text-gray-800">{p.tracking}</td>
+                          <td className="p-3 text-gray-700">{formatearFechaRegistro(p.fecha_registro)}</td>
+                          <td className="p-3 text-gray-700">{p.servicio}</td>
+                          <td className="p-3 text-gray-700">
+                            {p.tienda ?? "—"} 
+                          </td>
                           <td className="p-3 text-gray-700">{p.contenido}</td>
                           <td className="p-3 text-center text-gray-700">{p.peso}</td>
                           <td
                             className={`p-3 text-center font-semibold ${
-                              p.estado_actual === "Solicitado"
+                              p.estado === "Solicitado"
                                 ? "text-blue-600"
-                                : p.estado_actual === "Digitado"
+                                : p.estado === "Digitado"
                                 ? "text-gray-600"
                                 : "text-green-700"
                             }`}
                           >
-                            {p.estado_actual}
+                            {p.estado}
                           </td>
                         </tr>
                       ))}

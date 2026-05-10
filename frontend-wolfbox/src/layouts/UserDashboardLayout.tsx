@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { ReactNode, useState, useEffect } from "react";
-import logo from "../assets/logoJaesCargo.png";
+import logo from "../assets/LogoJaesDashboard.svg";
 import iconCasillero from "../assets/lockers-storage-svgrepo-com.svg"; 
 import iconToggleMostrar from "../assets/mostrarSlid.svg"; 
 import iconHombre from "../assets/malecostume-svgrepo-com.svg";
@@ -24,7 +24,7 @@ type Cliente = {
   codigoReferencia: string;
 };
 
-export default function ClientDashboardLayout({ children, scrollable = false }: Props) {
+export default function UserDashboardLayout({ children, scrollable = false }: Props) {
   const navigate = useNavigate();
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -64,18 +64,28 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
               setReportesOpen(false);
               setSeguridadOpen(false);
               setPerfilOpen(false);
+              setConfiguracionOpen(false);
             }}
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+            className={`
+              relative flex items-center justify-between w-full px-4 py-3 cursor-pointer
+              overflow-hidden group
+              bg-red-950
+              transition-all duration-300
+              ${casilleroOpen ? "bg-red-900" : ""}
+            `}
           >
-            <div className="flex items-center gap-4">
+            <span className="absolute inset-0 bg-red-900 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 ease-in-out"></span>
+
+            <div className="relative flex items-center gap-4 z-10">
               <img src={iconCasillero} alt="Icono Casillero" className="w-6 h-6" />
               {sidebarOpen && <span className="text-lg">Casillero</span>}
             </div>
+
             {sidebarOpen && (
               <img
                 src={arrowRight}
                 alt="Flecha"
-                className={`w-4 h-4 ml-2 transition-transform duration-300 ${
+                className={`relative z-10 w-4 h-4 ml-2 transition-transform duration-300 ${
                   casilleroOpen ? "rotate-90" : ""
                 }`}
               />
@@ -91,8 +101,8 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
             <button onClick={() => navigate("/digitacion-paquetes")} className="text-white text-left w-full px-6 py-2 cursor-pointer hover:bg-red-900 transition">Digitación de paquetes</button>
             <button onClick={() => navigate("/solicitar-despachos")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Solicitar despachos</button>
             <button onClick={() => navigate("/agrupar-paquetes")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Agrupar paquetes</button>
-            <button onClick={() => navigate("/conciliacion-pagos")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition">Conciliación de pago</button>
-            <button onClick={() => navigate("/clientes")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition">Clientes</button>
+            <button onClick={() => navigate("/conciliacion-pagos")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Conciliación de pago</button>
+            <button onClick={() => navigate("/Clientes")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Clientes</button>
             <button onClick={() => navigate("/destinatarios-casilleros")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Destinatarios casilleros</button>
           </div>
         </div>
@@ -106,17 +116,30 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
               setReportesOpen(false);
               setSeguridadOpen(false);
               setPerfilOpen(false);
+              setConfiguracionOpen(false);
             }}
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+            className={`
+              relative flex items-center justify-between w-full px-4 py-3 cursor-pointer
+              overflow-hidden group
+              bg-red-950
+              transition-all duration-300
+              ${operacionesOpen ? "bg-red-900" : ""}
+            `}
           >
-            <div className="flex items-center gap-4">
+            <span className="absolute inset-0 bg-red-900 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 ease-in-out"></span>
+
+            <div className="relative flex items-center gap-4 z-10">
               <img src={iconOperations} alt="Icono Operaciones" className="w-6 h-6" />
               {sidebarOpen && <span className="text-lg">Operaciones</span>}
             </div>
+
             {sidebarOpen && (
               <img
                 src={arrowRight}
-                className={`w-4 h-4 ml-2 transition-transform duration-300 ${operacionesOpen ? "rotate-90" : ""}`}
+                alt="Flecha"
+                className={`relative z-10 w-4 h-4 ml-2 transition-transform duration-300 ${
+                  operacionesOpen ? "rotate-90" : ""
+                }`}
               />
             )}
           </button>
@@ -135,17 +158,30 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
               setReportesOpen(false);
               setSeguridadOpen(false);
               setPerfilOpen(false);
+              setConfiguracionOpen(false);
             }}
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+            className={`
+              relative flex items-center justify-between w-full px-4 py-3 cursor-pointer
+              overflow-hidden group
+              bg-red-950
+              transition-all duration-300
+              ${trackingOpen ? "bg-red-900" : ""}
+            `}
           >
-            <div className="flex items-center gap-4">
+            <span className="absolute inset-0 bg-red-900 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 ease-in-out"></span>
+
+            <div className="relative flex items-center gap-4 z-10">
               <img src={iconTracking} alt="Icono Tracking" className="w-6 h-6" />
               {sidebarOpen && <span className="text-lg">Tracking</span>}
             </div>
+
             {sidebarOpen && (
               <img
                 src={arrowRight}
-                className={`w-4 h-4 ml-2 transition-transform duration-300 ${trackingOpen ? "rotate-90" : ""}`}
+                alt="Flecha"
+                className={`relative z-10 w-4 h-4 ml-2 transition-transform duration-300 ${
+                  trackingOpen ? "rotate-90" : ""
+                }`}
               />
             )}
           </button>
@@ -156,28 +192,41 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
         </div>
 
         <div className="flex flex-col mt-2 gap-2">
-          <button
-            onClick={() => {
-              setReportesOpen((prev) => !prev);
-              setCasilleroOpen(false);
-              setOperacionesOpen(false);
-              setTrackingOpen(false);
-              setSeguridadOpen(false);
-              setPerfilOpen(false);
-            }}
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
-          >
-            <div className="flex items-center gap-4">
-              <img src={iconReport} alt="Icono Reportes" className="w-6 h-6" />
-              {sidebarOpen && <span className="text-lg">Reportes</span>}
-            </div>
-            {sidebarOpen && (
-              <img
-                src={arrowRight}
-                className={`w-4 h-4 ml-2 transition-transform duration-300 ${reportesOpen ? "rotate-90" : ""}`}
-              />
-            )}
-          </button>
+        <button
+          onClick={() => {
+            setReportesOpen((prev) => !prev);
+            setCasilleroOpen(false);
+            setOperacionesOpen(false);
+            setTrackingOpen(false);
+            setSeguridadOpen(false);
+            setPerfilOpen(false);
+            setConfiguracionOpen(false);
+          }}
+          className={`
+            relative flex items-center justify-between w-full px-4 py-3 cursor-pointer
+            overflow-hidden group
+            bg-red-950
+            transition-all duration-300
+            ${reportesOpen ? "bg-red-900" : ""}
+          `}
+        >
+          <span className="absolute inset-0 bg-red-900 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 ease-in-out"></span>
+
+          <div className="relative flex items-center gap-4 z-10">
+            <img src={iconReport} alt="Icono Reportes" className="w-6 h-6" />
+            {sidebarOpen && <span className="text-lg">Reportes</span>}
+          </div>
+
+          {sidebarOpen && (
+            <img
+              src={arrowRight}
+              alt="Flecha"
+              className={`relative z-10 w-4 h-4 ml-2 transition-transform duration-300 ${
+                reportesOpen ? "rotate-90" : ""
+              }`}
+            />
+          )}
+        </button>
           <div className={`transition-all duration-500 overflow-hidden bg-[#2d0101] w-full ${reportesOpen && sidebarOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}>
             <button className="text-white text-left w-full px-6 py-2 hover:bg-red-900">Estado HAWB</button>
             <button className="text-white text-left w-full px-6 py-2 hover:bg-red-900">Clientes Casilleros</button>
@@ -193,17 +242,30 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
               setTrackingOpen(false);
               setReportesOpen(false);
               setPerfilOpen(false);
+              setConfiguracionOpen(false);
             }}
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+            className={`
+              relative flex items-center justify-between w-full px-4 py-3 cursor-pointer
+              overflow-hidden group
+              bg-red-950
+              transition-all duration-300
+              ${seguridadOpen ? "bg-red-900" : ""}
+            `}
           >
-            <div className="flex items-center gap-4">
+            <span className="absolute inset-0 bg-red-900 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 ease-in-out"></span>
+
+            <div className="relative flex items-center gap-4 z-10">
               <img src={iconSecurity} alt="Icono Seguridad" className="w-6 h-6" />
               {sidebarOpen && <span className="text-lg">Seguridad</span>}
             </div>
+
             {sidebarOpen && (
               <img
                 src={arrowRight}
-                className={`w-4 h-4 ml-2 transition-transform duration-300 ${seguridadOpen ? "rotate-90" : ""}`}
+                alt="Flecha"
+                className={`relative z-10 w-4 h-4 ml-2 transition-transform duration-300 ${
+                  seguridadOpen ? "rotate-90" : ""
+                }`}
               />
             )}
           </button>
@@ -224,21 +286,32 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
               setSeguridadOpen(false);
               setPerfilOpen(false);
             }}
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
+            className={`
+              relative flex items-center justify-between w-full px-4 py-3 cursor-pointer
+              overflow-hidden group
+              bg-red-950
+              transition-all duration-300
+              ${configuracionOpen ? "bg-red-900" : ""}
+            `}
           >
-            <div className="flex items-center gap-4">
+            <span className="absolute inset-0 bg-red-900 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 ease-in-out"></span>
+
+            <div className="relative flex items-center gap-4 z-10">
               <img src={iconSettings} alt="Icono Configuracion" className="w-6 h-6" />
               {sidebarOpen && <span className="text-lg">Configuración</span>}
             </div>
+
             {sidebarOpen && (
               <img
                 src={arrowRight}
-                className={`w-4 h-4 ml-2 transition-transform duration-300 ${
+                alt="Flecha"
+                className={`relative z-10 w-4 h-4 ml-2 transition-transform duration-300 ${
                   configuracionOpen ? "rotate-90" : ""
                 }`}
               />
             )}
           </button>
+          
           <div className={`transition-all duration-500 overflow-hidden bg-[#2d0101] w-full ${configuracionOpen && sidebarOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}>
             <button onClick={() => navigate("/config-trm")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">TRM</button>
             <button onClick={() => navigate("/config-tarifas")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Tarifas</button>
@@ -246,28 +319,35 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
         </div>
 
         <div className="flex flex-col mt-2 gap-2">
-          <button
-            onClick={() => {
-              setPerfilOpen((prev) => !prev);
-              setCasilleroOpen(false);
-              setOperacionesOpen(false);
-              setTrackingOpen(false);
-              setReportesOpen(false);
-              setSeguridadOpen(false);
-            }}
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
-          >
-            <div className="flex items-center gap-4">
-              <img src={iconPorfile} alt="Icono Perfil" className="w-6 h-6" />
-              {sidebarOpen && <span className="text-lg">Perfil</span>}
-            </div>
-            {sidebarOpen && (
-              <img
-                src={arrowRight}
-                className={`w-4 h-4 ml-2 transition-transform duration-300 ${perfilOpen ? "rotate-90" : ""}`}
-              />
-            )}
+        <button
+          onClick={() =>{
+            setPerfilOpen((prev) => !prev)
+            setCasilleroOpen(false);
+            setOperacionesOpen(false);
+            setTrackingOpen(false);
+            setReportesOpen(false);
+            setSeguridadOpen(false);
+            setConfiguracionOpen(false);
+          }}
+          className="relative flex items-center justify-between w-full px-4 py-3 cursor-pointer overflow-hidden bg-red-950 group"
+        >
+          <span className="absolute inset-0 bg-red-900 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 ease-in-out"></span>
+          <div className="relative flex items-center gap-2 z-10">
+            <img src={iconPorfile} alt="Icono Perfil" className="w-6 h-6" />
+            {sidebarOpen && <span className="text-lg">Perfil</span>}
+          </div>
+
+          {sidebarOpen && (
+            <img
+              src={arrowRight}
+              alt="Flecha"
+              className={`relative z-10 w-4 h-4 ml-2 transition-transform duration-300 ${
+                perfilOpen ? "rotate-90" : ""
+              }`}
+            />
+          )}
           </button>
+
           <div className={`transition-all duration-500 overflow-hidden bg-[#2d0101] w-full ${perfilOpen && sidebarOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}>
             <button onClick={() => navigate("/perfil")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Ver Perfil</button>
             <button
@@ -296,16 +376,16 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
       <main className="flex-1 flex flex-col overflow-hidden">
 
         <header className="flex justify-between items-center px-6 py-4 bg-white shadow-md z-10">
-          <div
-            onClick={() => navigate("/dashboardUsuario")}
-            className="h-12 sm:h-14 md:h-16 lg:h-20 xl:h-20 w-auto max-w-[100%] mx-auto object-contain cursor-pointer hover:scale-105 transition-transform duration-200"
-          >
-            <img
-              src={logo}
-              alt="Logo empresa"
-              className="h-12 sm:h-14 md:h-16 lg:h-20 xl:h-20 w-auto max-w-[100%] mx-auto object-contain"
-            />
-          </div>
+        <div
+          onClick={() => navigate("/dashboardUsuario")}
+          className="w-auto mx-auto cursor-pointer hover:scale-105 transition-transform duration-200"
+        >
+          <img
+            src={logo}
+            alt="Logo empresa"
+            className="h-28 sm:h-32 md:h-36 lg:h-25 xl:h-20 w-auto object-contain"
+          />
+        </div>
 
           <div className="flex items-center gap-4 absolute right-6 top-4">
             <span className="text-lg font-semibold">{cliente?.nombre}</span>

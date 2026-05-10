@@ -1,21 +1,20 @@
 import UserDashboardLayout from "../../layouts/UserDashboardLayout";
 import iconHome from "../../assets/home-svgrepo-com.svg";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import TablaResultadosTracking from "../../components/TablaResultadosTracking";
+import TablaResultadosTracking from "../../components/tracking/TablaResultadosTracking";
 import { ResultadoTracking } from "../../types/tracking";
-import ModalEditarTracking from "../../components/ModalEditarTracking";
+import ModalEditarTracking from "../../components/tracking/ModalEditarTracking";
 
 
 
 const ConsultarTracking = () => {
 
     const [hawb, setHawb] = useState("");
-    const [consolidado, setConsolidado] = useState("");
-    const [mawb, setMawb] = useState("");
     const [referencia, setReferencia] = useState("");
     const [estadoGuia, setEstadoGuia] = useState("");
+    const [estadosCatalogo, setEstadosCatalogo] = useState<any[]>([]);
     const [resultados, setResultados] = useState<ResultadoTracking[]>([]);
     const [error, setError] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,26 +22,51 @@ const ConsultarTracking = () => {
 
 
     const handleConsultar = async () => {
-    try {
-        const response = await axios.get(
-        `http://localhost:3000/api/paquetes/tracking/hawb/${hawb}`
-        );
+        try {
+            const response = await axios.get(
+            "http://localhost:3000/api/guias/consultar-tracking",
+            {
+                params: {
+                hawb,
+                referencia,
+                estadoGuia,
+                },
+            }
+            );
 
-        console.log("✅ DATA API:", response.data);
-
-        setResultados(response.data);
-        setError("");
-    } catch (err) {
-        console.error("❌ ERROR API:", err);
-        setError("No se encontraron resultados o hubo un error");
-        setResultados([]);
-    }
+            setResultados(response.data);
+            setError("");
+        } catch (err) {
+            console.error("❌ ERROR API:", err);
+            setError("No se encontraron resultados o hubo un error");
+            setResultados([]);
+        }
     };
 
     const handleEditar = (tracking: any) => {
         setTrackingSeleccionado(tracking);
         setIsModalOpen(true);
     };
+
+    useEffect(() => {
+    const cargarEstados = async () => {
+        try {
+        const { data } = await axios.get(
+            "http://localhost:3000/api/paquetes/catalogo-estados"
+        );
+
+        const estadosUnicos = [
+        ...new Map(data.map((item: any) => [item.estado_id, item])).values(),
+        ];
+
+        setEstadosCatalogo(estadosUnicos);
+        } catch (error) {
+        console.error("Error al cargar estados:", error);
+        }
+    };
+
+    cargarEstados();
+    }, []);
 
 
 
@@ -62,102 +86,93 @@ const ConsultarTracking = () => {
                 &gt; Consulta de Tracking
                 </p>
 
-                <div className="bg-gray-100 rounded-lg shadow  mb-6 border border-gray-300">
-                    <h2 className="text-sm font-bold p-6 text-gray-700">FILTROS DE BÚSQUEDA</h2>
-                    <div className="bg-white border border-gray-200 px-6 py-4">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="flex items-center gap-2">
-                                <label 
-                                className={`w-24 text-right text-sm transition-colors duration-300 
-                                ${hawb ? "text-green-900 font-semibold" : "text-gray-700"}`}
+                <div className="relative bg-white/95 border border-gray-200 shadow-xl rounded-2xl mb-8 overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-900 via-gray-300 to-red-900"></div>
+
+                    <div className="px-6 py-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-700">Filtros de búsqueda</h2>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Busca por HAWB, consolidado, hawb, referencia o estado de guía.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <div className="flex flex-col gap-2">
+                                <label
+                                className={`text-sm font-semibold transition-colors duration-300 ${hawb ? "text-red-900" : "text-gray-600"}`}
                                 >
                                     HAWB
                                 </label>
                                 <input
                                     type="text"
-                                    className="w-full max-w-[250px] min-w-0 border border-gray-300 rounded px-2 py-1 text-sm text-gray-700
-                                    transition-all duration-300 focus:outline-none focus:ring-0 focus:border-green-900"
+                                    className="w-full border border-gray-200 rounded-2xl px-3 py-3 text-sm text-gray-700 bg-white shadow-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-red-900/20 focus:border-red-900"
                                     value={hawb}
                                     onChange={(e) => setHawb(e.target.value)}
                                     placeholder="Ingrese HAWB"
                                 />
                             </div>
-                            <div className="flex items-center gap-2"> 
-                                <label 
-                                className={`w-24 text-right text-sm transition-colors duration-300 
-                                ${consolidado ? "text-green-900 font-semibold" : "text-gray-700"}`}
-                                >
-                                    Consolidado
-                                </label>
-                                <input
-                                type="text"
-                                className="w-full max-w-[250px] min-w-0 border border-gray-300 rounded px-2 py-1 text-sm text-gray-700
-                                transition-all duration-300 focus:outline-none focus:ring-0 focus:border-green-900"
-                                value={consolidado}
-                                onChange={(e) => setConsolidado(e.target.value)}
-                                />
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <label 
-                                className={`w-24 text-right text-sm transition-colors duration-300 
-                                ${mawb ? "text-green-900 font-semibold" : "text-gray-700"}`}
-                                >
-                                    MAWB
-                                </label>
-                                <input
-                                type="text"
-                                className="w-full max-w-[250px] border border-gray-300 rounded px-2 py-1 text-sm text-gray-700
-                                transition-all duration-300 focus:outline-none focus:ring-0 focus:border-green-900"
-                                value={mawb}
-                                onChange={(e) => setMawb(e.target.value)}
-                                />
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <label 
-                                className={`w-24 text-right text-sm transition-colors duration-300 
-                                ${referencia ? "text-green-900 font-semibold" : "text-gray-700"}`}
+
+
+
+                            <div className="flex flex-col gap-2">
+                                <label
+                                className={`text-sm font-semibold transition-colors duration-300 ${referencia ? "text-red-900" : "text-gray-600"}`}
                                 >
                                     Referencia
                                 </label>
                                 <input
                                 type="text"
-                                className="w-full max-w-[250px] border border-gray-300 rounded px-2 py-1 text-sm text-gray-700
-                                transition-all duration-300 focus:outline-none focus:ring-0 focus:border-green-900"
+                                className="w-full border border-gray-200 rounded-2xl px-3 py-3 text-sm text-gray-700 bg-white shadow-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-red-900/20 focus:border-red-900"
                                 value={referencia}
                                 onChange={(e) => setReferencia(e.target.value)}
+                                placeholder="Ingrese referencia"
                                 />
                             </div>
-                            <div className="flex items-center gap-2">
-                                <label 
-                                className={`w-24 text-right text-sm transition-colors duration-300 
-                                ${estadoGuia ? "text-green-900 font-semibold" : "text-gray-700"}`}
+
+                            <div className="flex flex-col gap-2">
+                                <label
+                                className={`text-sm font-semibold transition-colors duration-300 ${estadoGuia ? "text-red-900" : "text-gray-600"}`}
                                 >
-                                    Estado de guía</label>
-                                <input
-                                type="text"
-                                className="w-full max-w-[250px] border border-gray-300 rounded px-2 py-1 text-sm text-gray-700
-                                transition-all duration-300 focus:outline-none focus:ring-0 focus:border-green-900"
+                                    Estado de guía
+                                </label>
+                                <select
+                                className="w-full border border-gray-200 rounded-2xl px-3 py-3 text-sm text-gray-700 bg-white shadow-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-red-900/20 focus:border-red-900"
                                 value={estadoGuia}
                                 onChange={(e) => setEstadoGuia(e.target.value)}
-                                />
+                                >
+                                <option value="">Todos los estados</option>
+
+                                {estadosCatalogo.map((item: any) => (
+                                <option key={item.estado_id} value={item.estado}>
+                                    {item.estado}
+                                </option>
+                                ))}
+                                </select>
                             </div>
                         </div>
                     </div>
-                    <div className="flex items-end justify-end p-6">
-                        <button 
-                        className="bg-red-900 text-white px-4 py-2 rounded hover:bg-red-950 text-sm flex items-center gap-2"
+
+                    <div className="px-6 py-4 border-t border-gray-100 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        {error ? (
+                            <p className="text-sm text-red-600">{error}</p>
+                        ) : (
+                            <p className="text-sm text-gray-500">Completa al menos un filtro para buscar.</p>
+                        )}
+
+                        <button
+                        className="inline-flex items-center justify-center rounded-2xl bg-red-900 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-red-950 transition disabled:bg-gray-300 disabled:text-gray-500"
                         onClick={handleConsultar}
-                        disabled={!hawb.trim()}
+                        disabled={!hawb.trim() && !referencia.trim() && !estadoGuia.trim()}
                         >
                             Buscar
                         </button>
                     </div>
-                    {error && <p className="text-red-600">{error}</p>}
                 </div>
 
-                <div className="bg-white ro unded-lg shadow border rounded-lg border-gray-300">
-                    <TablaResultadosTracking resultados={resultados} onEditar={handleEditar} />
-                </div>
+                <TablaResultadosTracking resultados={resultados} onEditar={handleEditar} />
             </div>
         <ModalEditarTracking
             isOpen={isModalOpen}

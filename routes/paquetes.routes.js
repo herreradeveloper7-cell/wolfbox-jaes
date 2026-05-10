@@ -14,7 +14,9 @@ import {
   obtenerPaquetePorHAWB,
   eliminarEstadoTracking,
   crearEstadoTracking,
-  editarEstadoHistorial 
+  editarEstadoHistorial,
+  obtenerCatalogoEstados,
+  generarPDFEtiqueta
 } from "../controllers/paquetes.controller.js";
 
 const router = express.Router();
@@ -26,7 +28,7 @@ router.get("/", obtenerPaquetes);
 router.put("/editar/:id", editarPaquete);
 router.put("/editar-basico/:id", editarCamposBasicos);
 
-router.get("/buscar", buscarPaquetesFiltrados);
+router.post("/buscar", buscarPaquetesFiltrados);
 router.get("/reporte", generarReporteCSV);
 
 router.get("/tracking/hawb/:hawb", obtenerPaquetePorHAWB);
@@ -36,6 +38,8 @@ router.delete("/tracking/estado/historial/:id", eliminarEstadoTracking);
 
 router.get("/validar/tracking/:valor", validarTracking);
 router.get("/validar/referencia/:valor", validarReferencia);
+router.get("/catalogo-estados", obtenerCatalogoEstados);
+router.get("/pdf/:hawb", generarPDFEtiqueta);
 
 router.get("/por-cliente/:referencia", obtenerPaquetesPorCliente);
 

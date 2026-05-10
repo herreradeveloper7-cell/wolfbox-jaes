@@ -1,14 +1,19 @@
 
-// 👉 Tipo que ya usas en tablas, listados, etc.
 export interface Solicitud {
   id: number;
   fecha: string;
   estado: string;
+  cliente_nombre: string;
+  codigo_referencia: string;
   destinatario: number | null;
   destinatario_nombre?: string;
   hawbs?: string;
   cantidadPaquetes?: number;
   pesoTotal?: string | number;
+  hawbs_agrupados?: string | null;
+  hawbs_normales?: string | null;
+  guia_agrupada?: string | null;
+
 }
 
 // 👉 Tipo SOLO para el PDF (con toda la info enriquecida)
@@ -25,6 +30,8 @@ export interface SolicitudPDFData {
   destinatario_ciudad: string;
   destinatario_direccion: string;
   destinatario_telefono: string;
+  servicio_id?: number;
+  servicio_nombre?: string;
 
   // Paquetes
   paquetes: {

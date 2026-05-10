@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import logo from "../assets/LogoJaesCargo.svg";
+import logo from "../assets/logoJaesHome.png";
 import Loader from "../components/Loader";
 
 export default function LoginPage() {
@@ -37,8 +37,6 @@ export default function LoginPage() {
         setLoginError("");
         const usuario = data.usuario;
 
-        console.log("🧾 Tipo detectado:", usuario.tipo);
-        console.log("👤 Datos recibidos:", usuario);
 
         if (usuario.tipo === "cliente") {
           localStorage.setItem("cliente", JSON.stringify(usuario));
@@ -66,105 +64,171 @@ export default function LoginPage() {
         return <Loader />;
       }      
     
-    return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-200 p-4">
-            <div className="absolute top-6 left-6">
-            <svg
-                onClick={() => navigate("/")}
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-20 h-20 cursor-pointer hover:scale-110  transition"
-                
-            >
-                <title>Volver a Home</title>
-                <path
-                d="M16.19 2H7.81C4.17 2 2 4.17 2 7.81V16.18C2 19.83 4.17 22 7.81 22H16.18C19.82 22 21.99 19.83 21.99 16.19V7.81C22 4.17 19.83 2 16.19 2ZM13.92 16.13H9C8.59 16.13 8.25 15.79 8.25 15.38C8.25 14.97 8.59 14.63 9 14.63H13.92C15.2 14.63 16.25 13.59 16.25 12.3C16.25 11.01 15.21 9.97 13.92 9.97H8.85L9.11 10.23C9.4 10.53 9.4 11 9.1 11.3C8.95 11.45 8.76 11.52 8.57 11.52C8.38 11.52 8.19 11.45 8.04 11.3L6.47 9.72C6.18 9.43 6.18 8.95 6.47 8.66L8.04 7.09C8.33 6.8 8.81 6.8 9.1 7.09C9.39 7.38 9.39 7.86 9.1 8.15L8.77 8.48H13.92C16.03 8.48 17.75 10.2 17.75 12.31C17.75 14.42 16.03 16.13 13.92 16.13Z"
-                fill="#82181A"
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-slate-200 px-4 py-8 flex items-center justify-center">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(130,24,26,0.16),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(21,128,61,0.12),transparent_35%)]"></div>
+
+      <button
+        type="button"
+        onClick={() => navigate("/")}
+        className="absolute left-5 top-5 z-20 flex items-center gap-2 rounded-2xl border border-red-900/10 bg-white/80 px-4 py-2.5 text-xs font-bold text-red-900 shadow-lg backdrop-blur transition hover:-translate-y-0.5 hover:bg-white hover:shadow-xl cursor-pointer"
+      >
+        ← Volver
+      </button>
+
+      <div className="relative z-10 grid w-full max-w-5xl overflow-hidden rounded-[1.5rem] border border-white/70 bg-white/90 shadow-2xl backdrop-blur-xl lg:grid-cols-[1fr_0.95fr]">
+        <section className="relative hidden min-h-[540px] overflow-hidden bg-gradient-to-br from-red-950 via-red-900 to-slate-950 p-8 text-white lg:flex lg:flex-col lg:justify-between">
+          <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-white/10 blur-3xl"></div>
+          <div className="absolute -bottom-24 -left-24 h-60 w-60 rounded-full bg-green-500/10 blur-3xl"></div>
+
+          <div>
+            <img
+              src={logo}
+              alt="Logo Jaes Cargo"
+              className="h-24 w-24 rounded-3xl bg-white/95 object-contain p-4 shadow-2xl"
+            />
+
+            <div className="mt-9">
+              <p className="mb-3 inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.24em] text-white/80">
+                Acceso seguro para todos
+              </p>
+
+              <h1 className="max-w-md text-3xl font-black leading-tight tracking-tight">
+                Plataforma operativa Jaes Cargo Internacional SAS
+              </h1>
+
+              <p className="mt-4 max-w-md text-sm leading-6 text-white/70">
+                Gestiona tus operaciones logísticas con nuestra plataforma, diseñada para ofrecer seguridad, eficiencia y control total sobre tus envíos. Con Jaes Cargo, tu carga está en buenas manos.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur">
+              <p className="text-xl font-black">24/7</p>
+              <p className="mt-1 text-xs text-white/60">Acceso seguro</p>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur">
+              <p className="text-xl font-black">Wolfbox</p>
+              <p className="mt-1 text-xs text-white/60">Cargo system</p>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur">
+              <p className="text-xl font-black">JaesCargo</p>
+              <p className="mt-1 text-xs text-white/60">Operaciones</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="flex min-h-[540px] flex-col justify-center px-6 py-8 sm:px-8 lg:px-10">
+          <div className="mx-auto w-full max-w-sm">
+            <div className="mb-6 flex justify-center lg:hidden">
+              <img
+                src={logo}
+                alt="Logo Jaes Cargo"
+                className="h-24 w-24 object-contain"
+              />
+            </div>
+
+            <div className="mb-6 text-center lg:text-left">
+              <p className="mb-3 inline-flex rounded-full border border-red-900/10 bg-red-900/5 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.22em] text-red-900">
+                Inicio de sesión
+              </p>
+
+              <h2 className="text-2xl font-black tracking-tight text-gray-700">
+                Bienvenido nuevamente
+              </h2>
+
+              <p className="mt-2 text-sm text-slate-500">
+                Ingresa tus credenciales para acceder al sistema.
+              </p>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                  Correo electrónico
+                </label>
+
+                <input
+                  type="email"
+                  required
+                  placeholder="Ingrese su correo electrónico"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (loginError) setLoginError("");
+                  }}
+                  className="w-full rounded-2xl border border-gray-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-slate-700 shadow-inner outline-none transition-all duration-300 placeholder:text-slate-400 hover:border-gray-300 focus:border-red-900 focus:bg-white focus:ring-4 focus:ring-red-900/10"
                 />
-            </svg>
-            </div>
+              </div>
 
+              <div>
+                <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                  Contraseña
+                </label>
 
-            <img src={logo} alt="Logo de WolfBox" className="mt-4 w-32 h-32 sm:w-36 sm:h-36 md:w-60 md:h-60" />
-            <div className="w-full max-w-sm sm:max-w-md md:max-w-lg p-6 sm:p-8 bg-white rounded-2xl shadow-lg flex flex-col justify-between min-h-[620px]">
-                <h2 className="text-center text-2xl font-semibold mb-10">
-                    Inicie sesión para su ingreso
-                </h2>
+                <input
+                  type="password"
+                  required
+                  placeholder="Ingrese su contraseña"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (loginError) setLoginError("");
+                  }}
+                  className="w-full rounded-2xl border border-gray-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-slate-700 shadow-inner outline-none transition-all duration-300 placeholder:text-slate-400 hover:border-gray-300 focus:border-red-900 focus:bg-white focus:ring-4 focus:ring-red-900/10"
+                />
+              </div>
 
-                <form
-                onSubmit={handleLogin}
-                className="flex flex-col"
+              {loginError && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700">
+                  {loginError}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <label className="flex cursor-pointer items-center gap-3 text-xs font-semibold text-slate-500 sm:text-sm">
+                  <input
+                    id="keepSession"
+                    type="checkbox"
+                    checked={stayLoggedIn}
+                    onChange={(e) => setStayLoggedIn(e.target.checked)}
+                    className="h-4 w-4 cursor-pointer rounded border-gray-300 accent-red-900"
+                  />
+                  Mantener sesión iniciada
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/password-reset")}
+                  className="text-left text-xs font-bold text-red-900 transition hover:text-red-950 hover:underline sm:text-sm cursor-pointer"
                 >
-                    <input
-                    type="email"
-                    required
-                    placeholder="Correo electrónico"
-                    value={email}
-                    onChange={(e) => {
-                        setEmail(e.target.value);
-                        if (loginError) setLoginError("");
-                    }}
-                    className="w-full border px-3 py-2 mb-3 rounded text-base sm:text-lg"
-                    />
-                    <input
-                    type="password"
-                    required
-                    placeholder="Contraseña"
-                    value={password}
-                    onChange={(e) => {
-                        setPassword(e.target.value);
-                        if (loginError) setLoginError("");
-                    }}
-                    className="w-full border px-3 py-2 mb-3 rounded text-base sm:text-lg"
-                    />
-                    {loginError && (
-                        <p className="text-red-600 text-sm mt-1">{loginError}</p>
-                    )}
-
-                    <div className="flex items-center mb-8 text-sm">
-                    <input
-                        id="keepSession"
-                        type="checkbox"
-                        checked={stayLoggedIn}
-                        onChange={(e) => setStayLoggedIn(e.target.checked)}
-                        className="w-5 h-5 sm:w-6 sm:h-6 rounded cursor-pointer"
-                    />
-                    <label htmlFor="keepSession" className="ml-3 select-none text-sm sm:text-base text-gray-500 font-semibold">
-                        Mantener sesión iniciada
-                    </label>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className={`w-full bg-red-900 text-white text-lg sm:text-xl py-3 sm:py-4 rounded font-semibold transition
-                                  ${loading ? "opacity-60 cursor-not-allowed" : "hover:bg-red-950 hover:scale-[1.02] cursor-pointer"}`}
-                    >
-                      {loading ? "Validando..." : "Iniciar sesión"}
-                    </button>
-                </form>
-
-                <p className="text-center text-lg text-gray-600 mt-6">
-                    ¿Olvido su contraseña?
-                </p>
-
-                <button className="w-full bg-red-900 text-white text-lg sm:text-xl py-3 sm:py-4 mt-3 rounded font-semibold transition hover:bg-red-950 hover:scale-[1.02] cursor-pointer"
-
-                >
-                    Consultar Estado
+                  ¿Olvidó su contraseña?
                 </button>
-                <button 
-                onClick={() => navigate("/register")}
-                className="w-full bg-red-900 text-white text-lg sm:text-xl py-3 sm:py-4 mt-4 rounded font-semibold transition hover:bg-red-950 hover:scale-[1.02] cursor-pointer"
-                >
-                    Crear cuenta de casillero
-                </button>
+              </div>
 
-                <p className="mt-8 text-center text-gray-600 text-sm">
-                Copyright © Wolfbox Software 2025
-                </p>
-            </div>
-        </div>
-    );
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full rounded-2xl px-5 py-3 text-sm font-black text-white shadow-xl transition-all duration-300
+                  ${
+                    loading
+                      ? "cursor-not-allowed bg-gray-300 text-gray-500 shadow-none"
+                      : "cursor-pointer bg-red-900 hover:-translate-y-0.5 hover:bg-red-950 hover:shadow-red-900/25"
+                  }`}
+              >
+                {loading ? "Validando acceso..." : "Iniciar sesión"}
+              </button>
+            </form>
+
+            <p className="mt-6 text-center text-xs font-semibold text-slate-400">
+              Copyright © Wolfbox Software 2025
+            </p>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
 }

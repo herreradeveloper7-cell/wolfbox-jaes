@@ -81,6 +81,7 @@ export const loginGeneral = async (req, res) => {
           email: usuario.correo,
           tipo: usuario.tipo_usuario,
           genero: usuario.genero,
+          fecha_creacion: usuario.fecha_creacion,
         }
       });
     }
@@ -89,7 +90,7 @@ export const loginGeneral = async (req, res) => {
       .input("email", sql.VarChar, email)
       .query(`
         SELECT * FROM clientes 
-        WHERE email = @email
+        WHERE correo = @email
       `);
 
     const cliente = resultCliente.recordset[0];
@@ -107,7 +108,7 @@ export const loginGeneral = async (req, res) => {
         usuario: {
           id: cliente.id,
           nombre: `${cliente.primer_nombre} ${cliente.primer_apellido}`,
-          email: cliente.email,
+          email: cliente.correo,
           codigoReferencia: cliente.codigo_referencia,
           genero: cliente.genero,
           tipo: "cliente"

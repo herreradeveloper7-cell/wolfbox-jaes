@@ -1,34 +1,49 @@
-import { sql, poolPromise } from '../config/db.js';
-import bcrypt from 'bcrypt';
+import { sql, poolPromise } from "../config/db.js";
+import bcrypt from "bcrypt";
 
 function generarCodigoReferencia(texto) {
-  const letras = texto.trim().toUpperCase().slice(0, 3);
+  const letras = (texto || "").trim().toUpperCase().slice(0, 3);
   const numeros = Math.floor(10000 + Math.random() * 90000);
   return `JACO${letras}${numeros}`;
 }
 
-
+/* =======================================================
+    1) VALIDAR CLIENTE EXISTENTE
+======================================================= */
 export const validarClienteExistente = async (req, res) => {
   const { email, numeroIdentificacion } = req.body;
+
   try {
     const pool = await poolPromise;
-    const resultado = await pool.request()
-      .input("email", sql.NVarChar, email)
-      .input("id", sql.NVarChar, numeroIdentificacion)
-      .query("SELECT * FROM clientes WHERE email = @email OR numero_identificacion = @id");
+
+    const resultado = await pool
+      .request()
+      .input("correo", sql.VarChar, email)
+      .input("numero_identificacion", sql.VarChar, numeroIdentificacion)
+      .query(`
+        SELECT TOP 1 id
+        FROM clientes
+        WHERE correo = @correo OR numero_identificacion = @numero_identificacion
+      `);
 
     if (resultado.recordset.length > 0) {
       return res.status(200).json({ ok: false });
     }
 
     return res.status(200).json({ ok: true });
-
   } catch (err) {
-    res.status(500).json({ ok: false, error: "Error de validación" });
+    console.error("❌ validarClienteExistente ERROR:", err);
+    return res.status(500).json({ ok: false, error: err.message });
   }
 };
 
+/* =======================================================
+    2) REGISTRAR CLIENTE
+======================================================= */
 export const registrarCliente = async (req, res) => {
+  const pool = await poolPromise;
+  const transaction = new sql.Transaction(pool);
+
   try {
     const {
       razonSocial,
@@ -49,151 +64,207 @@ export const registrarCliente = async (req, res) => {
       celular,
       telefonoFijo,
       genero,
-      tipo_cliente
+      tipo_cliente,
     } = req.body;
 
-    console.log("Tipo de cliente recibido:", tipo_cliente); 
-
     const hashedPassword = await bcrypt.hash(contrasena, 10);
-    let codigoReferencia = "";
 
+    let codigoReferencia = "";
     if (tipo_cliente === "personal") {
       codigoReferencia = generarCodigoReferencia(primerNombre);
-    }
-
-    if (tipo_cliente === "empresarial") {
+    } else {
       codigoReferencia = generarCodigoReferencia(razonSocial);
     }
-    const pool = await poolPromise;
 
-    await pool.request()
-      .input('tipoIdentificacion', sql.VarChar, tipoIdentificacion)
-      .input('numeroIdentificacion', sql.VarChar, numeroIdentificacion)
-      .input('primerNombre', sql.VarChar, primerNombre)
-      .input('segundoNombre', sql.VarChar, segundoNombre)
-      .input('primerApellido', sql.VarChar, primerApellido)
-      .input('segundoApellido', sql.VarChar, segundoApellido)
-      .input('email', sql.VarChar, email)
-      .input('contrasena', sql.VarChar, hashedPassword)
-      .input('fechaNacimiento', sql.Date, fechaNacimiento)
-      .input('pais', sql.VarChar, pais)
-      .input('region', sql.VarChar, region)
-      .input('ciudad', sql.VarChar, ciudad)
-      .input('direccion', sql.VarChar, direccion)
-      .input('indicativo', sql.VarChar, indicativo)
-      .input('celular', sql.VarChar, celular)
-      .input('telefonoFijo', sql.VarChar, telefonoFijo)
-      .input('genero', sql.VarChar, genero)
-      .input('nombre_empresa', sql.NVarChar, razonSocial)
-      .input('codigoReferencia', sql.VarChar, codigoReferencia)
-      .input('tipo_cliente', sql.VarChar, tipo_cliente) 
+    await transaction.begin();
+
+    /* =====================================================
+       1️⃣ Insertar cliente y obtener ID
+    ===================================================== */
+    const requestCliente = new sql.Request(transaction);
+
+    const clienteResult = await requestCliente
+      .input("tipo_identificacion", sql.VarChar, tipoIdentificacion)
+      .input("numero_identificacion", sql.VarChar, numeroIdentificacion)
+      .input("primer_nombre", sql.VarChar, primerNombre)
+      .input("segundo_nombre", sql.VarChar, segundoNombre)
+      .input("primer_apellido", sql.VarChar, primerApellido)
+      .input("segundo_apellido", sql.VarChar, segundoApellido)
+      .input("correo", sql.VarChar, email)
+      .input("contrasena", sql.VarChar, hashedPassword)
+      .input("fecha_nacimiento", sql.Date, fechaNacimiento)
+      .input("pais", sql.VarChar, pais)
+      .input("region", sql.VarChar, region)
+      .input("ciudad", sql.VarChar, ciudad)
+      .input("direccion", sql.VarChar, direccion)
+      .input("indicativo", sql.VarChar, indicativo)
+      .input("celular", sql.VarChar, celular)
+      .input("telefono_fijo", sql.VarChar, telefonoFijo)
+      .input("genero", sql.VarChar, genero)
+      .input("nombre_empresa", sql.VarChar, razonSocial)
+      .input("codigo_referencia", sql.VarChar, codigoReferencia)
+      .input("tipo_cliente", sql.VarChar, tipo_cliente)
       .query(`
         INSERT INTO clientes (
-          tipo_identificacion, numero_identificacion, primer_nombre, segundo_nombre,
-          primer_apellido, segundo_apellido, email, contrasena,
+          tipo_identificacion, numero_identificacion,
+          primer_nombre, segundo_nombre,
+          primer_apellido, segundo_apellido,
+          correo, contrasena,
           fecha_nacimiento, pais, region, ciudad, direccion,
-          indicativo, celular, telefono_fijo, genero, nombre_empresa,
-          codigo_referencia, tipo_cliente
+          indicativo, celular, telefono_fijo,
+          genero, nombre_empresa, codigo_referencia, tipo_cliente
         )
+        OUTPUT INSERTED.id
         VALUES (
-          @tipoIdentificacion, @numeroIdentificacion, @primerNombre, @segundoNombre,
-          @primerApellido, @segundoApellido, @email, @contrasena,
-          @fechaNacimiento, @pais, @region, @ciudad, @direccion,
-          @indicativo, @celular, @telefonoFijo, @genero, @nombre_empresa,
-          @codigoReferencia, @tipo_cliente
+          @tipo_identificacion, @numero_identificacion,
+          @primer_nombre, @segundo_nombre,
+          @primer_apellido, @segundo_apellido,
+          @correo, @contrasena,
+          @fecha_nacimiento, @pais, @region, @ciudad, @direccion,
+          @indicativo, @celular, @telefono_fijo,
+          @genero, @nombre_empresa, @codigo_referencia, @tipo_cliente
         )
       `);
 
-    res.status(201).json({ 
-      message: 'Cliente registrado correctamente',
-      codigoReferencia: codigoReferencia
-    });
+    const cliente_id = clienteResult.recordset[0].id;
 
+    /* =====================================================
+       2️⃣ Crear destinatario por defecto
+    ===================================================== */
+    const requestDest = new sql.Request(transaction);
+
+    const nombreDestinatario =
+      tipo_cliente === "empresarial"
+        ? razonSocial
+        : `${primerNombre} ${primerApellido}`;
+
+    const telefono = celular || telefonoFijo || "";
+
+    await requestDest
+      .input("nombre", sql.VarChar(150), nombreDestinatario)
+      .input("ciudad", sql.VarChar(100), ciudad)
+      .input("direccion", sql.VarChar(255), direccion)
+      .input("telefono", sql.VarChar(50), telefono)
+      .input("cliente_id", sql.Int, cliente_id)
+      .input("pais", sql.NVarChar(80), pais)
+      .input("departamento", sql.NVarChar(80), region)
+      .input("activo", sql.Bit, 1)
+      .input("es_default", sql.Bit, 1) 
+      .query(`
+        INSERT INTO destinatarios (
+          nombre, ciudad, direccion, telefono,
+          cliente_id, pais, departamento, activo, es_default
+        )
+        VALUES (
+          @nombre, @ciudad, @direccion, @telefono,
+          @cliente_id, @pais, @departamento, @activo, @es_default
+        )
+      `);
+
+    await transaction.commit();
+
+    return res.status(201).json({
+      ok: true,
+      message: "Cliente registrado y destinatario por defecto creado",
+      codigoReferencia,
+    });
   } catch (error) {
-    console.error('❌ Error al registrar cliente:', error);
-    res.status(500).json({ message: 'Error al registrar cliente' });
+    try { await transaction.rollback(); } catch {}
+    console.error("❌ Error al registrar cliente:", error);
+    return res.status(500).json({ ok: false, message: error.message });
   }
 };
 
 
+
+
+/* =======================================================
+    3) LOGIN CLIENTE
+======================================================= */
 export const loginCliente = async (req, res) => {
   const { email, contrasena } = req.body;
 
   try {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('email', sql.VarChar, email)
-      .query('SELECT * FROM clientes WHERE email = @email');
+
+    const result = await pool
+      .request()
+      .input("correo", sql.VarChar, email)
+      .query("SELECT TOP 1 * FROM clientes WHERE correo = @correo");
 
     const cliente = result.recordset[0];
 
     if (!cliente) {
-      return res.status(401).json({ ok: false, message: 'Correo no registrado' });
+      return res.status(401).json({ ok: false, message: "Correo no registrado" });
     }
 
     const passwordMatch = await bcrypt.compare(contrasena, cliente.contrasena);
 
     if (!passwordMatch) {
-      return res.status(401).json({ ok: false, message: 'Contraseña incorrecta' });
+      return res.status(401).json({ ok: false, message: "Contraseña incorrecta" });
     }
 
     return res.status(200).json({
       ok: true,
-      message: 'Inicio de sesión exitoso',
+      message: "Inicio de sesión exitoso",
       cliente: {
         id: cliente.id,
         nombre: `${cliente.primer_nombre} ${cliente.primer_apellido}`,
-        email: cliente.email,
+        correo: cliente.correo,
         codigoReferencia: cliente.codigo_referencia,
         genero: cliente.genero,
         direccion: cliente.direccion,
         ciudad: cliente.ciudad,
         region: cliente.region,
         celular: cliente.celular,
-        tipo: cliente.tipo_usuario
-      }
+        tipo_cliente: cliente.tipo_cliente,
+      },
     });
-
   } catch (error) {
-    console.error('❌ Error en loginCliente:', error);
-    return res.status(500).json({ ok: false, message: 'Error al iniciar sesión' });
+    console.error("❌ Error en loginCliente:", error);
+    return res.status(500).json({ ok: false, message: error.message });
   }
 };
 
+/* =======================================================
+    4) ACTUALIZAR PERFIL
+======================================================= */
 export const actualizarPerfilCliente = async (req, res) => {
   try {
     const { id, nombre, email, genero, direccion, ciudad, region, celular } = req.body;
 
     const pool = await poolPromise;
-    await pool.request()
-    .input("id", sql.Int, id)
-    .input("nombre", sql.NVarChar, nombre)
-    .input("email", sql.NVarChar, email)
-    .input("genero", sql.VarChar, genero)
-    .input("direccion", sql.NVarChar, direccion)
-    .input("ciudad", sql.NVarChar, ciudad)
-    .input("region", sql.NVarChar, region)
-    .input("celular", sql.NVarChar, celular)
+
+    await pool
+      .request()
+      .input("id", sql.Int, id)
+      .input("primer_nombre", sql.VarChar, nombre)
+      .input("correo", sql.VarChar, email) // ✅ columna real
+      .input("genero", sql.VarChar, genero)
+      .input("direccion", sql.VarChar, direccion)
+      .input("ciudad", sql.VarChar, ciudad)
+      .input("region", sql.VarChar, region)
+      .input("celular", sql.VarChar, celular)
       .query(`
         UPDATE clientes
         SET 
-        primer_nombre = @nombre,
-        email = @email,
-        genero = @genero,
-        direccion = @direccion,
-        ciudad = @ciudad,
-        region = @region,
-        celular = @celular
+          primer_nombre = @primer_nombre,
+          correo = @correo,
+          genero = @genero,
+          direccion = @direccion,
+          ciudad = @ciudad,
+          region = @region,
+          celular = @celular
         WHERE id = @id
       `);
 
-    res.status(200).json({ ok: true, message: "Perfil actualizado correctamente" });
-
+    return res.status(200).json({ ok: true, message: "Perfil actualizado correctamente" });
   } catch (err) {
-    console.error("Error al actualizar perfil:", err);
-    res.status(500).json({ ok: false, message: "Error al actualizar perfil" });
+    console.error("❌ Error al actualizar perfil:", err);
+    return res.status(500).json({ ok: false, message: err.message });
   }
 };
+
 
 export const buscarCliente = async (req, res) => {
   try {
@@ -202,46 +273,71 @@ export const buscarCliente = async (req, res) => {
     const pool = await poolPromise;
     const busqueda = `%${valor}%`;
 
-    const result = await pool.request()
+    const result = await pool
+      .request()
       .input("valor", sql.VarChar, busqueda)
       .query(`
         SELECT 
-          id, 
-          ISNULL(CONCAT(primer_nombre, ' ', primer_apellido), nombre_empresa) AS nombre,
-          codigo_referencia, 
-          email AS correo, 
-          celular AS telefono
+          id,
+          tipo_identificacion,
+          numero_identificacion,
+          primer_nombre,
+          segundo_nombre,
+          primer_apellido,
+          segundo_apellido,
+          ISNULL(
+            NULLIF(
+              LTRIM(RTRIM(CONCAT(
+                ISNULL(primer_nombre, ''), ' ',
+                ISNULL(segundo_nombre, ''), ' ',
+                ISNULL(primer_apellido, ''), ' ',
+                ISNULL(segundo_apellido, '')
+              ))), 
+              ''
+            ),
+            nombre_empresa
+          ) AS nombre,
+          correo,
+          fecha_nacimiento,
+          pais,
+          region,
+          ciudad,
+          direccion,
+          indicativo,
+          celular,
+          telefono_fijo,
+          genero,
+          nombre_empresa,
+          codigo_referencia,
+          tipo_cliente,
+          fecha_creacion
         FROM clientes
         WHERE 
           codigo_referencia LIKE @valor
           OR primer_nombre LIKE @valor
+          OR segundo_nombre LIKE @valor
           OR primer_apellido LIKE @valor
+          OR segundo_apellido LIKE @valor
           OR nombre_empresa LIKE @valor
+          OR correo LIKE @valor
+        ORDER BY fecha_creacion DESC
       `);
 
-    return res.json({
-      ok: true,
-      clientes: result.recordset
-    });
-
+    return res.json({ ok: true, clientes: result.recordset });
   } catch (error) {
     console.error("❌ Error al buscar cliente:", error);
-    return res.status(500).json({
-      ok: false,
-      mensaje: "Error interno del servidor"
-    });
+    return res.status(500).json({ ok: false, mensaje: error.message });
   }
 };
-
 
 export const buscarClienteDestinatarios = async (req, res) => {
   try {
     const { texto } = req.params;
-
     const pool = await poolPromise;
 
-    const result = await pool.request()
-      .input("texto", `%${texto}%`)
+    const result = await pool
+      .request()
+      .input("texto", sql.VarChar, `%${texto}%`)
       .query(`
         SELECT TOP 10 
           id, 
@@ -256,12 +352,81 @@ export const buscarClienteDestinatarios = async (req, res) => {
         ORDER BY nombre ASC
       `);
 
-    res.json(result.recordset);
-
+    return res.json(result.recordset);
   } catch (error) {
-    console.log("❌ Error buscando cliente (destinatarios):", error);
-    res.status(500).json({ ok: false, msg: "Error buscando cliente" });
+    console.error("❌ Error buscando cliente (destinatarios):", error);
+    return res.status(500).json({ ok: false, msg: error.message });
   }
 };
 
+export const actualizarClienteAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
 
+    const {
+      correo,
+      tipo_cliente,
+      pais,
+      region,
+      ciudad,
+      direccion,
+      indicativo,
+      celular,
+      telefono_fijo,
+      genero,
+      nombre_empresa,
+      tipo_identificacion,
+      numero_identificacion,
+    } = req.body;
+
+    const pool = await poolPromise;
+
+    await pool
+      .request()
+      .input("id", sql.Int, id)
+      .input("correo", sql.VarChar(150), correo)
+      .input("tipo_cliente", sql.VarChar(50), tipo_cliente)
+      .input("pais", sql.VarChar(100), pais)
+      .input("region", sql.VarChar(100), region)
+      .input("ciudad", sql.VarChar(100), ciudad)
+      .input("direccion", sql.VarChar(255), direccion)
+      .input("indicativo", sql.VarChar(20), indicativo)
+      .input("celular", sql.VarChar(50), celular)
+      .input("telefono_fijo", sql.VarChar(50), telefono_fijo)
+      .input("genero", sql.VarChar(50), genero)
+      .input("nombre_empresa", sql.VarChar(150), nombre_empresa)
+      .input("tipo_identificacion", sql.VarChar(50), tipo_identificacion)
+      .input("numero_identificacion", sql.VarChar(50), numero_identificacion)
+      .query(`
+        UPDATE clientes
+        SET
+          correo = @correo,
+          tipo_cliente = @tipo_cliente,
+          pais = @pais,
+          region = @region,
+          ciudad = @ciudad,
+          direccion = @direccion,
+          indicativo = @indicativo,
+          celular = @celular,
+          telefono_fijo = @telefono_fijo,
+          nombre_empresa = @nombre_empresa,
+          tipo_identificacion = @tipo_identificacion,
+          numero_identificacion = @numero_identificacion,
+          genero = @genero
+        WHERE id = @id
+      `);
+
+    return res.status(200).json({
+      ok: true,
+      mensaje: "Cliente actualizado correctamente",
+    });
+
+  } catch (error) {
+    console.error("❌ Error actualizando cliente:", error);
+
+    return res.status(500).json({
+      ok: false,
+      mensaje: "Error actualizando cliente",
+    });
+  }
+};

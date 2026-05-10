@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { ReactNode, useState, useEffect } from "react";
-import logo from "../assets/logoJaesCargo.png";
+import logo from "../assets/LogoJaesDashboard.svg";
 import iconCasillero from "../assets/lockers-storage-svgrepo-com.svg"; 
 import iconToggleMostrar from "../assets/mostrarSlid.svg"; 
 import iconHombre from "../assets/malecostume-svgrepo-com.svg";
@@ -46,28 +46,30 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
       >
         <div className="flex flex-col mt-25 gap-2">
 
-          <button
-            onClick={() =>{
-              setCasilleroOpen((prev) => !prev)
-              setPerfilOpen(false)
-              }}
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <img src={iconCasillero} alt="Icono Casillero" className="w-6 h-6" />
-              {sidebarOpen && <span className="text-lg">Casillero</span>}
-            </div>
+      <button
+        onClick={() =>{
+          setCasilleroOpen((prev) => !prev)
+          setPerfilOpen(false)
+        }}
+        className="relative flex items-center justify-between w-full px-4 py-3 cursor-pointer overflow-hidden bg-red-950 group"
+      >
+        <span className="absolute inset-0 bg-red-900 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 ease-in-out"></span>
 
-            {sidebarOpen && (
-              <img
-                src={arrowRight}
-                alt="Flecha"
-                className={`w-4 h-4 ml-2 transition-transform duration-300 ${
-                casilleroOpen ? "rotate-90" : ""
-                }`}
-              />
-            )}
-          </button>
+        <div className="relative flex items-center gap-2 z-10">
+          <img src={iconCasillero} alt="Icono Casillero" className="w-6 h-6" />
+          {sidebarOpen && <span className="text-lg">Casillero</span>}
+        </div>
+
+        {sidebarOpen && (
+          <img
+            src={arrowRight}
+            alt="Flecha"
+            className={`relative z-10 w-4 h-4 ml-2 transition-transform duration-300 ${
+              casilleroOpen ? "rotate-90" : ""
+            }`}
+          />
+        )}
+      </button>
 
           <div
             className={`transition-all duration-500 ease-in-out overflow-hidden bg-[#2d0101] w-full
@@ -88,29 +90,30 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
 
 
         <div className="flex flex-col">
-          <button
-            onClick={() => {
-              setPerfilOpen((prev) => !prev)
-              setCasilleroOpen(false)
-            }}
-            className="flex items-center justify-between w-full px-4 py-3 cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              {/* Icono de perfil */}
-              <img src={iconPorfile} alt="Icono Perfil" className="w-6 h-6" />
-              {sidebarOpen && <span className="text-lg">Perfil</span>}
-            </div>
+        <button
+          onClick={() =>{
+            setPerfilOpen((prev) => !prev)
+            setCasilleroOpen(false)
+          }}
+          className="relative flex items-center justify-between w-full px-4 py-3 cursor-pointer overflow-hidden bg-red-950 group"
+        >
+          <span className="absolute inset-0 bg-red-900 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 ease-in-out"></span>
 
-            {sidebarOpen && ( 
-              <img
-                src={arrowRight}
-                alt="Flecha"
-                className={`w-4 h-4 ml-2 transition-transform duration-300 ${
-                casilleroOpen ? "rotate-90" : ""
-                }`}
-              />
-            )}
-          </button>
+          <div className="relative flex items-center gap-2 z-10">
+            <img src={iconPorfile} alt="Icono Perfil" className="w-6 h-6" />
+            {sidebarOpen && <span className="text-lg">Perfil</span>}
+          </div>
+
+          {sidebarOpen && (
+            <img
+              src={arrowRight}
+              alt="Flecha"
+              className={`relative z-10 w-4 h-4 ml-2 transition-transform duration-300 ${
+                perfilOpen ? "rotate-90" : ""
+              }`}
+            />
+          )}
+        </button>
           <div
             className={`transition-all duration-500 ease-in-out overflow-hidden bg-[#2d0101] w-full 
               ${perfilOpen && sidebarOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}
@@ -149,7 +152,6 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
       </button>
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Top bar */}
         <header className="flex justify-between items-center px-6 py-4 bg-white shadow-md z-10">
           <div
             onClick={() => navigate("/dashboardCliente")}

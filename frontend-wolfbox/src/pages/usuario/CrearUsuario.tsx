@@ -209,160 +209,174 @@ export default function CrearUsuario() {
         </p>
 
         <form
-          className="bg-white shadow-lg rounded-lg p-6 max-w-3xl space-y-4"
+          className="bg-white shadow-2xl shadow-slate-200/40 rounded-[32px] border border-gray-200 p-8 max-w-3xl mx-auto space-y-8"
           onSubmit={handleSubmit}
         >
-          <div>
-            <label className="block text-sm font-semibold">Nombre *</label>
-            <input
-              type="text"
-              name="nombre"
-              value={formData.nombre}
-              onChange={handleInputChange}
-              className={`w-full border rounded px-3 py-2 outline-none transition-all duration-300
-                ${
-                  errors.nombre
-                    ? "border-red-500 focus:border-red-600"
-                    : formData.nombre
-                    ? "border-green-700 focus:border-green-800"
-                    : "border-gray-300 focus:border-green-800"
-                }
-              `}
-              required
-            />
-            {errors.nombre && (
-              <p className="text-red-600 text-xs mt-1 font-medium">{errors.nombre}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold">Correo *</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              className={`w-full border rounded px-3 py-2 outline-none transition-all duration-300
-                ${
-                  errors.nombre
-                    ? "border-red-500 focus:border-red-600"
-                    : formData.nombre
-                    ? "border-green-700 focus:border-green-800"
-                    : "border-gray-300 focus:border-green-800"
-                }
-              `}
-              required
-            />
-            {errors.email && (
-              <p className="text-red-600 text-xs mt-1 font-medium">{errors.email}</p>
-            )}
-            {emailExistente && (
-              <p className="text-red-600 text-xs mt-1 font-medium">
-                ⚠ Este correo ya está registrado
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 rounded-full bg-red-900/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-red-900">
+              CREACIÓN CORPORATIVA
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">Registrar usuario</h2>
+              <p className="text-sm text-slate-500">
+                Completa los datos de acceso y define permisos con un estilo moderno y profesional.
               </p>
-            )}
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold">Contraseña *</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleInputChange}
-              className={`w-full border rounded px-3 py-2 outline-none transition-all duration-300
-                ${
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Nombre *
+              </label>
+              <input
+                type="text"
+                name="nombre"
+                value={formData.nombre}
+                onChange={handleInputChange}
+                className={`w-full rounded-2xl border px-4 py-3 text-sm text-slate-900 bg-slate-50 shadow-sm outline-none transition duration-300 focus:ring-2 focus:ring-red-900/10 ${
                   errors.nombre
                     ? "border-red-500 focus:border-red-600"
                     : formData.nombre
                     ? "border-green-700 focus:border-green-800"
                     : "border-gray-300 focus:border-green-800"
-                }
-              `}
-              required
-            />
+                }`}
+                required
+              />
+              {errors.nombre && (
+                <p className="text-red-600 text-xs mt-1 font-medium">{errors.nombre}</p>
+              )}
+            </div>
 
-            {formData.password && (
-              <div className="mt-1">
-                {formData.password.length < 6 && (
-                  <p className="text-red-600 text-xs font-semibold">Seguridad: ❌ Débil</p>
-                )}
-                {formData.password.length >= 6 && formData.password.length < 10 && (
-                  <p className="text-yellow-500 text-xs font-semibold">Seguridad: 🟡 Media</p>
-                )}
-                {formData.password.length >= 10 && (
-                  <p className="text-green-600 text-xs font-semibold">Seguridad: 🟢 Alta</p>
-                )}
-              </div>
-            )}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Correo *
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                className={`w-full rounded-2xl border px-4 py-3 text-sm text-slate-900 bg-slate-50 shadow-sm outline-none transition duration-300 focus:ring-2 focus:ring-red-900/10 ${
+                  errors.email
+                    ? "border-red-500 focus:border-red-600"
+                    : formData.email
+                    ? "border-green-700 focus:border-green-800"
+                    : "border-gray-300 focus:border-green-800"
+                }`}
+                required
+              />
+              {errors.email && (
+                <p className="text-red-600 text-xs mt-1 font-medium">{errors.email}</p>
+              )}
+              {emailExistente && (
+                <p className="text-red-600 text-xs mt-1 font-medium">
+                  ⚠ Este correo ya está registrado
+                </p>
+              )}
+            </div>
 
-            {errors.password && (
-              <p className="text-red-600 text-xs mt-1 font-medium">{errors.password}</p>
-            )}
-          </div>
+            <div className="space-y-2 sm:col-span-2">
+              <label className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Contraseña *
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleInputChange}
+                className={`w-full rounded-2xl border px-4 py-3 text-sm text-slate-900 bg-slate-50 shadow-sm outline-none transition duration-300 focus:ring-2 focus:ring-red-900/10 ${
+                  errors.password
+                    ? "border-red-500 focus:border-red-600"
+                    : formData.password
+                    ? "border-green-700 focus:border-green-800"
+                    : "border-gray-300 focus:border-green-800"
+                }`}
+                required
+              />
 
-          <div>
-            <label className="block text-sm font-semibold">Género *</label>
-            <select
-              name="genero"
-              value={formData.genero}
-              onChange={handleInputChange}
-              required
-              className={`w-full border rounded px-3 py-2 outline-none transition-all duration-300
-                ${
+              {formData.password && (
+                <div className="mt-1">
+                  {formData.password.length < 6 && (
+                    <p className="text-red-600 text-xs font-semibold">Seguridad: ❌ Débil</p>
+                  )}
+                  {formData.password.length >= 6 && formData.password.length < 10 && (
+                    <p className="text-yellow-500 text-xs font-semibold">Seguridad: 🟡 Media</p>
+                  )}
+                  {formData.password.length >= 10 && (
+                    <p className="text-green-600 text-xs font-semibold">Seguridad: 🟢 Alta</p>
+                  )}
+                </div>
+              )}
+
+              {errors.password && (
+                <p className="text-red-600 text-xs mt-1 font-medium">{errors.password}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Género *
+              </label>
+              <select
+                name="genero"
+                value={formData.genero}
+                onChange={handleInputChange}
+                required
+                className={`w-full rounded-2xl border px-4 py-3 text-sm text-slate-900 bg-slate-50 shadow-sm outline-none transition duration-300 focus:ring-2 focus:ring-red-900/10 ${
                   errors.genero
                     ? "border-red-500 focus:border-red-600"
                     : formData.genero
                     ? "border-green-700 focus:border-green-800"
                     : "border-gray-300 focus:border-green-800"
-                }
-              `}
-            >
-              <option value="">Seleccione...</option>
-              <option value="masculino">Masculino</option>
-              <option value="femenino">Femenino</option>
-            </select>
-            {errors.genero && (
-              <p className="text-red-600 text-xs mt-1 font-medium">{errors.genero}</p>
-            )}
-          </div>
+                }`}
+              >
+                <option value="">Seleccione...</option>
+                <option value="masculino">Masculino</option>
+                <option value="femenino">Femenino</option>
+              </select>
+              {errors.genero && (
+                <p className="text-red-600 text-xs mt-1 font-medium">{errors.genero}</p>
+              )}
+            </div>
 
-          <div>
-            <label className="block text-sm font-semibold">Rol *</label>
-            <select
-              name="tipo"
-              value={formData.tipo}
-              onChange={handleRolChange}
-              required
-              className={`w-full border rounded px-3 py-2 outline-none transition-all duration-300
-                ${
-                  errors.genero
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Rol *
+              </label>
+              <select
+                name="tipo"
+                value={formData.tipo}
+                onChange={handleRolChange}
+                required
+                className={`w-full rounded-2xl border px-4 py-3 text-sm text-slate-900 bg-slate-50 shadow-sm outline-none transition duration-300 focus:ring-2 focus:ring-red-900/10 ${
+                  errors.tipo
                     ? "border-red-500 focus:border-red-600"
-                    : formData.genero
+                    : formData.tipo
                     ? "border-green-700 focus:border-green-800"
                     : "border-gray-300 focus:border-green-800"
-                }
-              `}
-            >
-              <option value="">Seleccione...</option>
-              <option value="admin">Administrador</option>
-              <option value="usuario">Usuario</option>
-            </select>
-            {errors.tipo && (
-              <p className="text-red-600 text-xs mt-1 font-medium">{errors.tipo}</p>
-            )}
+                }`}
+              >
+                <option value="">Seleccione...</option>
+                <option value="admin">Administrador</option>
+                <option value="usuario">Usuario</option>
+              </select>
+              {errors.tipo && (
+                <p className="text-red-600 text-xs mt-1 font-medium">{errors.tipo}</p>
+              )}
+            </div>
           </div>
 
           {formData.tipo && formData.tipo !== "cliente" && (
-            <div className="mt-4 p-4 bg-gray-50 border rounded">
-              <h3 className="font-semibold text-gray-700 mb-2">Permisos del usuario</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="rounded-[28px] border border-slate-200 bg-slate-950/5 p-5 shadow-sm">
+              <h3 className="font-semibold text-slate-900 mb-3">Permisos del usuario</h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {permisosPorRol[formData.tipo]?.map((permiso) => (
                   <label
                     key={permiso}
-                    className="flex justify-between items-center p-2 border rounded bg-white"
+                    className="flex justify-between items-center rounded-2xl border border-slate-200 bg-white/90 p-3 transition hover:border-green-600"
                   >
-                    <span className="text-gray-700 text-sm">{permiso}</span>
+                    <span className="text-slate-700 text-sm">{permiso}</span>
 
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
@@ -372,10 +386,10 @@ export default function CrearUsuario() {
                         onChange={() => togglePermiso(permiso)}
                       />
                       <span
-                        className={`w-11 h-6 flex items-center bg-gray-300 rounded-full p-1 duration-300 ${
+                        className={`w-11 h-6 flex items-center rounded-full p-1 duration-300 ${
                           permisosSeleccionados.includes(permiso)
                             ? "bg-green-500"
-                            : ""
+                            : "bg-slate-300"
                         }`}
                       >
                         <span
@@ -393,13 +407,11 @@ export default function CrearUsuario() {
             </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:justify-end sm:items-center">
             <button
               type="button"
-              className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
-              onClick={() => {
-                resetForm();
-              }}
+              className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-slate-50 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+              onClick={resetForm}
             >
               Cancelar
             </button>
@@ -411,12 +423,12 @@ export default function CrearUsuario() {
                 emailExistente ||
                 Object.values(errors).some(error => error !== "")
               }
-              className={`px-6 py-2 rounded text-white flex items-center gap-2 transition-all ${
+              className={`inline-flex items-center justify-center rounded-2xl px-6 py-2.5 text-sm font-semibold text-white transition-all ${
                 isSubmitting ||
                 emailExistente ||
                 Object.values(errors).some(error => error !== "")
                   ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-green-600 hover:bg-green-700"
+                  : "bg-green-600 shadow-lg shadow-green-600/20 hover:bg-green-700"
               }`}
             >
               {isSubmitting ? (

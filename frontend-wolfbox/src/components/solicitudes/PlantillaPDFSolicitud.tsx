@@ -1,6 +1,7 @@
 import React from "react";
 import logo from "../../assets/logoJaesCargo.png";
 
+
 interface Props {
   solicitud: any;
 }
@@ -8,6 +9,53 @@ interface Props {
 const PlantillaPDFSolicitud = React.forwardRef<HTMLDivElement, Props>(
   ({ solicitud }, ref) => {
     const safe = (v: any) => Number(v || 0);
+
+const formatCOP = (value: any) =>
+  Number(value || 0).toLocaleString("es-CO", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  const paquetes = solicitud.paquetes || [];
+
+const guiaAgrupada = paquetes.find((p: any) =>
+  String(p.hawb).endsWith("G")
+);
+
+const paquetesAgrupados = paquetes.filter(
+  (p: any) => !String(p.hawb).endsWith("G")
+);
+
+const pesoTotalAgrupado = paquetesAgrupados.reduce(
+  (acc: number, p: any) => acc + safe(p.peso),
+  0
+);
+
+const aseguradoTotalAgrupado = paquetesAgrupados.reduce(
+  (acc: number, p: any) => acc + safe(p.asegurado),
+  0
+);
+
+const contenidoAgrupado = paquetesAgrupados
+  .map((p: any) => p.contenido)
+  .filter((c: any) => c && String(c).trim() !== "")
+  .join(", ");
+
+const totalCargosCOP = solicitud.cargos?.reduce(
+  (acc: number, cargo: any) => acc + safe(cargo.valor_cop),
+  0
+) || 0;
+
+const totalFinalCOP = safe(solicitud.totalCOP) + totalCargosCOP;
+const servicioNombre = solicitud.servicio_nombre || solicitud.servicio || "Servicio no especificado";
+
+// Formatear fecha a YYYY-MM-DD
+const formatFecha = (fecha: any) => {
+  if (!fecha) return "";
+  const date = new Date(fecha);
+  return date.toISOString().split('T')[0];
+};
+
 
     return (
       <div
@@ -24,22 +72,40 @@ const PlantillaPDFSolicitud = React.forwardRef<HTMLDivElement, Props>(
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: "flex-start",
             marginBottom: "25px",
+            gap: "20px",
           }}
         >
           <img src={logo} style={{ width: "210px" }} />
 
-          <div style={{ textAlign: "right" }}>
+          <div style={{ textAlign: "right", minWidth: "280px" }}>
             <h1 style={{ margin: 0, fontSize: "28px", color: "#8B0000" }}>
               SOLICITUD DE ENVÍO
             </h1>
-            <p style={{ margin: 0, fontSize: "18px", fontWeight: "bold" }}>
+            <p style={{ margin: "8px 0 0", fontSize: "18px", fontWeight: "bold" }}>
               Nº {solicitud.id}
             </p>
-            <p style={{ margin: 0, fontSize: "14px", color: "#555" }}>
-              Fecha: {solicitud.fecha}
+            <p style={{ margin: "4px 0 0", fontSize: "14px", color: "#555" }}>
+              Fecha: {formatFecha(solicitud.fecha)}
             </p>
+            <div
+              style={{
+                marginTop: "16px",
+                padding: "14px",
+                borderRadius: "16px",
+                background: "rgba(139,0,0,0.08)",
+                border: "1px solid rgba(139,0,0,0.16)",
+                textAlign: "left",
+              }}
+            >
+              <p style={{ margin: 0, fontSize: "10px", letterSpacing: "0.12em", color: "#7a1c1c" }}>
+                SERVICIO
+              </p>
+              <p style={{ margin: "8px 0 0", fontSize: "16px", fontWeight: "700", color: "#222" }}>
+                {servicioNombre}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -54,7 +120,6 @@ const PlantillaPDFSolicitud = React.forwardRef<HTMLDivElement, Props>(
             background: "#fafafa",
           }}
         >
-          {/* CLIENTE */}
           <div style={{ width: "48%" }}>
             <h3 style={{ margin: "0 0 10px 0", color: "#8B0000" }}>CLIENTE</h3>
             <p>
@@ -107,7 +172,40 @@ const PlantillaPDFSolicitud = React.forwardRef<HTMLDivElement, Props>(
           </thead>
 
           <tbody>
-            {solicitud.paquetes?.map((p: any, i: number) => (
+
+            {guiaAgrupada && (
+              <tr
+                style={{
+                  background: "#8B0000",
+                  color: "white",
+                  fontWeight: "bold",
+                }}
+              >
+                <td style={td}>—</td>
+                <td style={td}>{guiaAgrupada.hawb}</td>
+                <td style={td}>{contenidoAgrupado}</td>
+                <td style={td}>{pesoTotalAgrupado}</td>
+                <td style={td}>{aseguradoTotalAgrupado}</td>
+              </tr>
+            )}
+
+            {guiaAgrupada && (
+              <tr>
+                <td
+                  colSpan={5}
+                  style={{
+                    padding: "10px",
+                    background: "#f5f5f5",
+                    fontWeight: "bold",
+                    color: "#444",
+                    border: "1px solid #ddd",
+                  }}
+                >
+                  DETALLE DE PAQUETES AGRUPADOS
+                </td>
+              </tr>
+            )}
+            {(guiaAgrupada ? paquetesAgrupados : paquetes).map((p: any, i: number) => (
               <tr key={i}>
                 <td style={td}>{p.tracking}</td>
                 <td style={td}>{p.hawb}</td>
@@ -116,6 +214,7 @@ const PlantillaPDFSolicitud = React.forwardRef<HTMLDivElement, Props>(
                 <td style={td}>{p.asegurado}</td>
               </tr>
             ))}
+
           </tbody>
         </table>
 
@@ -185,12 +284,12 @@ const PlantillaPDFSolicitud = React.forwardRef<HTMLDivElement, Props>(
 
           <p>
             <strong>Total COP (sin cargos):</strong>{" "}
-            {safe(solicitud.totalCOP).toLocaleString("es-CO")}
+            {formatCOP(solicitud.totalCOP)}
           </p>
 
           <p>
             <strong>Cargos adicionales (COP):</strong>{" "}
-            {safe(solicitud.totalCargosCOP).toLocaleString("es-CO")}
+            {formatCOP(totalCargosCOP)}
           </p>
 
           <p
@@ -200,8 +299,9 @@ const PlantillaPDFSolicitud = React.forwardRef<HTMLDivElement, Props>(
               marginTop: "10px",
             }}
           >
-            <strong>Total FINAL (COP):</strong>{" "}
-            {safe(solicitud.totalCOPConCargos).toLocaleString("es-CO")}
+
+            <strong>Total FINAL (COP):</strong> {formatCOP(totalFinalCOP)}
+
           </p>
         </div>
 
@@ -225,10 +325,13 @@ const PlantillaPDFSolicitud = React.forwardRef<HTMLDivElement, Props>(
             <strong>Davivienda</strong>
           </p>
           <p>
-            <strong>Cuenta de Ahorros:</strong> 23700007197
+            <strong>Cuenta de Ahorros:</strong> 1089 0062 3159
           </p>
           <p>
-            <strong>NIT:</strong> 901826561
+            <strong>NIT:</strong> 901.935.143-6
+          </p>
+          <p>
+            <strong>Llave:</strong> @9019351436
           </p>
         </div>
 
