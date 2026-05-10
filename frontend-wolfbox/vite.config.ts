@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const apiUrl = env.VITE_API_URL || 'https://wolfbox-jaes-production.up.railway.app/api'
+  const apiUrl = env.VITE_API_URL || 'https://api.wolfbox.app/api'
   const apiTarget = apiUrl.replace(/\/api\/?$/, '')
 
   return {
