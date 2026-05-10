@@ -42,11 +42,11 @@ export default function TablaResultadosTracking({ resultados, onEditar }: TablaR
 
   const handleEliminar = async (estadoId: number, hawb: string) => {
     try {
-      await axios.delete(`http://localhost:3000/api/paquetes/tracking/estado/historial/${estadoId}`);
+      await axios.delete(`/api/paquetes/tracking/estado/historial/${estadoId}`);
 
       setModalMensaje("✅ Estado eliminado correctamente");
 
-      const { data } = await axios.get(`http://localhost:3000/api/paquetes/tracking/hawb/${hawb}`);
+      const { data } = await axios.get(`/api/paquetes/tracking/hawb/${hawb}`);
 
       const nuevoTracking = data[0];
 

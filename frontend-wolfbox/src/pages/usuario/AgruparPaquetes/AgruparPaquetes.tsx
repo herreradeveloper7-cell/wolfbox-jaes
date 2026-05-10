@@ -46,7 +46,7 @@ export default function AgruparPaquetes(){
 
         try {
         const { data } = await axios.get(
-            `http://localhost:3000/api/agrupaciones/puntos-control?oficina_id=${oficina}`
+            `/api/agrupaciones/puntos-control?oficina_id=${oficina}`
         );
 
         setPuntosControl(data);
@@ -64,7 +64,7 @@ export default function AgruparPaquetes(){
     const cargarOficinas = async () => {
         try {
         const { data } = await axios.get(
-            "http://localhost:3000/api/agrupaciones/oficinas"
+            "/api/agrupaciones/oficinas"
         );
 
         setOficinas(data);
@@ -89,7 +89,7 @@ export default function AgruparPaquetes(){
         setLoading(true);
 
         const { data } = await axios.get(
-        "http://localhost:3000/api/agrupaciones/solicitudes",
+        "/api/agrupaciones/solicitudes",
         {
             params: {
             page: pagina,

@@ -248,7 +248,6 @@ export const subirComprobante = async (req, res) => {
       });
     }
 
-    // 🔥 RUTA DONDE SE GUARDA
     const rutaArchivo = `http://localhost:3000/uploads/comprobantes/${req.file.filename}`;
 
     const pool = await poolPromise;
@@ -257,7 +256,6 @@ export const subirComprobante = async (req, res) => {
     request.input("id", sql.Int, id);
     request.input("comprobante", sql.VarChar, rutaArchivo);
 
-    // 🔥 GUARDAR EN BD
     await request.query(`
       UPDATE solicitudes
       SET comprobante = @comprobante

@@ -39,7 +39,7 @@ const ModalHistorialGuia: React.FC<Props> = ({ hawb, onClose }) => {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/api/paquetes/tracking/hawb/${hawb}`
+        `/api/paquetes/tracking/hawb/${hawb}`
       );
 
       if (!response.ok) throw new Error("No se pudo obtener el historial");

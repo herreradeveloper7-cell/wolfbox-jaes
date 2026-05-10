@@ -31,7 +31,7 @@ export default function ModalEditarDestinatario({
 
   useEffect(() => {
     const cargarPaises = async () => {
-      const res = await fetch("http://localhost:3000/api/catalogos/paises");
+      const res = await fetch("/api/catalogos/paises");
       const data = await res.json();
       setPaises(data);
     };
@@ -64,7 +64,7 @@ export default function ModalEditarDestinatario({
 
     const cargarRegiones = async () => {
       const res = await fetch(
-        `http://localhost:3000/api/catalogos/regiones/${form.pais_id}`
+        `/api/catalogos/regiones/${form.pais_id}`
       );
       const data = await res.json();
       setRegiones(data);
@@ -81,7 +81,7 @@ export default function ModalEditarDestinatario({
 
     const cargarCiudades = async () => {
       const res = await fetch(
-        `http://localhost:3000/api/catalogos/ciudades/${form.region_id}`
+        `/api/catalogos/ciudades/${form.region_id}`
       );
       const data = await res.json();
       setCiudades(data);

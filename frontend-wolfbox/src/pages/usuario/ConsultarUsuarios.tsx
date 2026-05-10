@@ -26,7 +26,7 @@ export default function ConsultarUsuario() {
 
   const obtenerUsuarios = async () => {
     try {
-      const { data } = await axios.get("http://localhost:3000/api/usuarios/listar");
+      const { data } = await axios.get("/api/usuarios/listar");
       const filtrados = data.filter((u: any) => u.tipo_usuario !== "cliente");
       setUsuarios(filtrados);
       setUsuariosFiltrados(filtrados);
@@ -52,7 +52,7 @@ export default function ConsultarUsuario() {
     setShowModal(true);
 
     try {
-      const { data } = await axios.get(`http://localhost:3000/api/usuarios/detalle/${id}`);
+      const { data } = await axios.get(`/api/usuarios/detalle/${id}`);
       setUsuarioDetalle(data);
     } catch (err) {
       console.error("❌ Error obteniendo detalle", err);
@@ -71,7 +71,7 @@ export default function ConsultarUsuario() {
 
   const cambiarEstado = async (id: number, estado: string) => {
     try {
-      await axios.put(`http://localhost:3000/api/usuarios/estado/${id}`, { estado });
+      await axios.put(`/api/usuarios/estado/${id}`, { estado });
       await obtenerUsuarios();
       Swal.fire({
         icon: "success",
@@ -96,7 +96,7 @@ export default function ConsultarUsuario() {
     if (!result.isConfirmed) return;
 
     try {
-      await axios.delete(`http://localhost:3000/api/usuarios/eliminar/${id}`);
+      await axios.delete(`/api/usuarios/eliminar/${id}`);
       await obtenerUsuarios();
       Swal.fire("Eliminado", "Usuario eliminado correctamente", "success");
     } catch {

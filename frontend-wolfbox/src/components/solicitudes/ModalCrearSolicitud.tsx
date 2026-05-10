@@ -42,7 +42,7 @@ export default function ModalCrearSolicitud({
   useEffect(() => {
     const cargarTRM = async () => {
       try {
-        const { data } = await axios.get("http://localhost:3000/api/trm/actual");
+        const { data } = await axios.get("/api/trm/actual");
         if (data?.valor) {
           setTrmActual(Number(data.valor));
         }
@@ -59,7 +59,7 @@ export default function ModalCrearSolicitud({
   useEffect(() => {
     const cargarServicio = async () => {
       try {
-        const { data } = await axios.get(`http://localhost:3000/api/servicios/${servicioId}`);
+        const { data } = await axios.get(`/api/servicios/${servicioId}`);
 
         if (data.ok) {
           setServicio(data.servicio);

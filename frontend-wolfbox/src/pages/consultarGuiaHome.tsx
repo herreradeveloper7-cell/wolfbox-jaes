@@ -26,7 +26,7 @@ type GuiaPublica = {
   estados: EstadoTracking[];
 };
 
-const API_URL = "http://localhost:3000/api/paquetes/tracking/hawb";
+const API_URL = "/api/paquetes/tracking/hawb";
 
 export default function ConsultarGuiaHome() {
   const navigate = useNavigate();

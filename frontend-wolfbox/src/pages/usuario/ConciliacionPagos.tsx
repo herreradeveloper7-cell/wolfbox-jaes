@@ -32,7 +32,7 @@ export default function ConciliacionPago() {
                 if (value) params.append(key, value);
             });
 
-            const res = await fetch(`http://localhost:3000/api/conciliacion?${params.toString()}`);
+            const res = await fetch(`/api/conciliacion?${params.toString()}`);
             const data = await res.json();
 
             if (Array.isArray(data)) {
@@ -52,7 +52,7 @@ export default function ConciliacionPago() {
         try {
 
             const { data } = await axios.get(
-            `http://localhost:3000/api/solicitudes/pdf-data/${sol.solicitud_id}`
+            `/api/solicitudes/pdf-data/${sol.solicitud_id}`
             );
 
             generarPdfSolicitud(data.solicitud);
@@ -86,7 +86,7 @@ export default function ConciliacionPago() {
 
         try {
 
-            const res = await fetch(`http://localhost:3000/api/clientes/buscar/${texto}`);
+            const res = await fetch(`/api/clientes/buscar/${texto}`);
             const data = await res.json();
 
             if (data.ok) {
@@ -122,7 +122,7 @@ export default function ConciliacionPago() {
         const formData = new FormData();
         formData.append("comprobante", archivo);
 
-        const res = await fetch(`http://localhost:3000/api/conciliacion/subir-comprobante/${id}`, {
+        const res = await fetch(`/api/conciliacion/subir-comprobante/${id}`, {
         method: "POST",
         body: formData,
         });

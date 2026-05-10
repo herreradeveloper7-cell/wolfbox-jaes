@@ -59,7 +59,7 @@ export default function TablaPaquetesDigitados({
 
 
   const imprimirEtiqueta = (paquete: Paquete) => {
-    window.open(`http://localhost:3000/api/paquetes/pdf/${paquete.hawb}`, "_blank");
+    window.open(`/api/paquetes/pdf/${paquete.hawb}`, "_blank");
   };
 
   const anularGuia = async (paquete: Paquete) => {
@@ -105,7 +105,7 @@ export default function TablaPaquetesDigitados({
       const usuarioGuardado = localStorage.getItem("usuario");
       const usuario = usuarioGuardado ? JSON.parse(usuarioGuardado) : null;
 
-      const response = await fetch(`http://localhost:3000/api/paquetes/anular/${paquete.hawb}`, {
+      const response = await fetch(`/api/paquetes/anular/${paquete.hawb}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

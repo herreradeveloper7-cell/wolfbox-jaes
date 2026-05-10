@@ -66,7 +66,7 @@ const TablaResultadosGuia: React.FC<Props> = ({
       const usuarioGuardado = localStorage.getItem("usuario");
       const usuario = usuarioGuardado ? JSON.parse(usuarioGuardado) : null;
 
-      await axios.put(`http://localhost:3000/api/paquetes/anular/${hawb}`, {
+      await axios.put(`/api/paquetes/anular/${hawb}`, {
         responsable: usuario?.nombre || "Usuario del sistema"
       });
 
@@ -84,7 +84,7 @@ const TablaResultadosGuia: React.FC<Props> = ({
   };
 
   const handleImprimirEtiqueta = (row: GuiaRow) => {
-    window.open(`http://localhost:3000/api/paquetes/pdf/${row.guia}`, "_blank");
+    window.open(`/api/paquetes/pdf/${row.guia}`, "_blank");
   };
 
   if (loading) return <div className="p-6 text-center">Cargando…</div>;

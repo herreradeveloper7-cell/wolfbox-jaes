@@ -62,6 +62,8 @@ app.use("/uploads", express.static("uploads"));
 
 
 const PORT = process.env.PORT || 3000;
+const PUBLIC_URL = process.env.PUBLIC_URL || "https://wolfbox-jaes-production.up.railway.app";
+
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor escuchando en http://localhost:${PORT}`);
+  console.log(`🚀 Servidor escuchando en ${PUBLIC_URL}`);
 });

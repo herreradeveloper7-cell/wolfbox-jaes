@@ -23,7 +23,7 @@ export default function ModalEditarSolicitud({
   const cargarDatos = async () => {
     try {
       const { data } = await axios.get(
-        `http://localhost:3000/api/solicitudes/detalle/${solicitud.id}`
+        `/api/solicitudes/detalle/${solicitud.id}`
       );
 
       setDetalle(data.paquetes || []);
@@ -41,7 +41,7 @@ export default function ModalEditarSolicitud({
       }
 
       const dest = await axios.get(
-        `http://localhost:3000/api/destinatarios/por-cliente/${codigoCasillero}`
+        `/api/destinatarios/por-cliente/${codigoCasillero}`
       );
 
       const lista = Array.isArray(dest.data.destinatarios)
@@ -55,11 +55,11 @@ export default function ModalEditarSolicitud({
       }
 
       const catalogo = await axios.get(
-        "http://localhost:3000/api/solicitudes/catalogo/cargos"
+        "/api/solicitudes/catalogo/cargos"
       );
       setCatalogoCargos(catalogo.data);
 
-      const trmData = await axios.get(`http://localhost:3000/api/trm/actual`);
+      const trmData = await axios.get(`/api/trm/actual`);
       setTrm(Number(trmData.data.valor));
     } catch (err) {
       console.error(err);
@@ -87,7 +87,7 @@ export default function ModalEditarSolicitud({
 
     try {
       await axios.put(
-        `http://localhost:3000/api/solicitudes/paquete/remover/${paquete.paquete_id}`
+        `/api/solicitudes/paquete/remover/${paquete.paquete_id}`
       );
 
       setDetalle(detalle.filter((p) => p.paquete_id !== paquete.paquete_id));
@@ -144,7 +144,7 @@ export default function ModalEditarSolicitud({
 
     try {
       await axios.put(
-        `http://localhost:3000/api/solicitudes/editar/${solicitud.id}`,
+        `/api/solicitudes/editar/${solicitud.id}`,
         {
           paquetes: detalle,
           cargos,

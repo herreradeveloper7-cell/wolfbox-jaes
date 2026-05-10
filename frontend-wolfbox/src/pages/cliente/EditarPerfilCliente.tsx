@@ -30,7 +30,7 @@ export default function EditarPerfilCliente() {
     e.preventDefault();
   
     try {
-      const res = await fetch("http://localhost:3000/api/clientes/actualizar-perfil", {
+      const res = await fetch("/api/clientes/actualizar-perfil", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(cliente)

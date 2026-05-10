@@ -24,7 +24,7 @@ const ConsultarTracking = () => {
     const handleConsultar = async () => {
         try {
             const response = await axios.get(
-            "http://localhost:3000/api/guias/consultar-tracking",
+            "/api/guias/consultar-tracking",
             {
                 params: {
                 hawb,
@@ -52,7 +52,7 @@ const ConsultarTracking = () => {
     const cargarEstados = async () => {
         try {
         const { data } = await axios.get(
-            "http://localhost:3000/api/paquetes/catalogo-estados"
+            "/api/paquetes/catalogo-estados"
         );
 
         const estadosUnicos = [

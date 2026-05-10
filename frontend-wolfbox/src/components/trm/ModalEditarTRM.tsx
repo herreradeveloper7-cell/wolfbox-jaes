@@ -33,7 +33,7 @@ export default function ModalEditarTRM({
     }
 
     try {
-      await axios.put(`http://localhost:3000/api/trm/${fila.id}`, {
+      await axios.put(`/api/trm/${fila.id}`, {
         valor: Number(valor),
         fecha: fecha    // <-- manda la fecha exacta
       });

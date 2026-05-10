@@ -23,7 +23,7 @@ export default function DestinatariosCasilleros() {
     setClienteSeleccionado(cli);
     setBusquedaCliente(cli.codigo_referencia);
 
-    const r2 = await axios.get(`http://localhost:3000/api/destinatarios/${cli.id}`);
+    const r2 = await axios.get(`/api/destinatarios/${cli.id}`);
     setDestinatarios(r2.data);
   };
 
@@ -41,7 +41,7 @@ export default function DestinatariosCasilleros() {
 
     try {
       const { data } = await axios.get(
-        `http://localhost:3000/api/clientes/buscar/${encodeURIComponent(busquedaCliente)}`
+        `/api/clientes/buscar/${encodeURIComponent(busquedaCliente)}`
       );
 
       if (!Array.isArray(data.clientes) || data.clientes.length === 0) {
@@ -54,7 +54,7 @@ export default function DestinatariosCasilleros() {
       const cliente = data.clientes[0];
       setClienteSeleccionado(cliente);
 
-      const r2 = await axios.get(`http://localhost:3000/api/destinatarios/${cliente.id}`);
+      const r2 = await axios.get(`/api/destinatarios/${cliente.id}`);
 
       setDestinatarios(Array.isArray(r2.data) ? r2.data : []);
 
@@ -67,7 +67,7 @@ export default function DestinatariosCasilleros() {
 
   const handleCrearDestinatario = async (data: any) => {
     try {
-      await axios.post("http://localhost:3000/api/destinatarios/crear", {
+      await axios.post("/api/destinatarios/crear", {
         ...data,
         cliente_id: clienteSeleccionado.id
       });
@@ -76,7 +76,7 @@ export default function DestinatariosCasilleros() {
 
       setShowModal(false);
 
-      const r2 = await axios.get(`http://localhost:3000/api/destinatarios/${clienteSeleccionado.id}`);
+      const r2 = await axios.get(`/api/destinatarios/${clienteSeleccionado.id}`);
       setDestinatarios(r2.data);
 
     } catch (e) {
@@ -99,10 +99,10 @@ export default function DestinatariosCasilleros() {
     if (!confirm.isConfirmed) return;
 
     try {
-      await axios.delete(`http://localhost:3000/api/destinatarios/${dest.id}`);
+      await axios.delete(`/api/destinatarios/${dest.id}`);
 
       const r2 = await axios.get(
-        `http://localhost:3000/api/destinatarios/${clienteSeleccionado.id}`
+        `/api/destinatarios/${clienteSeleccionado.id}`
       );
       setDestinatarios(r2.data);
 
@@ -274,12 +274,12 @@ export default function DestinatariosCasilleros() {
             onClose={() => setEditingDestinatario(null)}
             onSave={async (data) => {
               await axios.put(
-                `http://localhost:3000/api/destinatarios/${editingDestinatario.id}`,
+                `/api/destinatarios/${editingDestinatario.id}`,
                 data
               );
 
               const r2 = await axios.get(
-                `http://localhost:3000/api/destinatarios/${clienteSeleccionado.id}`
+                `/api/destinatarios/${clienteSeleccionado.id}`
               );
               setDestinatarios(r2.data);
 

@@ -31,7 +31,7 @@ export default function VerClientes() {
 
     try {
         const { data } = await axios.get(
-        `http://localhost:3000/api/clientes/buscar/${encodeURIComponent(texto)}`
+        `/api/clientes/buscar/${encodeURIComponent(texto)}`
         );
 
         const clientes = data.clientes || [];

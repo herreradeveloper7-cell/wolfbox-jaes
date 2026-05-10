@@ -94,7 +94,7 @@ export default function ModalVerDetalleSolicitud({
     const cargar = async () => {
       try {
         const { data } = await axios.get(
-          `http://localhost:3000/api/solicitudes/detalle/${solicitud.id}`
+          `/api/solicitudes/detalle/${solicitud.id}`
         );
 
       setDetalle({
@@ -115,7 +115,7 @@ export default function ModalVerDetalleSolicitud({
     const cargarTRM = async () => {
       try {
         const { data } = await axios.get(
-          "http://localhost:3000/api/trm/actual"
+          "/api/trm/actual"
         );
         if (data?.valor) setTrmActual(Number(data.valor));
       } catch {}
@@ -130,7 +130,7 @@ export default function ModalVerDetalleSolicitud({
     const cargarServicio = async () => {
       try {
         const { data } = await axios.get(
-          `http://localhost:3000/api/servicios/${detalle.solicitud.servicio_id}`
+          `/api/servicios/${detalle.solicitud.servicio_id}`
         );
 
         if (data.ok) {
