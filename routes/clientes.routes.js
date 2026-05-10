@@ -5,7 +5,8 @@ import {
     loginCliente,
     actualizarPerfilCliente, 
     buscarCliente,
-    buscarClienteDestinatarios
+    buscarClienteDestinatarios,
+    actualizarClienteAdmin,
 } from '../controllers/clientes.controller.js';
 
 
@@ -20,6 +21,7 @@ router.post('/validar', validarClienteExistente);
 router.post('/', registrarCliente);
 router.post('/login', loginCliente);
 router.put("/actualizar-perfil", actualizarPerfilCliente);
+router.put("/:id", actualizarClienteAdmin);
 
  
 

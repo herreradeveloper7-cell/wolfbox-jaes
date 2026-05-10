@@ -16,9 +16,6 @@ export default function ConfigTarifas() {
   const [editData, setEditData] = useState<any>(null);
   const [modo, setModo] = useState<"crear" | "editar">("crear");
 
-  // ============================================================
-  // 1. Cargar servicios al iniciar
-  // ============================================================
   const cargarServicios = async () => {
     try {
       setLoading(true);
@@ -36,27 +33,21 @@ export default function ConfigTarifas() {
     cargarServicios();
   }, []);
 
-  // ============================================================
-  // 2. Abrir modal crear
-  // ============================================================
+
   const abrirCrear = () => {
     setEditData(null);
     setModo("crear");
     setModalOpen(true);
   };
 
-  // ============================================================
-  // 3. Abrir modal editar
-  // ============================================================
+
   const abrirEditar = (srv: any) => {
     setEditData(srv);
     setModo("editar");
     setModalOpen(true);
   };
 
-  // ============================================================
-  // 4. Guardar servicio (crear o editar)
-  // ============================================================
+
   const manejarGuardar = async (data: any) => {
     try {
       if (modo === "crear") {
@@ -74,9 +65,7 @@ export default function ConfigTarifas() {
     }
   };
 
-  // ============================================================
-  // 5. Eliminar servicio
-  // ============================================================
+
   const eliminarServicio = async (id: number) => {
     const confirm = await Swal.fire({
       title: "¿Eliminar servicio?",
@@ -100,9 +89,7 @@ export default function ConfigTarifas() {
     }
   };
 
-  // ============================================================
-  // 🌟 RENDER DEL COMPONENTE
-  // ============================================================
+
   return (
     <UserDashboardLayout scrollable>
       <div className="text-gray-800 px-4 sm:px-6 lg:px-10 animate-fade-in">
@@ -120,68 +107,129 @@ export default function ConfigTarifas() {
           &gt; Configuración de Tarifas
         </p>
 
-        <div className="flex justify-end mb-4">
-          <button
-            onClick={abrirCrear}
-            className="bg-green-700 hover:bg-green-800 text-white font-semibold px-6 py-2 rounded-lg shadow-md transition"
-          >
-            + Crear servicio
-          </button>
-        </div>
-
-        {/* TABLA */}
-        <div className="bg-white shadow-lg border border-gray-200 rounded-2xl p-6">
-          <h3 className="text-xl font-bold text-red-900 mb-4">Listado de servicios</h3>
-
-          {loading ? (
-            <p className="text-center py-10 text-gray-500">Cargando...</p>
-          ) : servicios.length === 0 ? (
-            <p className="text-center py-10 text-gray-500">No hay servicios registrados.</p>
-          ) : (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-100 text-gray-700">
-                  <th className="py-2 px-3 border-b">Código</th>
-                  <th className="py-2 px-3 border-b">Nombre</th>
-                  <th className="py-2 px-3 border-b">Tipo</th>
-                  <th className="py-2 px-3 border-b">Seguro (%)</th>
-                  <th className="py-2 px-3 border-b text-center">Acciones</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {servicios.map((srv) => (
-                  <tr key={srv.id} className="hover:bg-gray-50 transition">
-                    <td className="py-2 px-3 border-b">{srv.codigo}</td>
-                    <td className="py-2 px-3 border-b">{srv.nombre}</td>
-                    <td className="py-2 px-3 border-b">{srv.tipo}</td>
-                    <td className="py-2 px-3 border-b">{srv.porcentaje_seguro}%</td>
-
-                    <td className="py-2 px-3 border-b text-center">
-                      <div className="flex justify-center gap-3">
-                        <button
-                          className="text-blue-600 hover:text-blue-800 font-semibold"
-                          onClick={() => abrirEditar(srv)}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          className="text-red-700 hover:text-red-900 font-semibold"
-                          onClick={() => eliminarServicio(srv.id)}
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+      <div className="flex justify-end mb-5">
+        <button
+          onClick={abrirCrear}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition shadow-md bg-green-700 text-white hover:bg-green-800 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <span className="text-lg leading-none">+</span>
+          Crear servicio
+        </button>
       </div>
 
-        {/* MODAL */}
+      <div className="relative bg-white/95 border border-gray-200 shadow-xl rounded-2xl p-6 mb-10 overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-900 via-gray-300 to-red-900"></div>
+
+        <div className="flex items-center justify-between mb-6 border-b border-gray-200 pb-4">
+          <div>
+            <h3 className="text-xl font-bold text-gray-600 tracking-wide">
+              LISTADO DE SERVICIOS
+            </h3>
+            <p className="text-xs text-gray-500 mt-1">
+              Administra servicios, tarifas y reglas de seguro
+            </p>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 border border-gray-200">
+            <span className="w-2 h-2 rounded-full bg-green-600"></span>
+            <span className="text-xs font-semibold text-gray-600">
+              Total: <span className="text-gray-800">{servicios.length}</span>
+            </span>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">
+            Cargando servicios...
+          </div>
+        ) : servicios.length === 0 ? (
+          <div className="text-center py-12 text-gray-500 bg-gray-50 border border-gray-200 rounded-2xl">
+            No hay servicios registrados.
+          </div>
+        ) : (
+        <div className="overflow-x-auto rounded-2xl">
+
+          <table className="w-full border-separate border-spacing-y-2 text-sm">
+
+            {/* HEADER */}
+            <thead>
+              <tr className="text-xs uppercase text-gray-500 tracking-wider">
+                <th className="px-4 text-left">Código</th>
+                <th className="px-4 text-left">Nombre</th>
+                <th className="px-4 text-left">Tipo</th>
+                <th className="px-4 text-left">Seguro</th>
+                <th className="px-4 text-center">Acciones</th>
+              </tr>
+            </thead>
+
+            {/* BODY */}
+            <tbody>
+              {servicios.map((srv) => (
+                <tr
+                  key={srv.id}
+                  className="bg-white shadow-sm hover:shadow-md transition-all duration-200 rounded-xl"
+                >
+
+                  {/* CÓDIGO */}
+                  <td className="px-4 py-4">
+                    <span className="px-3 py-1 text-xs font-bold rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                      {srv.codigo}
+                    </span>
+                  </td>
+
+                  {/* NOMBRE */}
+                  <td className="px-4 py-4">
+                    <p className="font-semibold text-gray-800">
+                      {srv.nombre}
+                    </p>
+                  </td>
+
+                  {/* TIPO */}
+                  <td className="px-4 py-4">
+                    <span className="text-gray-600">
+                      {srv.tipo}
+                    </span>
+                  </td>
+
+                  {/* SEGURO */}
+                  <td className="px-4 py-4">
+                    <span className="font-semibold text-gray-800">
+                      {Number(srv.porcentaje_seguro || 0).toFixed(2)}%
+                    </span>
+                  </td>
+
+                  {/* ACCIONES */}
+                  <td className="px-4 py-4">
+                    <div className="flex justify-center gap-2">
+
+                      <button
+                        onClick={() => abrirEditar(srv)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 hover:scale-[1.05] transition"
+                      >
+                        Editar
+                      </button>
+
+                      <button
+                        onClick={() => eliminarServicio(srv.id)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-900 text-white hover:bg-red-950 hover:scale-[1.05] transition"
+                      >
+                        Eliminar
+                      </button>
+
+                    </div>
+                  </td>
+
+                </tr>
+              ))}
+            </tbody>
+
+          </table>
+        </div>
+        )}
+      </div>
+
+      </div>
+
         <ModalServicio
           isOpen={modalOpen}
           onClose={() => setModalOpen(false)}

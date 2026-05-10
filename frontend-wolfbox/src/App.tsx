@@ -20,6 +20,11 @@ import DestinatariosCasilleros from './pages/DestinatariosCasilleros';
 import ConfigTRM from './pages/usuario/ConfigTRM';
 import ConciliacionPago from './pages/usuario/ConciliacionPagos';
 import ConfigTarifas from './pages/usuario/ConfigTarifas';
+import AgruparPaquetes from './pages/usuario/AgruparPaquetes/AgruparPaquetes';
+import AgruparSolicitud from './pages/usuario/AgruparPaquetes/AgruparSolicitud';
+import VerClientes from './pages/usuario/VerClientes';
+import ConsultarGuiaHome from './pages/consultarGuiaHome';
+import PasswordResetPage from './pages/passwordReset';
 
 
 
@@ -28,8 +33,10 @@ function App() {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/password-reset" element={<PasswordResetPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/confirmacion" element={<ConfirmacionPage />} />
+      <Route path="/consulta-hawb" element={<ConsultarGuiaHome />} />
       <Route path="/dashboardCliente" element={<DashboardClientePage />} />
       <Route path="/dashboardUsuario" element={<DashboardUsuarioPage />} />
       <Route path="/editar-perfil" element={<EditarPerfilCliente />} />
@@ -46,9 +53,12 @@ function App() {
       <Route path="/config-trm" element={<ConfigTRM />} />
       <Route path="/conciliacion-pagos" element={<ConciliacionPago />} />
       <Route path="/config-tarifas" element={<ConfigTarifas />} />
-
-
-
+      <Route path="/agrupar-paquetes" element={<AgruparPaquetes />} />
+      <Route
+        path="/dashboardUsuario/agrupar-solicitud/:id"
+        element={<AgruparSolicitud />}
+      />
+      <Route path="/Clientes" element={<VerClientes />} />
 
     </Routes>
   );

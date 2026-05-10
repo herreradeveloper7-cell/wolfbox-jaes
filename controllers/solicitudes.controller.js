@@ -2,9 +2,70 @@ import { poolPromise, sql } from "../config/db.js";
 
 import fs from "fs";
 import path from "path";
+import PDFDocument from "pdfkit";
+import bwipjs from "bwip-js";
 import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const calcularFleteServicio = (servicio, pesoTotal) => {
+  const aplicaPesoMaximo = Boolean(servicio.aplica_peso_maximo);
+  const pesoMaximo = Number(servicio.peso_maximo || 0);
+
+  if (aplicaPesoMaximo && pesoMaximo > 0 && pesoTotal > pesoMaximo) {
+    return {
+      ok: false,
+      mensaje: `El servicio ${servicio.nombre} solo permite hasta ${pesoMaximo} lb. Peso actual: ${pesoTotal} lb.`,
+      fleteUSD: 0,
+    };
+  }
+
+  const aplicaMinimo = Boolean(servicio.aplica_minimo);
+  const pesoMinimo = Number(servicio.peso_minimo || 0);
+  const tarifaMinimaUSD = Number(servicio.tarifa_minima_usd || 0);
+
+  if (aplicaMinimo && pesoMinimo > 0 && tarifaMinimaUSD > 0 && pesoTotal <= pesoMinimo) {
+    return {
+      ok: true,
+      fleteUSD: tarifaMinimaUSD,
+    };
+  }
+
+  const tarifa1 = Number(servicio.tarifa_fija_1lb || 0);
+  const tarifa2a5 = Number(servicio.tarifa_fija_2a5 || 0);
+  const tarifa6a10 = Number(servicio.tarifa_fija_6a10 || 0);
+  const tarifaExtra = Number(servicio.tarifa_por_libra_extra || 0);
+  const tarifaLibra = Number(servicio.tarifa_por_libra_cc || 0);
+
+  const tieneRangos =
+    tarifa1 > 0 || tarifa2a5 > 0 || tarifa6a10 > 0 || tarifaExtra > 0;
+
+  if (tieneRangos) {
+    if (pesoTotal <= 1) return { ok: true, fleteUSD: tarifa1 };
+    if (pesoTotal <= 5) return { ok: true, fleteUSD: tarifa2a5 };
+    if (pesoTotal <= 10) return { ok: true, fleteUSD: tarifa6a10 };
+
+    return {
+      ok: true,
+      fleteUSD: tarifa6a10 + (pesoTotal - 10) * tarifaExtra,
+    };
+  }
+
+  if (tarifaLibra > 0) {
+    const pesoFacturable = pesoTotal < 10 ? 10 : pesoTotal;
+
+    return {
+      ok: true,
+      fleteUSD: pesoFacturable * tarifaLibra,
+    };
+  }
+
+  return {
+    ok: false,
+    mensaje: `El servicio ${servicio.nombre} no tiene una tarifa válida configurada.`,
+    fleteUSD: 0,
+  };
+};
 
 export const crearSolicitud = async (req, res) => {
   try {
@@ -31,10 +92,21 @@ export const crearSolicitud = async (req, res) => {
 
     const pool = await poolPromise;
 
-    // -----------------------------------------------------------
-    // 1) VALIDAR QUE TODOS LOS PAQUETES SEAN DEL MISMO SERVICIO
-    // -----------------------------------------------------------
     const paqueteIds = paquetes.map(p => p.id);
+
+    for (const p of paquetes) {
+      if (p.asegurado !== undefined && p.asegurado !== null) {
+        await pool
+          .request()
+          .input("id", sql.Int, p.id)
+          .input("asegurado", sql.Decimal(10, 2), p.asegurado)
+          .query(`
+            UPDATE paquetes
+            SET asegurado = @asegurado
+            WHERE id = @id
+          `);
+      }
+    }
 
     const resultServicios = await pool.request().query(`
       SELECT servicio_id, peso, asegurado
@@ -61,15 +133,27 @@ export const crearSolicitud = async (req, res) => {
     }
 
     const servicio_id = serviciosEncontrados[0];
-    console.log("📦 servicio_id final usado:", servicio_id);
 
     
     const datosServicio = await pool.request()
       .input("id", sql.Int, servicio_id)
       .query(`
-        SELECT nombre, tipo, tarifa_fija_1lb, tarifa_fija_2a5,
-               tarifa_fija_6a10, tarifa_por_libra_extra,
-               tarifa_por_libra_cc, porcentaje_seguro
+        SELECT 
+          codigo,
+          nombre,
+          tipo,
+          tarifa_fija_1lb,
+          tarifa_fija_2a5,
+          tarifa_fija_6a10,
+          tarifa_por_libra_extra,
+          tarifa_por_libra_cc,
+          porcentaje_seguro,
+          seguro_minimo_usd,
+          aplica_minimo,
+          peso_minimo,
+          tarifa_minima_usd,
+          aplica_peso_maximo,
+          peso_maximo
         FROM servicios
         WHERE id = @id
       `);
@@ -83,9 +167,15 @@ export const crearSolicitud = async (req, res) => {
 
     const servicio = datosServicio.recordset[0];
 
-    // -----------------------------------------------------------
-    // 3) CALCULAR PESO TOTAL Y ASEGURADO TOTAL
-    // -----------------------------------------------------------
+
+    if (!servicio.codigo) {
+      return res.status(500).json({
+        ok: false,
+        mensaje: "El servicio no tiene código configurado."
+      });
+    }
+
+
     const peso_total = resultServicios.recordset.reduce(
       (sum, p) => sum + parseFloat(p.peso || 0),
       0
@@ -96,47 +186,28 @@ export const crearSolicitud = async (req, res) => {
       0
     );
 
-    // -----------------------------------------------------------
-    // 4) CALCULAR FLETE SEGÚN EL SERVICIO
-    // -----------------------------------------------------------
-    let fleteUSD = 0;
 
-    if (servicio.tipo === "US-CO") {
-      // REGLAS DEFINIDAS
-      if (peso_total === 1) {
-        fleteUSD = servicio.tarifa_fija_1lb;
-      } else if (peso_total >= 2 && peso_total <= 5) {
-        fleteUSD = servicio.tarifa_fija_2a5;
-      } else if (peso_total >= 6 && peso_total <= 10) {
-        fleteUSD = servicio.tarifa_fija_6a10;
-      } else {
-        // >10 lbs → APLICAR $2 POR LIBRA
-        fleteUSD = peso_total * servicio.tarifa_por_libra_extra;
-      }
+    const calculoFlete = calcularFleteServicio(servicio, peso_total);
+
+    if (!calculoFlete.ok) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: calculoFlete.mensaje,
+      });
     }
 
-    if (servicio.codigo === "CC") {
-      const libraUSD = Number(servicio.tarifa_por_libra_cc || 0);
+    const fleteUSD = calculoFlete.fleteUSD;
 
-      const peso_facturable = peso_total < 10 ? 10 : peso_total;
 
-      fleteUSD = peso_facturable * libraUSD;
-    }
+    const porcentaje = Number(servicio.porcentaje_seguro || 0) / 100;
+    const seguroMinimoUSD = Number(servicio.seguro_minimo_usd || 0);
 
-    // -----------------------------------------------------------
-    // 5) CALCULAR SEGURO
-    // -----------------------------------------------------------
-    const porcentaje = parseFloat(servicio.porcentaje_seguro) / 100;
-    const seguroUSD = asegurado_total * porcentaje;
+    const seguroCalculadoUSD = asegurado_total * porcentaje;
+    const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
 
-    // -----------------------------------------------------------
-    // 6) TOTAL USD
-    // -----------------------------------------------------------
     const valor_estimado_usd = fleteUSD + seguroUSD;
 
-    // -----------------------------------------------------------
-    // 7) OBTENER TRM ACTUAL
-    // -----------------------------------------------------------
+  
     const trmQuery = await pool.request().query(`
       SELECT TOP 1 valor
       FROM trm
@@ -146,14 +217,12 @@ export const crearSolicitud = async (req, res) => {
     const trmValor = trmQuery.recordset[0]?.valor || 0;
     const valor_moneda_local = valor_estimado_usd * trmValor;
 
-    // -----------------------------------------------------------
-    // 8) INSERTAR SOLICITUD
-    // -----------------------------------------------------------
+
     const resultSolicitud = await pool
       .request()
       .input("cliente_id", sql.Int, cliente_id)
       .input("usuario_id", sql.Int, usuario_id)
-      .input("destinatario", sql.NVarChar(200), destinatario)
+      .input("destinatario", sql.Int, destinatario)
       .input("medio_pago", sql.NVarChar(50), medio_pago)
       .input("observaciones", sql.NVarChar(255), observaciones || "")
       .input("valor_estimado_usd", sql.Decimal(10, 2), valor_estimado_usd)
@@ -173,9 +242,7 @@ export const crearSolicitud = async (req, res) => {
 
     const solicitud_id = resultSolicitud.recordset[0].id;
 
-    // -----------------------------------------------------------
-    // 9) ASIGNAR SOLICITUD A LOS PAQUETES
-    // -----------------------------------------------------------
+
     for (const p of paquetes) {
       await pool
         .request()
@@ -183,15 +250,12 @@ export const crearSolicitud = async (req, res) => {
         .input("paquete_id", sql.Int, p.id)
         .query(`
           UPDATE paquetes
-          SET solicitud_id = @solicitud_id,
-              estado_actual = 'Solicitado'
+          SET solicitud_id = @solicitud_id
           WHERE id = @paquete_id
         `);
     }
 
-    // -----------------------------------------------------------
-    // 10) RESPUESTA FINAL
-    // -----------------------------------------------------------
+
     res.status(201).json({
       ok: true,
       mensaje: "Solicitud creada correctamente",
@@ -212,61 +276,107 @@ export const crearSolicitud = async (req, res) => {
 
 
 
-/* =======================================================
-    2. LISTAR SOLICITUDES
-======================================================= */
+
 export const obtenerSolicitudes = async (req, res) => {
   try {
     const { usuario_id, codigo } = req.query;
     const pool = await poolPromise;
 
-    let query = `
-      SELECT  
-        s.id,
-        CONVERT(varchar, s.fecha, 23) AS fecha,
-        s.estado,
-        s.destinatario,
-        d.nombre AS destinatario_nombre,
-        s.medio_pago,
-        s.observaciones,
-        CONCAT(c.primer_nombre, ' ', c.primer_apellido) AS cliente,
+  let query = `
+    SELECT  
+      s.id,
+      s.cliente_id,
+      c.codigo_referencia AS codigoCasillero,
+      CONVERT(varchar, s.fecha, 23) AS fecha,
+      s.estado,
+      s.destinatario,
+      d.nombre AS destinatario_nombre,
+      s.medio_pago,
+      s.observaciones,
+      CONCAT(c.primer_nombre, ' ', c.primer_apellido) AS cliente,
 
-        (SELECT STRING_AGG(p.hawb, CHAR(10)) 
-        FROM paquetes p WHERE p.solicitud_id = s.id) AS hawbs,
+      MAX(
+        CASE 
+          WHEN p.hawb LIKE '%G' AND ISNULL(p.agrupado_bit, 0) = 0 
+          THEN p.hawb 
+        END
+      ) AS guia_agrupada,
 
-        (SELECT COUNT(*) FROM paquetes p 
-        WHERE p.solicitud_id = s.id) AS cantidadPaquetes,
+      STRING_AGG(
+        CASE 
+          WHEN ISNULL(p.agrupado_bit, 0) = 1 
+          THEN p.hawb 
+        END,
+        CHAR(10)
+      ) AS hawbs_agrupados,
 
-        (SELECT ISNULL(SUM(CAST(p.peso AS DECIMAL(10,2))), 0) 
-        FROM paquetes p WHERE p.solicitud_id = s.id) AS pesoTotal
+      STRING_AGG(
+        CASE 
+          WHEN ISNULL(p.agrupado_bit, 0) = 0 
+              AND p.hawb NOT LIKE '%G'
+          THEN p.hawb 
+        END,
+        CHAR(10)
+      ) AS hawbs_normales,
+
+      COUNT(
+        CASE 
+          WHEN p.hawb NOT LIKE '%G' THEN 1 
+        END
+      ) AS cantidadPaquetes,
+
+      ISNULL(SUM(
+        CASE 
+          WHEN p.hawb NOT LIKE '%G' 
+          THEN CAST(ISNULL(p.peso, 0) AS DECIMAL(10,2))
+          ELSE 0
+        END
+      ), 0) AS pesoTotal
+
 
       FROM solicitudes s
       INNER JOIN clientes c ON s.cliente_id = c.id
       LEFT JOIN destinatarios d ON d.id = s.destinatario
+      INNER JOIN paquetes p ON p.solicitud_id = s.id
       WHERE 1 = 1
+  `;
+
+
+    // 🔎 Filtros
+    if (codigo) {
+      query += ` AND c.codigo_referencia = '${codigo}'`;
+    } else if (usuario_id) {
+      query += ` AND s.usuario_id = ${usuario_id}`;
+    }
+
+    query += `
+      GROUP BY
+        s.id,
+        s.cliente_id,
+        c.codigo_referencia,
+        s.fecha,
+        s.estado,
+        s.destinatario,
+        d.nombre,
+        s.medio_pago,
+        s.observaciones,
+        c.primer_nombre,
+        c.primer_apellido
+
+      ORDER BY s.fecha DESC
     `;
 
-      if (codigo) {
-        query += ` AND c.codigo_referencia = '${codigo}'`;
-      } else if (usuario_id) {
-        query += ` AND s.usuario_id = ${usuario_id}`;
-      }
-
-      query += `
-        AND EXISTS (SELECT 1 FROM paquetes p WHERE p.solicitud_id = s.id)
-        ORDER BY s.fecha DESC
-      `;
     const result = await pool.request().query(query);
     res.json(result.recordset);
+
   } catch (error) {
     console.error("❌ Error al obtener solicitudes:", error);
     res.status(500).json({ mensaje: "Error al obtener solicitudes" });
   }
 };
 
-/* =======================================================
-    3. ACTUALIZAR ESTADO
-======================================================= */
+
+
 export const actualizarEstadoSolicitud = async (req, res) => {
   const { id } = req.params;
   const { estado } = req.body;
@@ -286,9 +396,7 @@ export const actualizarEstadoSolicitud = async (req, res) => {
   }
 };
 
-/* =======================================================
-    4. ELIMINAR SOLICITUD
-======================================================= */
+
 export const eliminarSolicitud = async (req, res) => {
   const { id } = req.params;
 
@@ -298,43 +406,84 @@ export const eliminarSolicitud = async (req, res) => {
     const check = await pool
       .request()
       .input("id", sql.Int, id)
-      .query("SELECT id FROM solicitudes WHERE id = @id");
+      .query(`
+        SELECT id 
+        FROM solicitudes 
+        WHERE id = @id
+      `);
 
     if (check.recordset.length === 0) {
-      return res
-        .status(404)
-        .json({ ok: false, mensaje: "Solicitud no encontrada." });
+      return res.status(404).json({
+        ok: false,
+        mensaje: "Solicitud no encontrada."
+      });
     }
 
+    // 🔴 VALIDAR SI YA TIENE PROCESO LOGÍSTICO
+    const validacion = await pool
+      .request()
+      .input("id", sql.Int, id)
+      .query(`
+        SELECT 
+          p.hawb,
+          ec.nombre AS estado
+        FROM paquetes p
+        LEFT JOIN estados_catalogo ec 
+          ON ec.id = p.estado_id
+        WHERE p.solicitud_id = @id
+      `);
+
+    const paquetes = validacion.recordset;
+
+    const tieneGuiaPadre = paquetes.some(p => p.hawb?.endsWith("G"));
+
+    const tieneFacturado = paquetes.some(p =>
+      p.estado === "Facturado Pendiente de Pago"
+    );
+
+    if (tieneGuiaPadre || tieneFacturado) {
+      return res.status(400).json({
+        ok: false,
+        mensaje:
+          "Esta solicitud ya fue procesada (agrupada o facturada) y no puede eliminarse."
+      });
+    }
+
+    // ✅ LIBERAR PAQUETES
     await pool
       .request()
       .input("solicitud_id", sql.Int, id)
       .query(`
         UPDATE paquetes
-        SET solicitud_id = NULL,
-            estado_actual = 'Digitado'
+        SET solicitud_id = NULL
         WHERE solicitud_id = @solicitud_id
       `);
 
+    // ✅ ELIMINAR SOLICITUD
     await pool
       .request()
       .input("id", sql.Int, id)
-      .query(`DELETE FROM solicitudes WHERE id = @id`);
+      .query(`
+        DELETE FROM solicitudes
+        WHERE id = @id
+      `);
 
     return res.json({
       ok: true,
-      mensaje: `Solicitud #${id} eliminada correctamente y paquetes liberados.`,
+      mensaje: `Solicitud #${id} eliminada correctamente.`
     });
+
   } catch (error) {
-    return res
-      .status(500)
-      .json({ ok: false, mensaje: "Error interno al eliminar solicitud." });
+    console.error("❌ Error eliminando solicitud:", error);
+
+    return res.status(500).json({
+      ok: false,
+      mensaje: "Error interno al eliminar solicitud."
+    });
   }
 };
 
-/* =======================================================
-    5. DETALLE SOLICITUD COMPLETA
-======================================================= */
+
 export const obtenerDetalleSolicitud = async (req, res) => {
   const { id } = req.params;
 
@@ -353,8 +502,11 @@ export const obtenerDetalleSolicitud = async (req, res) => {
           s.observaciones,
           s.valor_estimado_usd,
           s.valor_moneda_local,
-          s.servicio_id
+          s.servicio_id,
+          CONCAT(c.primer_nombre, ' ', c.primer_apellido) AS cliente,
+          c.codigo_referencia
         FROM solicitudes s
+        INNER JOIN clientes c ON s.cliente_id = c.id
         LEFT JOIN destinatarios d ON s.destinatario = d.id
         WHERE s.id = @id
       `);
@@ -362,6 +514,8 @@ export const obtenerDetalleSolicitud = async (req, res) => {
     if (solicitud.recordset.length === 0) {
       return res.status(404).json({ mensaje: "Solicitud no encontrada" });
     }
+
+    const solicitudData = solicitud.recordset[0];
 
     const paquetes = await pool
       .request()
@@ -373,7 +527,11 @@ export const obtenerDetalleSolicitud = async (req, res) => {
           p.tracking,
           p.peso,
           p.contenido,
-          p.asegurado
+          p.asegurado,
+          p.tienda,
+          CONVERT(varchar, p.fecha_registro, 120) AS fecha_digitacion,
+          p.agrupado_bit,
+          p.hawb_padre
         FROM paquetes p
         WHERE p.solicitud_id = @id
       `);
@@ -387,8 +545,98 @@ export const obtenerDetalleSolicitud = async (req, res) => {
         WHERE solicitud_id = @id
       `);
 
+    const servicioQuery = await pool
+      .request()
+      .input("id", sql.Int, solicitudData.servicio_id)
+      .query(`
+        SELECT 
+          nombre AS servicio_nombre,
+          codigo,
+          tipo,
+          tarifa_fija_1lb,
+          tarifa_fija_2a5,
+          tarifa_fija_6a10,
+          tarifa_por_libra_extra,
+          tarifa_por_libra_cc,
+          porcentaje_seguro,
+          seguro_minimo_usd,
+          aplica_minimo,
+          peso_minimo,
+          tarifa_minima_usd,
+          aplica_peso_maximo,
+          peso_maximo
+        FROM servicios
+        WHERE id = @id
+      `);
+
+    const servicio = servicioQuery.recordset[0] || {};
+
+    const paquetesParaTotales = paquetes.recordset.filter(
+      (p) => !String(p.hawb || "").toUpperCase().endsWith("G")
+    );
+
+    const totalPeso = paquetesParaTotales.reduce(
+      (sum, p) => sum + Number(p.peso || 0),
+      0
+    );
+
+    const totalAsegurado = paquetesParaTotales.reduce(
+      (sum, p) => sum + Number(p.asegurado || 0),
+      0
+    );
+
+    const calculoFlete = calcularFleteServicio(servicio, totalPeso);
+
+    if (!calculoFlete.ok) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: calculoFlete.mensaje,
+      });
+    }
+
+    const fleteUSD = calculoFlete.fleteUSD;
+
+    const porcentaje = Number(servicio.porcentaje_seguro || 0) / 100;
+    const seguroMinimoUSD = Number(servicio.seguro_minimo_usd || 0);
+    const seguroCalculadoUSD = totalAsegurado * porcentaje;
+    const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
+
+    const totalUSD = fleteUSD + seguroUSD;
+
+    const trmQuery = await pool.request().query(`
+      SELECT TOP 1 valor 
+      FROM trm 
+      ORDER BY fecha DESC
+    `);
+
+    const trm = Number(trmQuery.recordset[0]?.valor || 0);
+    const totalCOP = totalUSD * trm;
+
+    const totalCargosUSD = cargos.recordset.reduce(
+      (sum, c) => sum + Number(c.valor_usd || 0),
+      0
+    );
+
+    const totalCargosCOP = cargos.recordset.reduce(
+      (sum, c) => sum + Number(c.valor_cop || 0),
+      0
+    );
+
+    const totalUSDConCargos = totalUSD + totalCargosUSD;
+    const totalCOPConCargos = totalCOP + totalCargosCOP;
+
     res.json({
-      solicitud: solicitud.recordset[0],
+      solicitud: {
+        ...solicitudData,
+        servicio_nombre: servicio.servicio_nombre || null,
+        seguroUSD,
+        fleteUSD,
+        totalUSD,
+        totalCOP,
+        totalUSDConCargos,
+        totalCOPConCargos,
+        trm,
+      },
       paquetes: paquetes.recordset,
       cargos: cargos.recordset,
     });
@@ -404,13 +652,14 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
     const pool = await poolPromise;
     const solicitudId = req.params.id;
 
-    // 1) TRAER DATOS PRINCIPALES
     const solicitudQuery = await pool
       .request()
       .input("id", sql.Int, solicitudId)
       .query(`
         SELECT 
-          s.id, s.fecha, s.estado,
+          s.id, 
+          s.fecha, 
+          s.estado,
           s.valor_estimado_usd,
           s.valor_moneda_local,
           s.servicio_id,
@@ -441,7 +690,6 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
         WHERE solicitud_id = @id
       `);
 
-    // 3) TRAER CARGOS
     const cargos = await pool
       .request()
       .input("id", sql.Int, solicitudId)
@@ -451,12 +699,12 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
         WHERE solicitud_id = @id
       `);
 
-    // 4) TRAER DATOS DEL SERVICIO
     const servicioQuery = await pool
       .request()
       .input("id", sql.Int, solicitud.servicio_id)
       .query(`
         SELECT 
+          nombre AS servicio_nombre,
           codigo,
           tipo,
           tarifa_fija_1lb,
@@ -464,59 +712,57 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
           tarifa_fija_6a10,
           tarifa_por_libra_extra,
           tarifa_por_libra_cc,
-          porcentaje_seguro
+          porcentaje_seguro,
+          seguro_minimo_usd,
+          aplica_minimo,
+          peso_minimo,
+          tarifa_minima_usd,
+          aplica_peso_maximo,
+          peso_maximo
         FROM servicios
         WHERE id = @id
       `);
 
-    const servicio = servicioQuery.recordset[0];
+    const servicio = servicioQuery.recordset[0] || {};
 
-    // 5) CALCULAR PESO Y ASEGURADO TOTAL
-    const totalPeso = paquetes.recordset.reduce((sum, p) => sum + Number(p.peso || 0), 0);
-    const totalAsegurado = paquetes.recordset.reduce((sum, p) => sum + Number(p.asegurado || 0), 0);
+    const totalPeso = paquetes.recordset.reduce(
+      (sum, p) => sum + Number(p.peso || 0),
+      0
+    );
 
-    // 6) CALCULAR FLETE SEGÚN EL SERVICIO (MISMA LÓGICA DE crearSolicitud)
-    let fleteUSD = 0;
+    const totalAsegurado = paquetes.recordset.reduce(
+      (sum, p) => sum + Number(p.asegurado || 0),
+      0
+    );
 
-    // US-CO
-    if (servicio.tipo === "US-CO") {
-      if (totalPeso === 1) {
-        fleteUSD = servicio.tarifa_fija_1lb;
-      } else if (totalPeso >= 2 && totalPeso <= 5) {
-        fleteUSD = servicio.tarifa_fija_2a5;
-      } else if (totalPeso >= 6 && totalPeso <= 10) {
-        fleteUSD = servicio.tarifa_fija_6a10;
-      } else {
-        fleteUSD = totalPeso * servicio.tarifa_por_libra_extra;
-      }
+    const calculoFlete = calcularFleteServicio(servicio, totalPeso);
+
+    if (!calculoFlete.ok) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: calculoFlete.mensaje,
+      });
     }
 
-    // CC-Casilleros
-    if (servicio.codigo === "CC") {
-      const precioLibra = Number(servicio.tarifa_por_libra_cc);
-      const pesoFacturable = totalPeso < 10 ? 10 : totalPeso;
-      fleteUSD = pesoFacturable * precioLibra;
-    }
+    const fleteUSD = calculoFlete.fleteUSD;
 
-    // 7) CALCULAR SEGURO
-    const porcentaje = servicio.porcentaje_seguro / 100;
-    const seguroUSD = totalAsegurado * porcentaje;
+    const porcentaje = Number(servicio.porcentaje_seguro || 0) / 100;
+    const seguroMinimoUSD = Number(servicio.seguro_minimo_usd || 0);
 
-    // 8) TOTAL USD SIN CARGOS
+    const seguroCalculadoUSD = totalAsegurado * porcentaje;
+    const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
+
     const totalUSD = fleteUSD + seguroUSD;
 
-    // 9) OBTENER TRM
     const trmQuery = await pool.request().query(`
       SELECT TOP 1 valor 
       FROM trm 
       ORDER BY fecha DESC
     `);
 
-    const trm = trmQuery.recordset[0]?.valor || 0;
-
+    const trm = Number(trmQuery.recordset[0]?.valor || 0);
     const totalCOP = totalUSD * trm;
 
-    // 10) CARGOS
     const totalCargosUSD = cargos.recordset.reduce(
       (sum, c) => sum + Number(c.valor_usd || 0),
       0
@@ -527,33 +773,29 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
       0
     );
 
-    // 11) TOTAL FINAL
     const totalUSDConCargos = totalUSD + totalCargosUSD;
     const totalCOPConCargos = totalCOP + totalCargosCOP;
 
-    // 12) RESPUESTA LISTA PARA EL PDF
     res.json({
-      ...solicitud,
-      paquetes: paquetes.recordset,
-      cargos: cargos.recordset,
-      totalAseguradoUSD: totalAsegurado,
-      seguroUSD,
-      fleteUSD,
-      totalUSD,
-      totalUSDConCargos,
-      totalCOP,
-      totalCargosUSD,
-      totalCargosCOP,
-      totalCOPConCargos,
-      trm
+      solicitud: {
+        ...solicitud,
+        servicio_nombre: servicio.servicio_nombre || null,
+        paquetes: paquetes.recordset,
+        cargos: cargos.recordset,
+        seguroUSD,
+        fleteUSD,
+        totalUSD,
+        totalCOP,
+        totalUSDConCargos,
+        totalCOPConCargos,
+        trm,
+      },
     });
-
   } catch (err) {
     console.error("❌ Error en obtenerDatosPDFSolicitud", err);
     res.status(500).json({ error: "Error generando datos para PDF" });
   }
 };
-
 
 
 export const obtenerCargosAdicionales = async (req, res) => {
@@ -666,8 +908,7 @@ export const removerPaqueteDeSolicitud = async (req, res) => {
       .input("id", sql.Int, paquete_id)
       .query(`
         UPDATE paquetes
-        SET solicitud_id = NULL,
-            estado_actual = 'Digitado'
+        SET solicitud_id = NULL
         WHERE id = @id
       `);
 
@@ -690,8 +931,7 @@ export const agregarPaqueteASolicitud = async (req, res) => {
       .input("paquete_id", sql.Int, paquete_id)
       .query(`
         UPDATE paquetes
-        SET solicitud_id = @solicitud_id,
-            estado_actual = 'Solicitado'
+        SET solicitud_id = @solicitud_id
         WHERE id = @paquete_id
       `);
 
@@ -704,19 +944,39 @@ export const agregarPaqueteASolicitud = async (req, res) => {
 
 export const editarSolicitudCompleta = async (req, res) => {
   const { id } = req.params;
-  const { paquetes, cargos } = req.body;
 
-  if (!Array.isArray(paquetes) || !Array.isArray(cargos)) {
+  // ✅ ahora recibe destinatario
+  const { paquetes, cargos, destinatario } = req.body;
+
+  // ✅ permitir que paquetes/cargos vengan vacíos o no vengan
+  const paquetesArr = Array.isArray(paquetes) ? paquetes : [];
+  const cargosArr = Array.isArray(cargos) ? cargos : [];
+
+  // ✅ si no envían nada, tampoco tiene sentido
+  if (paquetes === undefined && cargos === undefined && destinatario === undefined) {
     return res.status(400).json({
       ok: false,
-      mensaje: "Formato inválido para paquetes o cargos.",
+      mensaje: "No se enviaron datos para actualizar.",
     });
   }
 
   try {
     const pool = await poolPromise;
 
-    for (const p of paquetes) {
+    if (destinatario !== undefined && destinatario !== null && destinatario !== "") {
+      await pool
+        .request()
+        .input("id", sql.Int, id)
+        .input("destinatario", sql.Int, Number(destinatario))
+        .query(`
+          UPDATE solicitudes
+          SET destinatario = @destinatario
+          WHERE id = @id
+        `);
+    }
+
+    // ✅ 2) Actualizar paquetes (si vienen)
+    for (const p of paquetesArr) {
       await pool
         .request()
         .input("paquete_id", sql.Int, p.paquete_id)
@@ -732,51 +992,54 @@ export const editarSolicitudCompleta = async (req, res) => {
         `);
     }
 
-    const cargosDB = await pool
-      .request()
-      .input("id", sql.Int, id)
-      .query(`SELECT id FROM cargos_adicionales WHERE solicitud_id = @id`);
-
-    const idsExistentes = cargosDB.recordset.map((c) => c.id);
-    const idsRecibidos = cargos.map((c) => c.id).filter(Boolean);
-
-    const idsEliminar = idsExistentes.filter(
-      (idCargo) => !idsRecibidos.includes(idCargo)
-    );
-
-    for (const cargoID of idsEliminar) {
-      await pool
+    // ✅ 3) Sincronizar cargos (si vienen)
+    if (cargos !== undefined) {
+      const cargosDB = await pool
         .request()
-        .input("id", sql.Int, cargoID)
-        .query(`DELETE FROM cargos_adicionales WHERE id = @id`);
-    }
+        .input("id", sql.Int, id)
+        .query(`SELECT id FROM cargos_adicionales WHERE solicitud_id = @id`);
 
-    for (const c of cargos) {
-      if (!c.id) {
+      const idsExistentes = cargosDB.recordset.map((c) => c.id);
+      const idsRecibidos = cargosArr.map((c) => c.id).filter(Boolean);
+
+      const idsEliminar = idsExistentes.filter(
+        (idCargo) => !idsRecibidos.includes(idCargo)
+      );
+
+      for (const cargoID of idsEliminar) {
         await pool
           .request()
-          .input("solicitud_id", sql.Int, id)
-          .input("tipo_cargo", sql.VarChar(100), c.tipo_cargo)
-          .input("valor_usd", sql.Decimal(10, 2), c.valor_usd)
-          .input("valor_cop", sql.Decimal(18, 2), c.valor_cop)
-          .query(`
-            INSERT INTO cargos_adicionales (solicitud_id, tipo_cargo, valor_usd, valor_cop)
-            VALUES (@solicitud_id, @tipo_cargo, @valor_usd, @valor_cop)
-          `);
-      } else {
-        await pool
-          .request()
-          .input("id", sql.Int, c.id)
-          .input("tipo_cargo", sql.VarChar(100), c.tipo_cargo)
-          .input("valor_usd", sql.Decimal(10, 2), c.valor_usd)
-          .input("valor_cop", sql.Decimal(18, 2), c.valor_cop)
-          .query(`
-            UPDATE cargos_adicionales
-            SET tipo_cargo = @tipo_cargo,
-                valor_usd = @valor_usd,
-                valor_cop = @valor_cop
-            WHERE id = @id
-          `);
+          .input("id", sql.Int, cargoID)
+          .query(`DELETE FROM cargos_adicionales WHERE id = @id`);
+      }
+
+      for (const c of cargosArr) {
+        if (!c.id) {
+          await pool
+            .request()
+            .input("solicitud_id", sql.Int, id)
+            .input("tipo_cargo", sql.VarChar(100), c.tipo_cargo)
+            .input("valor_usd", sql.Decimal(10, 2), c.valor_usd)
+            .input("valor_cop", sql.Decimal(18, 2), c.valor_cop)
+            .query(`
+              INSERT INTO cargos_adicionales (solicitud_id, tipo_cargo, valor_usd, valor_cop)
+              VALUES (@solicitud_id, @tipo_cargo, @valor_usd, @valor_cop)
+            `);
+        } else {
+          await pool
+            .request()
+            .input("id", sql.Int, c.id)
+            .input("tipo_cargo", sql.VarChar(100), c.tipo_cargo)
+            .input("valor_usd", sql.Decimal(10, 2), c.valor_usd)
+            .input("valor_cop", sql.Decimal(18, 2), c.valor_cop)
+            .query(`
+              UPDATE cargos_adicionales
+              SET tipo_cargo = @tipo_cargo,
+                  valor_usd = @valor_usd,
+                  valor_cop = @valor_cop
+              WHERE id = @id
+            `);
+        }
       }
     }
 
@@ -792,6 +1055,36 @@ export const editarSolicitudCompleta = async (req, res) => {
     });
   }
 };
+
+
+export const obtenerDestinatariosPorCliente = async (req, res) => {
+  const { codigoCasillero } = req.params;
+
+  try {
+    const pool = await poolPromise;
+
+    const result = await pool.request().query(`
+      SELECT 
+        d.id,
+        d.nombre,
+        d.ciudad,
+        d.direccion,
+        d.telefono,
+        d.activo,
+        d.es_default
+      FROM destinatarios d
+      INNER JOIN clientes c ON d.cliente_id = c.id
+      WHERE c.codigo_referencia = '${codigoCasillero}'
+      ORDER BY d.nombre
+    `);
+
+    res.json(result.recordset);
+  } catch (err) {
+    console.error("❌ Error obteniendo destinatarios:", err);
+    res.status(500).json({ mensaje: "Error obteniendo destinatarios" });
+  }
+};
+
 
 
 export const obtenerCatalogoCargos = async (req, res) => {
@@ -937,6 +1230,342 @@ export const eliminarComprobantePago = async (req, res) => {
     res.status(500).json({ mensaje: "Error interno" });
   }
 };
+
+export const agruparSolicitud = async (req, res) => {
+
+  const { id } = req.params;
+  const { hawbs } = req.body;
+
+  if (!id) {
+    return res.status(400).json({
+      ok: false,
+      mensaje: "ID de solicitud requerido"
+    });
+  }
+
+  if (!Array.isArray(hawbs) || hawbs.length < 2) {
+    return res.status(400).json({
+      ok: false,
+      mensaje: "Debe seleccionar al menos 2 paquetes para agrupar"
+    });
+  }
+
+  try {
+
+    const pool = await poolPromise;
+
+    // 🔹 Obtener paquetes hijos
+    const paquetes = await pool.request()
+      .input("solicitud_id", sql.Int, id)
+      .query(`
+        SELECT 
+          id,
+          hawb,
+          tracking,
+          contenido,
+          peso,
+          asegurado,
+          servicio_id,
+          tienda,
+          codigo_referencia,
+          digitado_por
+        FROM paquetes
+        WHERE solicitud_id = @solicitud_id
+          AND ISNULL(agrupado_bit,0) = 0
+          AND hawb IN (${hawbs.map(h => `'${h}'`).join(",")})
+      `);
+
+    if (!paquetes.recordset.length) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: "No hay paquetes válidos para agrupar"
+      });
+    }
+
+    const hijos = paquetes.recordset;
+
+    const prefijo = hijos[0].hawb.substring(0, 4);
+    const consecutivo = Math.floor(100000000 + Math.random() * 900000000);
+    const hawbPadre = `${prefijo}${consecutivo}G`;
+
+    const pesoTotal = hijos.reduce((s,p)=>s+Number(p.peso||0),0);
+    const aseguradoTotal = hijos.reduce((s,p)=>s+Number(p.asegurado||0),0);
+
+    const tracking = hijos.map(p=>p.tracking).filter(Boolean).join(", ");
+    const contenido = hijos.map(p=>p.contenido).filter(Boolean).join(", ");
+
+    const servicio = hijos[0].servicio_id;
+    const tienda = hijos[0].tienda;
+    const codigo_referencia = hijos[0].codigo_referencia;
+    const digitado_por = hijos[0].digitado_por;
+
+    const padre = await pool.request()
+      .input("hawb", sql.NVarChar(50), hawbPadre)
+      .input("tracking", sql.NVarChar(sql.MAX), tracking)
+      .input("contenido", sql.NVarChar(sql.MAX), contenido)
+      .input("peso", sql.Decimal(10,2), pesoTotal)
+      .input("asegurado", sql.Decimal(10,2), aseguradoTotal)
+      .input("servicio_id", sql.Int, servicio)
+      .input("tienda", sql.NVarChar(100), tienda)
+      .input("codigo_referencia", sql.NVarChar(50), codigo_referencia)
+      .input("digitado_por", sql.NVarChar(100), digitado_por)
+      .input("solicitud_id", sql.Int, id)
+      .query(`
+        INSERT INTO paquetes (
+          hawb,
+          tracking,
+          contenido,
+          peso,
+          asegurado,
+          servicio_id,
+          tienda,
+          codigo_referencia,
+          digitado_por,
+          solicitud_id,
+          agrupado_bit
+        )
+        OUTPUT INSERTED.id
+        VALUES (
+          @hawb,
+          @tracking,
+          @contenido,
+          @peso,
+          @asegurado,
+          @servicio_id,
+          @tienda,
+          @codigo_referencia,
+          @digitado_por,
+          @solicitud_id,
+          0
+        )
+      `);
+
+    // 🔹 Marcar hijos
+    await pool.request()
+      .input("padre", sql.NVarChar(50), hawbPadre)
+      .query(`
+        UPDATE paquetes
+        SET agrupado_bit = 1,
+            hawb_padre = @padre
+        WHERE hawb IN (${hawbs.map(h => `'${h}'`).join(",")})
+      `);
+
+    // 🔹 Obtener estado Agrupado
+    const estado = await pool.request()
+      .query(`
+        SELECT TOP 1 id
+        FROM estados_catalogo
+        WHERE nombre = 'Agrupado'
+      `);
+
+    const estado_id = estado.recordset[0].id;
+
+    // 🔹 Crear estado inicial
+    await pool.request()
+      .input("hawb", sql.NVarChar(50), hawbPadre)
+      .input("estado_id", sql.Int, estado_id)
+      .input("punto_control", sql.NVarChar(100), "Otras operaciones")
+      .input("observaciones", sql.NVarChar(200), "Guía agrupada automáticamente")
+      .input("responsable", sql.NVarChar(100), "Sistema")
+      .query(`
+        INSERT INTO historial_estados
+        (hawb, estado, estado_id, punto_control, observaciones, responsable)
+        VALUES
+        (@hawb, 'Agrupado', @estado_id, @punto_control, @observaciones, @responsable)
+      `);
+
+    res.json({
+      ok: true,
+      mensaje: "Paquetes agrupados correctamente",
+      hawb_agrupado: hawbPadre,
+      peso_total: pesoTotal
+    });
+
+  } catch (error) {
+
+    console.error("❌ Error agrupando solicitud:", error);
+
+    res.status(500).json({
+      ok: false,
+      mensaje: "Error interno al agrupar paquetes"
+    });
+
+  }
+
+};
+
+export const generarEtiquetaHawbPadre = async (req, res) => {
+  const { hawbPadre: hawb } = req.params;
+
+  try {
+    const pool = await poolPromise;
+
+    // 1️⃣ Obtener datos del HAWB PADRE
+    const result = await pool.request()
+      .input("hawb", sql.NVarChar(50), hawb)
+      .query(`
+        SELECT
+          p.hawb,
+          p.peso,
+          p.contenido,
+          p.fecha_registro,
+          p.solicitud_id,
+          s.id AS solicitud_id,
+          d.nombre,
+          d.direccion,
+          d.ciudad,
+          d.departamento,
+          d.pais,
+          d.telefono,
+          c.codigo_referencia,
+          CASE
+            WHEN LOWER(c.tipo_cliente) = 'personal' THEN
+              RTRIM(
+                ISNULL(c.primer_nombre, '') + ' ' +
+                ISNULL(c.segundo_nombre + ' ', '') +
+                ISNULL(c.primer_apellido, '') + ' ' +
+                ISNULL(c.segundo_apellido, '')
+              )
+            ELSE
+              ISNULL(c.nombre_empresa, 'Sin nombre')
+          END AS cliente
+        FROM paquetes p
+        INNER JOIN solicitudes s ON s.id = p.solicitud_id
+        LEFT JOIN destinatarios d ON d.id = s.destinatario
+        LEFT JOIN clientes c ON c.id = s.cliente_id
+        WHERE p.hawb = @hawb
+          AND p.hawb LIKE '%G'
+          AND ISNULL(p.agrupado_bit, 0) = 0
+      `);
+
+    if (!result.recordset.length) {
+      return res.status(404).json({ mensaje: "HAWB padre no encontrado" });
+    }
+
+    const padre = result.recordset[0];
+
+    // 2️⃣ Contar paquetes hijos
+    const hijos = await pool.request()
+      .input("hawb", sql.NVarChar(50), hawb)
+      .query(`
+        SELECT COUNT(*) AS total
+        FROM paquetes
+        WHERE hawb_padre = @hawb
+      `);
+
+    const totalHijos = hijos.recordset[0].total || 0;
+
+    // 3️⃣ Código de barras
+    const barcodeBuffer = await bwipjs.toBuffer({
+      bcid: "code128",
+      text: hawb,
+      scale: 2.5,
+      height: 18,
+      includetext: false,
+      textxalign: "center",
+      backgroundcolor: "FFFFFF"
+    });
+
+    const doc = new PDFDocument({
+      size: [300, 600],
+      margin: 18
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${hawb}.pdf"`
+    );
+
+    doc.pipe(res);
+
+    doc.roundedRect(8, 8, 284, 584, 12).stroke("#222222");
+
+    const logoPath = "D:\\wolfBox_jaes\\frontend-wolfbox\\src\\assets\\logoJaesCargo.png";
+
+    try {
+      doc.image(logoPath, 18, 16, { width: 85 });
+    } catch (err) {
+      console.log("No se pudo cargar el logo:", err.message);
+    }
+
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(11)
+      .fillColor("#111111")
+      .text("HAWB", 0, 108, {
+        align: "center",
+        width: 300
+      });
+
+    doc.moveTo(20, 116).lineTo(95, 116).stroke("#444444");
+    doc.moveTo(205, 116).lineTo(280, 116).stroke("#444444");
+
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(25)
+      .fillColor("#000000")
+      .text(hawb, 20, 132, {
+        align: "center",
+        width: 260
+      });
+
+    doc.image(barcodeBuffer, 38, 185, { width: 224, height: 55 });
+
+    doc
+      .font("Helvetica")
+      .fontSize(10)
+      .text(hawb, 20, 245, {
+        align: "center",
+        width: 260
+      });
+
+    let y = 280;
+
+    const dibujarFila = (label, valor) => {
+      doc.moveTo(18, y - 5).lineTo(282, y - 5).stroke("#D1D5DB");
+
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(9)
+        .fillColor("#111111")
+        .text(`${label}:`, 24, y, { width: 90 });
+
+      doc
+        .font("Helvetica")
+        .fontSize(9)
+        .fillColor("#222222")
+        .text(valor ? String(valor) : "-", 112, y, {
+          width: 150
+        });
+
+      y += 30;
+    };
+
+    const fechaFormateada = new Date(padre.fecha_registro).toLocaleDateString("es-CO");
+
+    dibujarFila("Cliente", padre.cliente);
+    dibujarFila("Contenido", padre.contenido);
+    dibujarFila("Peso total", `${Number(padre.peso).toFixed(2)} LB`);
+    dibujarFila("Fecha", fechaFormateada);
+    dibujarFila("Código ref.", padre.codigo_referencia);
+    dibujarFila("Paquetes hijos", totalHijos.toString());
+    dibujarFila("País", padre.pais);
+    dibujarFila("Ciudad", padre.ciudad);
+    dibujarFila("Dirección", padre.direccion);
+    dibujarFila("Celular", padre.telefono);
+
+    doc.end();
+
+
+  } catch (error) {
+    console.error("❌ Error PDF:", error);
+    res.status(500).json({ mensaje: "Error generando etiqueta" });
+  }
+};
+
+
+
 
 
 

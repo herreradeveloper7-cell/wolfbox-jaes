@@ -1,12 +1,11 @@
 import UserDashboardLayout from "../../layouts/UserDashboardLayout";
 import { useNavigate } from "react-router-dom";
 import iconHome from "../../assets/home-svgrepo-com.svg";
-import iconCamera from "../../assets/camera-filled-svgrepo-com.svg";
 import iconSave from "../../assets/save-svgrepo-com.svg";
 import iconFile from "../../assets/file-ui-svgrepo-com.svg";
-import iconTrash from "../../assets/trash-can-with-cover-from-side-view-svgrepo-com.svg";
+import iconCancel from "../../assets/cancel-svgrepo-com.svg";
 import iconUpload from "../../assets/upload-svgrepo-com.svg";
-import PlantillaInfoCrearTracking from "../../components/PlantillaInfoCrearTracking";
+import PlantillaInfoCrearTracking from "../../components/tracking/PlantillaInfoCrearTracking";
 import ModalError from "../../components/ModalError";
 import axios from "axios";
 import { useEffect, useState} from "react";
@@ -30,39 +29,6 @@ export default function CrearTracking() {
     const botonGuardarActivo = oficina && puntoControl && estadoFinal && hawb;
     const [archivo, setArchivo] = useState<File | null>(null);
     const [inputFocus, setInputFocus] = useState(false);
-
-    const opcionesEstadoFinal: Record<string, string[]> = {
-    "Casilleros bodega": [
-        "Llega bodega Bogotá",
-        "Llega bodega Miami",
-        "Reajuste liberado",
-        "Digitado"
-    ],
-    "Otras operaciones": [
-        "Facturado pendiente de pago",
-        "Editada",
-        "Reajuste aduanero",
-        "Planilla de despacho",
-        "Se retira del despacho",
-        "Novedad",
-        "Desbloqueado"
-    ],
-    "Tránsito aéreo": [
-        "Consolidado",
-        "Erolinea Miami",
-        "Manifestado",
-        "Arribo aeropuerto destino",
-        "Pendiente de aduanas",
-        "Faltante en descargue"
-    ],
-    "Tránsito terrestre": [
-        "Entregado a transportadora",
-        "Entregado a destinatario",
-        "Novedad en tránsito",
-        "Intento de entrega",
-        "Devolución"
-    ]
-    };
 
 
     const [modalVisible, setModalVisible] = useState(false);
@@ -122,7 +88,6 @@ export default function CrearTracking() {
             return;
             }
 
-            // ❌ Evitar duplicar mismo estado consecutivo
             if (ultimoEstado.estado === estadoFinal) {
             setModalError("Este estado ya ha sido asignado como último.");
             return;
@@ -131,10 +96,8 @@ export default function CrearTracking() {
             const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
             const responsable = usuario.nombre || "Usuario desconocido";
 
-            // ✅ Construir la fecha manual correcta
             const fechaCompleta = `${fecha} ${horas}:${minutos}:00`;
 
-            // ✅ Registrar NUEVO estado en historial
             await axios.post("http://localhost:3000/api/paquetes/tracking/estado", {
             hawb,
             estado: estadoFinal,
@@ -144,15 +107,23 @@ export default function CrearTracking() {
             fecha: fechaCompleta
             });
 
-            setPaquetesTracking([
-            {
+            setPaquetesTracking((prev) => {
+            const nuevoPaquete = {
                 id: Date.now(),
                 hawb: paquete.hawb,
                 usuario: responsable,
                 contenido: paquete.contenido || "Sin contenido",
                 peso: paquete.peso?.toFixed(2) || "0.00",
+            };
+
+            const yaExiste = prev.some((item) => item.hawb === paquete.hawb);
+
+            if (yaExiste) {
+                return prev;
             }
-            ]);
+
+            return [nuevoPaquete, ...prev];
+            });
 
             setMensajeTracking({
             hawb: paquete.hawb,
@@ -160,7 +131,7 @@ export default function CrearTracking() {
             peso: paquete.peso?.toFixed(2) || "0.00",
             });
 
-            setHawb("");   // solo limpiar HAWB
+            setHawb("");   
             setHawbFocus(false);
 
         } catch (error: any) {
@@ -171,6 +142,59 @@ export default function CrearTracking() {
             setModalError("Error al actualizar el estado del paquete.");
             }
         }
+    };
+
+    const [catalogoEstados, setCatalogoEstados] = useState<any[]>([]);
+    const [oficinas, setOficinas] = useState<any[]>([]);
+    const [puntosControl, setPuntosControl] = useState<any[]>([]);
+    const [estados, setEstados] = useState<any[]>([]);
+
+    useEffect(() => {
+    cargarCatalogoEstados();
+    }, []);
+
+    const cargarCatalogoEstados = async () => {
+    try {
+
+        const { data } = await axios.get(
+        "http://localhost:3000/api/paquetes/catalogo-estados"
+        );
+
+        setCatalogoEstados(data);
+
+        const oficinasUnicas = [
+        ...new Map(
+            data.map((item: any) => [item.oficina_id, item])
+        ).values(),
+        ];
+
+        setOficinas(oficinasUnicas);
+
+    } catch (error) {
+        console.error("Error cargando catálogo estados", error);
+    }
+    };
+
+    const handleLimpiarFormulario = () => {
+        const ahora = new Date();
+
+        setHawb("");
+        setObservaciones("");
+        setHawbFocus(false);
+        setObsFocus(false);
+
+        setOficina("");
+        setPuntoControl("");
+        setEstadoFinal("");
+
+        setEstados([]);
+        setPuntosControl([]);
+        setPaquetesTracking([]);
+
+        setFechaAutomatica(true);
+        setFecha(ahora.toISOString().split("T")[0]);
+        setHoras(String(ahora.getHours()).padStart(2, "0"));
+        setMinutos(String(ahora.getMinutes()).padStart(2, "0"));
     };
 
     interface PaqueteTracking {
@@ -184,38 +208,58 @@ export default function CrearTracking() {
     const navigate = useNavigate();
     return (
         <UserDashboardLayout scrollable>
-            <div className="text-gray-800 px-6 lg:px-10">
-                <h1 className="text-3xl font-bold mb-2 text-red-900">Tracking</h1>
-                <p className="text-sm text-gray-500 mb-6 flex items-center gap-1">
+            <div className="text-gray-800 px-4 sm:px-6 lg:px-10 animate-fade-in">
+                <h1 className="text-3xl font-bold mb-2 text-red-900 tracking-wide">CREAR TRACKING</h1>
+                <p className="text-xs text-gray-500 mb-6 flex items-center gap-2">
                 <img src={iconHome} alt="Inicio" className="w-4 h-4" />
                 <button
                     onClick={() => navigate("/dashboardUsuario")}
-                    className="font-semibold hover:underline text-gray-700 cursor-pointer"
+                    className="font-semibold hover:underline text-gray-600 cursor-pointer transition"
                 >
                     Dashboard
                 </button>
-                &gt; Tracking
+                <span>/</span> <span className="font-medium text-gray-700">Tracking</span>
                 </p>
 
-                <div className="bg-gray-100 p-6 rounded-lg shadow-inner flex flex-col justify-between min-h-[100%]">
-                <div className="bg-white shadow-md rounded-lg p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="flex flex-col gap-1 w-[500px]">
+                <div className="relative bg-white/95 border border-gray-200 shadow-xl rounded-2xl p-6 mb-10 overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-900 via-gray-300 to-red-900"></div>
+
+                <div className="flex items-center justify-between mb-6 border-b border-gray-200 pb-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-600 tracking-wide">
+                      REGISTRO DE ESTADO DE PAQUETES
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Actualizar estado de tracking mediante información de oficina y control
+                    </p>
+                  </div>
+
+                  <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 border border-gray-200">
+                    <span className="w-2 h-2 rounded-full bg-green-600"></span>
+                    <span className="text-xs font-semibold text-gray-600">
+                      Módulo activo
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="flex flex-col gap-4 bg-gray-50/80 border border-gray-200 rounded-2xl p-5 shadow-sm">
                         <div className="flex items-center gap-3">
-                            <label className="w-32 text-green-900 text-sm font-normal text-right">Fecha hora *</label>
+                            <label className="w-28 text-sm font-semibold text-gray-600 tracking-tighter">Fecha/Hora *</label>
                             <input
                             type="date"
-                            className={`w-[250px] h-[42px] px-3 border rounded text-sm ${fechaAutomatica 
-                                ? "bg-gray-100 text-gray-500 border-green-900 cursor-not-allowed" 
-                                : "bg-white text-gray-700 border-green-900"}`}
+                            className={`flex-1 px-3 py-2 rounded-xl text-sm border transition shadow-sm
+                            ${fechaAutomatica 
+                                ? "bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed" 
+                                : "bg-white text-gray-700 border-gray-200 focus:ring-2 focus:ring-red-900/20 focus:border-red-900 hover:border-gray-400"}`}
                             value={fecha}
                             onChange={(e) => setFecha(e.target.value)}
                             disabled={fechaAutomatica}
                             />
                         </div>
 
-                        <div className="flex items-center gap-3 py-3">
-                            <label className="w-32 text-sm text-gray-700 font-normal text-right">Fecha automática</label>
+                        <div className="flex items-center gap-3 py-2">
+                            <label className="w-28 text-sm font-medium text-gray-600">Automática</label>
                             <label className="relative inline-flex items-center cursor-pointer">
                             <input
                                 type="checkbox"
@@ -223,7 +267,7 @@ export default function CrearTracking() {
                                 checked={fechaAutomatica}
                                 onChange={(e) => setFechaAutomatica(e.target.checked)}
                             />
-                            <div className="w-14 h-8 bg-red-500 peer-focus:outline-none peer-checked:bg-green-500 relative shadow-md rounded-full 
+                            <div className="w-14 h-8 bg-red-500 peer-focus:outline-none peer-checked:bg-green-600 relative shadow-md rounded-full 
                             peer peer-checked:after:translate-x-full 
                             peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[2px] after:bg-white 
                             after:border after:border-transparent after:rounded-full after:h-[26px] after:w-[26px] after:transition-all ">
@@ -232,7 +276,7 @@ export default function CrearTracking() {
                         </div>
 
                         <div className="flex items-center gap-3">
-                            <label className="w-32 text-sm font-normal text-gray-700 text-right">Horas *</label>
+                            <label className="w-28 text-sm font-medium text-gray-600">Horas *</label>
                             <input
                             type="number"
                             min="0"
@@ -240,15 +284,15 @@ export default function CrearTracking() {
                             value={horas}
                             onChange={(e) => setHoras(e.target.value)}
                             disabled={fechaAutomatica}
-                            className={`w-[80px] h-[42px] px-3 border rounded text-sm transition 
+                            className={`flex-1 px-3 py-2 rounded-xl text-sm border transition shadow-sm
                                 ${fechaAutomatica 
                                   ? "bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed" 
-                                  : "bg-white text-gray-700 border-gray-400"}`}
+                                  : "bg-white text-gray-700 border-gray-200 focus:ring-2 focus:ring-red-900/20 focus:border-red-900 hover:border-gray-400"}`}
                             />
                         </div>
 
                         <div className="flex items-center gap-3">
-                            <label className="w-32 text-sm font-normal text-gray-700 text-right">Minutos *</label>
+                            <label className="w-28 text-sm font-medium text-gray-600">Minutos *</label>
                             <input
                             type="number"
                             min="0"
@@ -256,131 +300,147 @@ export default function CrearTracking() {
                             value={minutos}
                             onChange={(e) => setMinutos(e.target.value)}
                             disabled={fechaAutomatica}
-                            className={`w-[80px] h-[42px] px-3 border rounded text-sm transition 
+                            className={`flex-1 px-3 py-2 rounded-xl text-sm border transition shadow-sm
                                 ${fechaAutomatica 
                                   ? "bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed" 
-                                  : "bg-white text-gray-700 border-gray-400"}`}
+                                  : "bg-white text-gray-700 border-gray-200 focus:ring-2 focus:ring-red-900/20 focus:border-red-900 hover:border-gray-400"}`}
                             />
                         </div>
+                    </div>
 
+                    <div className="flex flex-col gap-4 bg-gray-50/80 border border-gray-200 rounded-2xl p-5 shadow-sm">
                         <div className="flex items-center gap-3">
-                        <label className={`w-32 text-sm font-normal text-right transition-colors duration-300 
-                            ${oficina ? "text-green-900" : "text-gray-700"}`}
+                        <label className={`w-28 text-sm font-semibold text-gray-600 transition-colors duration-300 
+                            ${oficina ? "text-red-900" : ""}`}
                             >
                             Oficina *
                         </label>
                         <select
-                            className="w-[350px] h-[42px] px-3 border rounded border-gray-400 text-gray-700 py-2 mt-1 transition-all duration-300 focus:outline-none focus:ring-0 focus:ring-green-900 focus:border-green-900"
+                            className="flex-1 px-3 py-2 rounded-xl text-sm bg-white border border-gray-200 shadow-sm 
+                            focus:outline-none focus:ring-2 focus:ring-red-900/20 focus:border-red-900 hover:border-gray-400 transition cursor-pointer"
                             value={oficina}
                             onChange={(e) => {
-                            setOficina(e.target.value);
+                            const oficinaSeleccionada = e.target.value;
+
+                            setOficina(oficinaSeleccionada);
                             setPuntoControl("");
                             setEstadoFinal("");
+                            setEstados([]);
+                            setPaquetesTracking([]);
+
+                            const puntos = catalogoEstados.filter(
+                                (c: any) => c.oficina === oficinaSeleccionada
+                            );
+
+                            const puntosUnicos = [
+                                ...new Map(
+                                puntos.map((item: any) => [item.punto_control_id, item])
+                                ).values(),
+                            ];
+
+                            setPuntosControl(puntosUnicos);
                             }}
                         >
-                            <option value="">Seleccionar</option>
-                            <option value="Bogotá">Bogotá</option>
+                            <option value="">Seleccionar...</option>
+                            {oficinas.map((o) => (
+                            <option key={o.oficina_id} value={o.oficina}>
+                                {o.oficina}
+                            </option>
+                            ))}
                         </select>
                         </div>
 
                         <div className="flex items-center gap-3">
-                        <label className={`w-32 text-sm font-normal text-right transition-colors duration-300 
-                        ${puntoControl ? "text-green-900" : "text-gray-700"}`}
+                        <label className={`w-28 text-sm font-semibold text-gray-600 transition-colors duration-300 
+                        ${puntoControl ? "text-red-900" : ""}`}
                         >
-                            Punto de control *
+                            Punto Control *
                         </label>
                         <select
-                            className={`w-[350px] h-[42px] px-3 border rounded py-2 mt-1 transition-all duration-300 ease-in-out 
-                            ${!oficina ? "bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed" : "bg-white text-gray-700 border-gray-400"}
-                            focus:outline-none focus:ring-0 focus:ring-green-900 focus:border-green-900`}
+                            className={`flex-1 px-3 py-2 rounded-xl text-sm border shadow-sm transition cursor-pointer
+                            ${!oficina 
+                              ? "bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed" 
+                              : "bg-white text-gray-700 border-gray-200 focus:ring-2 focus:ring-red-900/20 focus:border-red-900 hover:border-gray-400"}`}
                             value={puntoControl}
                             onChange={(e) => {
-                                setPuntoControl(e.target.value);
-                                setEstadoFinal("");
+
+                            const punto = e.target.value;
+
+                            setPuntoControl(punto);
+                            setEstadoFinal("");
+                            setPaquetesTracking([]);
+
+                            const estadosFiltrados = catalogoEstados.filter(
+                                (c: any) =>
+                                c.oficina === oficina &&
+                                c.punto_control === punto
+                            );
+
+                            setEstados(estadosFiltrados);
                             }}
                             disabled={!oficina}
                             >
-                            <option value="">Seleccionar</option>
-                            <option value="Casilleros bodega">Casilleros bodega</option>
-                            <option value="Otras operaciones">Otras operaciones</option>
-                            <option value="Tránsito aéreo">Tránsito aéreo</option>
-                            <option value="Tránsito terrestre">Tránsito terrestre</option>
+                            <option value="">Seleccionar...</option>
+                            {puntosControl.map((p) => (
+                            <option key={p.punto_control_id} value={p.punto_control}>
+                                {p.punto_control}
+                            </option>
+                            ))}
                         </select>
                         </div>
 
                         <div className="flex items-center gap-3">
-                        <label className={`w-32 text-sm font-normal text-right transition-colors duration-300 
-                            ${estadoFinal ? "text-green-900" : "text-gray-700"}`}
+                        <label className={`w-28 text-sm font-semibold text-gray-600 transition-colors duration-300 
+                            ${estadoFinal ? "text-red-900" : ""}`}
                         >
-                            Estado final *
+                            Estado Final *
                         </label>
                         <select
-                        className={`w-[350px] h-[42px] px-3 border rounded py-2 mt-1 transition-all duration-300 ease-in-out 
-                            ${!puntoControl ? "bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed" : "bg-white text-gray-700 border-gray-400"}
-                            focus:outline-none focus:ring-0 focus:ring-green-900 focus:border-green-900`}
+                        className={`flex-1 px-3 py-2 rounded-xl text-sm border shadow-sm transition cursor-pointer
+                            ${!puntoControl 
+                              ? "bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed" 
+                              : "bg-white text-gray-700 border-gray-200 focus:ring-2 focus:ring-red-900/20 focus:border-red-900 hover:border-gray-400"}`}
                         value={estadoFinal}
-                        onChange={(e) => setEstadoFinal(e.target.value)}
+                        onChange={(e) => {
+                            setEstadoFinal(e.target.value);
+                            setPaquetesTracking([]);
+                        }}
                         disabled={!puntoControl}
                         >
-                        <option value="">Seleccionar</option>
-                        {opcionesEstadoFinal[puntoControl]?.map((opcion, index) => (
-                            <option key={index} value={opcion}>
-                            {opcion}
-                            </option>
+                        <option value="">Seleccionar...</option>
+                        {estados.map((estado) => (
+                        <option key={estado.estado_id} value={estado.estado}>
+                            {estado.estado}
+                        </option>
                         ))}
                         </select>
-
                         </div>
                     </div>
 
-
-                    <div className="flex flex-col gap-4 border-l border-gray-300 pl-6">
+                    <div className="flex flex-col gap-5 bg-gray-50/80 border border-gray-200 rounded-2xl p-5 shadow-sm">
                         <div className="flex items-start gap-3">
-                            <label className="w-32 text-sm font-normal text-right pt-1">Procesar por:</label>
-                            <div className="flex flex-col gap-3">
-                                <label className="flex items-center gap-2 mt-1">
+                            <label className="w-28 text-sm font-semibold text-gray-600 tracking-tighter pt-1">Procesar por:</label>
+                            <div className="flex flex-col gap-2">
+                                <label className="flex items-center gap-2">
                                     <input 
                                     type="radio" 
                                     name="procesar"
-                                    className="peer accent-green-900 w-4 h-4"
+                                    className="peer accent-red-900 w-4 h-4"
                                     defaultChecked 
-                                    /> 
-                                    <span className="text-gray-700 text-sm font-normal peer-checked:text-green-900 transition-colors duration-200">
-                                        HAWB / Referencia Guía importada.
-                                    </span>
-                                </label>
-
-                                <label className="flex items-center gap-2">
-                                    <input
-                                        type="radio"
-                                        name="procesar"
-                                        className="peer accent-green-900 w-4 h-4"
                                     />
-                                    <span className="text-gray-700 text-sm font-normal peer-checked:text-green-900 transition-colors duration-200">
-                                        Consolidado
-                                    </span>
-                                </label>
-
-                                <label className="flex items-center gap-2">
-                                    <input
-                                        type="radio"
-                                        name="procesar"
-                                        value="master"
-                                        className="peer accent-green-900 w-4 h-4"
-                                    />
-                                    <span className="text-gray-700 text-sm font-normal peer-checked:text-green-900 transition-colors duration-200">
-                                        Master
+                                    <span className="text-gray-700 text-sm font-normal peer-checked:text-red-900 transition-colors duration-200">
+                                        HAWB / Guía
                                     </span>
                                 </label>
                             </div>
                         </div>
 
-                        <div className="flex items-start gap-3">
+                        <div className="flex flex-col gap-3">
                             <label 
-                                className={`w-32 text-sm font-normal text-right pt-2 transition-colors duration-300 
-                                ${observaciones || obsFocus ? "text-green-900" : "text-gray-700"}`}
-                                >
-                                Observaciones:
+                                className={`text-sm font-semibold text-gray-600 tracking-tighter transition-colors duration-300 
+                                ${observaciones || obsFocus ? "text-red-900" : ""}`}
+                            >
+                                Observaciones
                             </label>
                             <textarea 
                                 rows={4}
@@ -388,20 +448,19 @@ export default function CrearTracking() {
                                 onChange={(e) => setObservaciones(e.target.value)}
                                 onFocus={() => setObsFocus(true)}
                                 onBlur={() => setObsFocus(false)}
-                                className={`w-[380px] border rounded px-3 py-2 text-sm transition-all duration-300 
+                                className={`w-full border rounded-xl px-3 py-3 text-sm shadow-sm transition-all duration-300 
                                 ${obsFocus 
-                                    ? "border-green-900 ring-0 ring-green-900 outline-none" 
-                                    : "border-gray-400 focus:border-green-900 focus:ring-2 focus:ring-green-900"}`}
+                                    ? "border-red-900 ring-2 ring-red-900/20 outline-none" 
+                                    : "border-gray-200 focus:border-red-900 focus:ring-2 focus:ring-red-900/20 hover:border-gray-400"}`}
                             />
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-col gap-3">
                             <label 
-                                className={`w-32 text-sm font-normal text-right transition-colors duration-300 
-                                ${hawb || hawbFocus ? "text-green-900" : "text-gray-700"}`}
-
+                                className={`text-sm font-semibold text-gray-600 transition-colors duration-300 
+                                ${hawb || hawbFocus ? "text-red-900" : ""}`}
                             >
-                                HAWB:
+                                HAWB / Número de Guía *
                             </label>
                             <input 
                             type="text"
@@ -409,139 +468,172 @@ export default function CrearTracking() {
                             onChange={(e) => setHawb(e.target.value)}
                             onFocus={() => setHawbFocus(true)}
                             onBlur={() => setHawbFocus(false)}
-                            className={`w-[380px] border rounded px-3 py-2 text-sm transition-all duration-300 
+                            placeholder="Ingrese el número de HAWB o guía"
+                            className={`w-full border rounded-xl px-4 py-3 text-sm shadow-sm transition-all duration-300 
                             ${hawbFocus 
-                                ? "border-green-900 ring-0 ring-green-900 outline-none" 
-                                : "border-gray-400 focus:border-green-900 focus:ring-2 focus:ring-green-900"}`}
+                                ? "border-red-900 ring-2 ring-red-900/20 outline-none" 
+                                : "border-gray-200 focus:border-red-900 focus:ring-2 focus:ring-red-900/20 hover:border-gray-400 bg-white"}`}
                             />
                         </div>
-
-                        <div className="flex justify-end mt-4">
-                            <button 
-                            type="button"
-                            className="bg-red-900 hover:bg-red-950 text-white px-4 py-2 rounded shadow-md flex items-center gap-2 cursor-pointer transition-all duration-200"
-                            >
-                            <img src={iconCamera} alt="Foto" className="w-5 h-5" />
-                            Foto
-                            </button>
-                        </div>
                     </div>
                 </div>
 
+                <div className="flex justify-end gap-3 mt-6 border-t border-gray-200 pt-4">
+                    <button
+                    type="button"
+                    onClick={handleLimpiarFormulario}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm border
+                        bg-white border-gray-300 text-gray-700 hover:bg-red-50 hover:border-red-400 hover:text-red-700"
+                    >
+                        <img src={iconCancel} alt="Cancelar" className="w-5 h-5" />
+                        Limpiar
+                    </button>
+
+                    <button 
+                    type="submit"
+                    disabled={!botonGuardarActivo}
+                    onClick={actualizarEstadoTracking}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition shadow-md
+                        ${botonGuardarActivo
+                        ? "bg-green-600 text-white hover:bg-green-700 hover:shadow-lg hover:scale-[1.02]"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
+                    >
+                    <img src={iconSave} alt="Guardar" className="w-5 h-5" />
+                    Guardar Tracking
+                    </button>
                 </div>
-                    <div className="mt-4 flex justify-end">
-                        <button 
-                        type="submit"
-                        disabled={!botonGuardarActivo}
-                        onClick={actualizarEstadoTracking}
-                        className={`px-6 py-2 rounded flex items-center justify-center gap-2 transition-all duration-200
-                            ${botonGuardarActivo
-                            ? "bg-green-500 hover:bg-green-600 text-white shadow-md"
-                            : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
-                        >
-                        <img src={iconSave} alt="Guardar" className="w-5 h-5" />
-                        Guardar
-                        </button>
-                    </div>
-                </div>
-
-                <div className="bg-white shadow-md rounded-lg p-6 mt-8">
-                    <hr className="border-t border-gray-300 opacity-50 mb-4" />
-
-                    <div className="bg-gray-100 text-gray-700 px-4 py-2 rounded mb-4 text-sm">
-                        <strong className="text-gray-800">Nota:</strong> Recuerde que si en los campos del archivo no se encuentra la fecha u hora, esta se asignará según el formulario o automáticamente
-                    </div>
-
-                    <p className="text-sm text-gray-700 mb-2">
-                        Importar archivo con el número HAWB/referencia (guía importada)
-                    </p>
-
-                    <div className="flex flex-col md:flex-row items-start md:items-center gap-10">
-                        <div className="flex items-center w-full md:w-[500px] relative">
-                            <input
-                                id="file-upload"
-                                type="file"
-                                accept=".xlsx"
-                                onChange={handleArchivoChange}
-                                onFocus={() => setInputFocus(true)}
-                                onBlur={() => setInputFocus(false)}
-                                className="hidden" 
-                            />
-
-                            <label
-                                htmlFor="file-upload"
-                                className={`w-full px-3 py-2 text-sm text-gray-700 border rounded 
-                                ${inputFocus || archivo ? "border-green-900" : "border-gray-300"} 
-                                bg-white cursor-pointer transition-all duration-300`}
-                            >
-                                {archivo ? archivo.name : "Seleccione un archivo ..."}
-                            </label>
-
-                            <button
-                                type="button"
-                                onClick={limpiarArchivo}
-                                className={`absolute right-0 top-0 h-full px-3 flex items-center justify-center 
-                                ${archivo ? "bg-green-900" : "bg-gray-800"} text-white transition rounded-r`}
-                            >
-                                <img src={iconTrash} alt="Eliminar" className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        <div className="flex items-center gap-10">
-                            <button className="bg-red-900 hover:bg-red-950 text-white px-4 py-2 rounded shadow-md flex items-center gap-2 text-sm transition-all cursor-pointer">
-                            <img src={iconUpload} alt="Subir" className="w-4 h-4" />
-                            Subir archivo
-                            </button>
-
-                            <button 
-                            onClick={() => setModalVisible(true)}                       
-                            className="bg-red-900 hover:bg-red-950 text-white px-4 py-2 rounded shadow-md flex items-center gap-2 text-sm transition-all cursor-pointer"
-                            >
-                            <img src={iconFile} alt="Info" className="w-4 h-4" />
-                            Información plantilla
-                            </button>
-                        </div>
-                    </div>
                 </div>
 
                 {mensajeTracking && (
-                <div className="bg-green-100 border border-green-300 text-green-900 rounded-lg p-4 mb-6 shadow-md animate-fade-in">
-                    <h2 className="text-lg font-bold">¡Tracking creado exitosamente!</h2>
-                    <p className="mt-1"><strong>HAWB:</strong> {mensajeTracking.hawb}</p>
-                    <p><strong>Contenido:</strong> {mensajeTracking.contenido}</p>
-                    <p><strong>Peso:</strong> {mensajeTracking.peso} LBS</p>
-                    <div className="text-right">
-                    <button
+                <div className="relative bg-green-50/95 border border-green-200 shadow-xl rounded-2xl p-6 mb-10 overflow-hidden animate-fade-in">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-600 via-green-300 to-green-600"></div>
+                    
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h2 className="text-lg font-bold text-green-900">✓ Tracking creado exitosamente</h2>
+                        <div className="mt-3 space-y-1">
+                          <p className="text-sm text-gray-700"><strong className="text-green-900">HAWB:</strong> {mensajeTracking.hawb}</p>
+                          <p className="text-sm text-gray-700"><strong className="text-green-900">Contenido:</strong> {mensajeTracking.contenido}</p>
+                          <p className="text-sm text-gray-700"><strong className="text-green-900">Peso:</strong> {mensajeTracking.peso} LBS</p>
+                        </div>
+                      </div>
+                      <button
                         onClick={() => setMensajeTracking(null)}
-                        className="mt-2 text-sm text-green-700 underline hover:text-green-900 transition"
-                    >
-                        Cerrar mensaje
-                    </button>
+                        className="text-green-600 hover:text-green-900 text-2xl leading-none transition"
+                      >
+                        ×
+                      </button>
                     </div>
                 </div>
                 )}
 
+                <div className="relative bg-white/95 border border-gray-200 shadow-xl rounded-2xl p-6 mb-10 overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-900 via-gray-300 to-red-900"></div>
 
-                <div className="bg-gray-100 text-gray-700 px-4 py-2 rounded mb-4 text-sm mt-4">
-                    <table className="mt-6 w-full text-sm border border-gray-300 shadow-sm rounded">
-                    <thead className="bg-gray-100 text-gray-600">
-                        <tr>
-                        <th className="p-2 text-left">ID</th>
-                        <th className="p-2 text-left">HAWB</th>
-                        <th className="p-2 text-left">Usuario</th>
+                <div className="flex items-center justify-between mb-6 border-b border-gray-200 pb-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-600 tracking-wide">
+                      IMPORTAR ARCHIVO
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Carga masiva de trackings mediante archivo Excel (.xlsx)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6 text-sm text-amber-900">
+                    <strong>Nota:</strong> Si no se especifica fecha/hora en el archivo, se usarán los valores del formulario o automáticos
+                </div>
+
+                <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
+                    <div className="flex items-center w-full lg:w-[400px] relative">
+                        <input
+                            id="file-upload"
+                            type="file"
+                            accept=".xlsx"
+                            onChange={handleArchivoChange}
+                            onFocus={() => setInputFocus(true)}
+                            onBlur={() => setInputFocus(false)}
+                            className="hidden" 
+                        />
+
+                        <label
+                            htmlFor="file-upload"
+                            className={`w-full px-3 py-2.5 text-sm rounded-xl border transition shadow-sm cursor-pointer flex items-center gap-2
+                            ${inputFocus || archivo 
+                              ? "border-red-900 bg-red-50 text-gray-700" 
+                              : "border-gray-200 bg-white text-gray-600 hover:border-gray-400"}`}
+                        >
+                            <span className="truncate">{archivo ? archivo.name : "Seleccione archivo .xlsx"}</span>
+                        </label>
+
+                        {archivo && (
+                          <button
+                              type="button"
+                              onClick={limpiarArchivo}
+                              className="absolute right-2 flex items-center justify-center text-red-600 hover:text-red-900 transition"
+                              title="Eliminar archivo"
+                          >
+                              ✕
+                          </button>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-900 text-white text-sm font-semibold shadow-md hover:bg-red-950 hover:shadow-lg hover:scale-[1.02] transition cursor-pointer">
+                        <img src={iconUpload} alt="Subir" className="w-5 h-5" />
+                        Subir
+                        </button>
+
+                        <button 
+                        onClick={() => setModalVisible(true)}                       
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-600 text-white text-sm font-semibold shadow-md hover:bg-gray-700 hover:shadow-lg hover:scale-[1.02] transition cursor-pointer"
+                        >
+                        <img src={iconFile} alt="Info" className="w-5 h-5" />
+                        Plantilla
+                        </button>
+                    </div>
+                </div>
+                </div>
+
+                {paquetesTracking.length > 0 && (
+                <div className="relative bg-white/95 border border-gray-200 shadow-xl rounded-2xl p-6 mb-10 overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-900 via-gray-300 to-red-900"></div>
+
+                <div className="flex items-center justify-between mb-6 border-b border-gray-200 pb-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-600 tracking-wide">
+                      HISTORIAL DE TRACKINGS
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Últimos paquetes procesados
+                    </p>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-separate border-spacing-y-2">
+                    <thead className="bg-gray-100 text-gray-700">
+                        <tr className="bg-gray-50 hover:bg-gray-100 transition">
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">ID</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">HAWB</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Usuario</th>
                         </tr>
                     </thead>
                     <tbody>
                         {paquetesTracking.map((paquete) => (
-                        <tr key={paquete.id} className="border-t text-gray-700">
-                            <td className="p-2">{paquete.id}</td>
-                            <td className="p-2">{paquete.hawb}</td>
-                            <td className="p-2">{paquete.usuario}</td>
+                        <tr key={paquete.id} className="bg-white hover:bg-gray-50 transition border border-gray-200 rounded-lg">
+                            <td className="px-4 py-3 text-gray-700 font-medium">{paquete.id}</td>
+                            <td className="px-4 py-3 text-gray-700 font-medium">{paquete.hawb}</td>
+                            <td className="px-4 py-3 text-gray-600">{paquete.usuario}</td>
                         </tr>
                         ))}
                     </tbody>
                     </table>
                 </div>
+                </div>
+                )}
+
                 {modalVisible && <PlantillaInfoCrearTracking onClose={() => setModalVisible(false)} />}
                 {modalError && (<ModalError mensaje={modalError} onClose={() => setModalError(null)} />
                 )}

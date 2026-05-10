@@ -5,19 +5,25 @@ import {
   obtenerUsuariosSistema,
   obtenerUsuarioPorId,
   editarUsuario,
+  obtenerUsuariosSelect,
   eliminarUsuario,
-  cambiarEstadoUsuario
+  cambiarEstadoUsuario,
+  buscarUsuarios,
 } from "../controllers/usuarios.controller.js";
 
 const router = express.Router();
 
 router.get("/listar", obtenerUsuariosSistema);
 
+router.get("/select", obtenerUsuariosSelect);
+
 router.get("/detalle/:id", obtenerUsuarioPorId);
 
 router.post("/crear", crearUsuario);
 
 router.get("/validar-email/:email", validarEmail);
+
+router.get("/buscar/:texto", buscarUsuarios);
 
 router.put("/editar/:id", editarUsuario);
 

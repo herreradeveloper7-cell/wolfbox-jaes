@@ -58,10 +58,10 @@ export default function SolicitudesRealizadasTabla({
               <th className="py-3 px-4 text-left"># Solicitud</th>
               <th className="py-3 px-4 text-left">Fecha</th>
               <th className="py-3 px-4 text-left">Destinatario</th>
+              <th className="py-3 px-4 text-left">Guía agrupada</th>
               <th className="py-3 px-4 text-left">HAWB agregados</th>
               <th className="py-3 px-4 text-center">Paquetes</th>
               <th className="py-3 px-4 text-center">Peso Total (lb)</th>
-              <th className="py-3 px-4 text-center">Estado</th>
             </tr>
           </thead>
 
@@ -150,43 +150,48 @@ export default function SolicitudesRealizadasTabla({
                     {s.destinatario_nombre || "—"}
                   </td>
 
+                  <td className="px-4 py-3 text-gray-700 font-semibold">
+                    {s.guia_agrupada ? (
+                      <span className="text-red-800">{s.guia_agrupada}</span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+
                   <td className="px-4 py-3 text-gray-700 whitespace-pre-line text-xs leading-relaxed">
-                    {s.hawbs
-                      ? s.hawbs
-                          .split("\n")
-                          .map((h: string, i: number) => (
-                            <div
-                              key={i}
-                              className="border-b border-gray-100 last:border-none py-0.5"
-                            >
-                              {h}
-                            </div>
-                          ))
-                      : "—"}
+                    {s.guia_agrupada ? (
+                      s.hawbs_agrupados ? (
+                        s.hawbs_agrupados.split("\n").map((h: string, i: number) => (
+                          <div
+                            key={i}
+                            className="border-b border-gray-100 last:border-none py-0.5"
+                          >
+                            {h}
+                          </div>
+                        ))
+                      ) : (
+                        "—"
+                      )
+                    ) : s.hawbs_normales ? (
+                      s.hawbs_normales.split("\n").map((h: string, i: number) => (
+                        <div
+                          key={i}
+                          className="border-b border-gray-100 last:border-none py-0.5"
+                        >
+                          {h}
+                        </div>
+                      ))
+                    ) : (
+                      "—"
+                    )}
                   </td>
 
                   <td className="px-4 py-3 text-center text-gray-700">
-                    {s.cantidadPaquetes}
+                    {s.cantidadPaquetes ?? 0}
                   </td>
 
-                    <td className="px-4 py-3 text-center text-gray-700">
-                    {isNaN(Number(s.pesoTotal))
-                        ? "0.00"
-                        : Number(s.pesoTotal).toFixed(2)}
-                    </td>
-
-                  <td
-                    className={`px-4 py-3 text-center font-semibold capitalize transition-all duration-150 ${
-                      s.estado.toLowerCase() === "consolidado"
-                        ? "text-green-700 bg-green-50 rounded-full px-3 py-1 inline-block"
-                        : s.estado.toLowerCase() === "pendiente"
-                        ? "text-yellow-700 bg-yellow-50 rounded-full px-3 py-1 inline-block"
-                        : s.estado.toLowerCase() === "en tránsito"
-                        ? "text-blue-700 bg-blue-50 rounded-full px-3 py-1 inline-block"
-                        : "text-gray-700 bg-gray-50 rounded-full px-3 py-1 inline-block"
-                    }`}
-                  >
-                    {s.estado}
+                  <td className="px-4 py-3 text-center text-gray-700">
+                    {Number(s.pesoTotal || 0).toFixed(2)}
                   </td>
                 </tr>
               ))

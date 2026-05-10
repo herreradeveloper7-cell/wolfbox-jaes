@@ -62,9 +62,9 @@ export default function PersonalForm({ tipoCliente }: Props) {
           email,
           contrasena,
           fechaNacimiento,
-          pais: selectedCountry,
-          region: selectedRegion,
-          ciudad,
+          pais: paises.find((p) => String(p.id) === selectedCountry)?.nombre || "",
+          region: regiones.find((r) => String(r.id) === selectedRegion)?.nombre || "",
+          ciudad: ciudades.find((c) => String(c.id) === ciudad)?.nombre || "",
           direccion,
           indicativo,
           celular,
@@ -74,7 +74,6 @@ export default function PersonalForm({ tipoCliente }: Props) {
         };
       
         try {
-          // Verificar si el email ya existe
           const validarDuplicado = await fetch(`http://localhost:3000/api/clientes/validar`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -115,118 +114,132 @@ export default function PersonalForm({ tipoCliente }: Props) {
         }
     }
 
+    interface Pais {
+      id: number;
+      nombre: string;
+      codigo_iso: string;
+      activo: boolean;
+    }
 
-    type CityMap = {
-        [region: string]: string[];
-        };
+    interface Region {
+      id: number;
+      pais_id: number;
+      nombre: string;
+      activo: boolean;
+      tipo_region: string;
+    }
+
+    interface Ciudad {
+      id: number;
+      region_id: number;
+      nombre: string;
+      activo: boolean;
+    }
+
+    const [paises, setPaises] = useState<Pais[]>([]);
+    const [regiones, setRegiones] = useState<Region[]>([]);
+    const [ciudades, setCiudades] = useState<Ciudad[]>([]);
+
+    useEffect(() => {
+      const cargarPaises = async () => {
+        try {
+          const res = await fetch("http://localhost:3000/api/catalogos/paises");
+          const data = await res.json();
+
+          setPaises(data.paises || data);
+        } catch (error) {
+          console.error("Error cargando países:", error);
+        }
+      };
+
+      cargarPaises();
+    }, []);
+
+    useEffect(() => {
+      const cargarRegiones = async () => {
+        if (!selectedCountry) {
+          setRegiones([]);
+          setSelectedRegion("");
+          setCiudades([]);
+          setCiudad("");
+          return;
+        }
+
+        try {
+          const res = await fetch(
+            `http://localhost:3000/api/catalogos/regiones/${selectedCountry}`
+          );
+
+          const data = await res.json();
+
+          setRegiones(data.regiones || data);
+          setSelectedRegion("");
+          setCiudades([]);
+          setCiudad("");
+        } catch (error) {
+          console.error("Error cargando regiones:", error);
+        }
+      };
+
+      cargarRegiones();
+    }, [selectedCountry]);
+
+    useEffect(() => {
+      const cargarCiudades = async () => {
+        if (!selectedRegion) {
+          setCiudades([]);
+          setCiudad("");
+          return;
+        }
+
+        try {
+          const res = await fetch(
+            `http://localhost:3000/api/catalogos/ciudades/${selectedRegion}`
+          );
+
+          const data = await res.json();
+
+          setCiudades(data.ciudades || data);
+          setCiudad("");
+        } catch (error) {
+          console.error("Error cargando ciudades:", error);
+        }
+      };
+
+      cargarCiudades();
+    }, [selectedRegion]);
+
+
+    const inputBase = "w-full rounded-2xl border border-gray-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-slate-800 shadow-inner outline-none transition-all duration-300 placeholder:text-slate-400 hover:border-gray-300 focus:border-red-900 focus:bg-white focus:ring-4 focus:ring-red-900/10 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400";
+    const labelBase = "mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-slate-500";
+    const errorBase = "mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700";
+
     
-    const colombia: CityMap = {
-        "Amazonas": ["Leticia", "Puerto Nariño", "La Chorrera", "El Encanto", "Tarapacá"],
-        "Antioquia": ["Medellín", "Bello", "Itagüí", "Envigado", "Apartadó"],
-        "Arauca": ["Arauca", "Saravena", "Tame", "Arauquita", "Fortul"],
-        "Atlántico": ["Barranquilla", "Soledad", "Malambo", "Sabanalarga", "Galapa"],
-        "Bolívar": ["Cartagena", "Magangué", "Turbaco", "Arjona", "El Carmen de Bolívar"],
-        "Boyacá": ["Tunja", "Duitama", "Sogamoso", "Chiquinquirá", "Paipa"],
-        "Caldas": ["Manizales", "La Dorada", "Chinchiná", "Villamaría", "Riosucio"],
-        "Caquetá": ["Florencia", "San Vicente del Caguán", "Puerto Rico", "Cartagena del Chairá", "El Doncello"],
-        "Casanare": ["Yopal", "Aguazul", "Villanueva", "Tauramena", "Monterrey"],
-        "Cauca": ["Popayán", "Santander de Quilichao", "Puerto Tejada", "Patía", "El Tambo"],
-        "Cesar": ["Valledupar", "Aguachica", "Codazzi", "La Jagua de Ibirico", "Bosconia"],
-        "Chocó": ["Quibdó", "Istmina", "Condoto", "Tadó", "Riosucio"],
-        "Córdoba": ["Montería", "Cereté", "Sahagún", "Lorica", "Montelíbano"],
-        "Cundinamarca": ["Bogotá", "Soacha", "Fusagasugá", "Girardot", "Chía"],
-        "Guainía": ["Inírida"],
-        "Guaviare": ["San José del Guaviare", "Calamar", "El Retorno", "Miraflores"],
-        "Huila": ["Neiva", "Pitalito", "Garzón", "La Plata", "Campoalegre"],
-        "La Guajira": ["Riohacha", "Maicao", "Uribia", "San Juan del Cesar", "Fonseca"],
-        "Magdalena": ["Santa Marta", "Ciénaga", "Fundación", "El Banco", "Plato"],
-        "Meta": ["Villavicencio", "Acacías", "Granada", "Puerto López", "San Martín"],
-        "Nariño": ["Pasto", "Tumaco", "Ipiales", "Túquerres", "Sandoná"],
-        "Norte de Santander": ["Cúcuta", "Ocaña", "Pamplona", "Villa del Rosario", "Los Patios"],
-        "Putumayo": ["Mocoa", "Puerto Asís", "Orito", "Valle del Guamuez", "San Miguel"],
-        "Quindío": ["Armenia", "Calarcá", "Montenegro", "Quimbaya", "La Tebaida"],
-        "Risaralda": ["Pereira", "Dosquebradas", "Santa Rosa de Cabal", "La Virginia", "Belén de Umbría"],
-        "San Andrés y Providencia": ["San Andrés", "Providencia"],
-        "Santander": ["Bucaramanga", "Floridablanca", "Girón", "Piedecuesta", "Barrancabermeja"],
-        "Sucre": ["Sincelejo", "Corozal", "Sampués", "San Marcos", "Tolú"],
-        "Tolima": ["Ibagué", "Espinal", "Melgar", "Honda", "Líbano"],
-        "Valle del Cauca": ["Cali", "Buenaventura", "Palmira", "Tuluá", "Cartago"],
-        "Vaupés": ["Mitú"],
-        "Vichada": ["Puerto Carreño"]
-        };
-    
-    const estadosUnidos: CityMap = {
-        "Alabama": ["Birmingham", "Montgomery", "Mobile", "Huntsville", "Tuscaloosa"],
-        "Alaska": ["Anchorage", "Fairbanks", "Juneau", "Sitka", "Ketchikan"],
-        "Arizona": ["Phoenix", "Tucson", "Mesa", "Chandler", "Scottsdale"],
-        "Arkansas": ["Little Rock", "Fort Smith", "Fayetteville", "Springdale", "Jonesboro"],
-        "California": ["Los Ángeles", "San Diego", "San José", "San Francisco", "Fresno"],
-        "Colorado": ["Denver", "Colorado Springs", "Aurora", "Fort Collins", "Lakewood"],
-        "Connecticut": ["Bridgeport", "New Haven", "Stamford", "Hartford", "Waterbury"],
-        "Delaware": ["Wilmington", "Dover", "Newark", "Middletown", "Smyrna"],
-        "Florida": ["Jacksonville", "Miami", "Tampa", "Orlando", "St. Petersburg"],
-        "Georgia": ["Atlanta", "Augusta", "Columbus", "Savannah", "Athens"],
-        "Hawái": ["Honolulu", "Hilo", "Kailua", "Kapolei", "Kaneohe"],
-        "Idaho": ["Boise", "Meridian", "Nampa", "Idaho Falls", "Pocatello"],
-        "Illinois": ["Chicago", "Aurora", "Naperville", "Joliet", "Rockford"],
-        "Indiana": ["Indianápolis", "Fort Wayne", "Evansville", "South Bend", "Carmel"],
-        "Iowa": ["Des Moines", "Cedar Rapids", "Davenport", "Sioux City", "Iowa City"],
-        "Kansas": ["Wichita", "Overland Park", "Kansas City", "Olathe", "Topeka"],
-        "Kentucky": ["Louisville", "Lexington", "Bowling Green", "Owensboro", "Covington"],
-        "Luisiana": ["Nueva Orleans", "Baton Rouge", "Shreveport", "Lafayette", "Lake Charles"],
-        "Maine": ["Portland", "Lewiston", "Bangor", "South Portland", "Auburn"],
-        "Maryland": ["Baltimore", "Frederick", "Rockville", "Gaithersburg", "Bowie"],
-        "Massachusetts": ["Boston", "Worcester", "Springfield", "Cambridge", "Lowell"],
-        "Michigan": ["Detroit", "Grand Rapids", "Warren", "Sterling Heights", "Ann Arbor"],
-        "Minnesota": ["Minneapolis", "Saint Paul", "Rochester", "Duluth", "Bloomington"],
-        "Mississippi": ["Jackson", "Gulfport", "Southaven", "Hattiesburg", "Biloxi"],
-        "Missouri": ["Kansas City", "Saint Louis", "Springfield", "Independence", "Columbia"],
-        "Montana": ["Billings", "Missoula", "Great Falls", "Bozeman", "Butte"],
-        "Nebraska": ["Omaha", "Lincoln", "Bellevue", "Grand Island", "Kearney"],
-        "Nevada": ["Las Vegas", "Henderson", "Reno", "North Las Vegas", "Sparks"],
-        "New Hampshire": ["Manchester", "Nashua", "Concord", "Derry", "Rochester"],
-        "New Jersey": ["Nueva Jersey", "Jersey City", "Paterson", "Elizabeth", "Edison"],
-        "New Mexico": ["Albuquerque", "Las Cruces", "Rio Rancho", "Santa Fe", "Roswell"],
-        "New York": ["Nueva York", "Buffalo", "Rochester", "Yonkers", "Syracuse"],
-        "North Carolina": ["Charlotte", "Raleigh", "Greensboro", "Durham", "Winston-Salem"],
-        "North Dakota": ["Fargo", "Bismarck", "Grand Forks", "Minot", "West Fargo"],
-        "Ohio": ["Columbus", "Cleveland", "Cincinnati", "Toledo", "Akron"],
-        "Oklahoma": ["Oklahoma City", "Tulsa", "Norman", "Broken Arrow", "Edmond"],
-        "Oregon": ["Portland", "Salem", "Eugene", "Gresham", "Hillsboro"],
-        "Pennsylvania": ["Filadelfia", "Pittsburgh", "Allentown", "Erie", "Reading"],
-        "Rhode Island": ["Providence", "Cranston", "Warwick", "Pawtucket", "East Providence"],
-        "South Carolina": ["Columbia", "Charleston", "North Charleston", "Mount Pleasant", "Rock Hill"],
-        "South Dakota": ["Sioux Falls", "Rapid City", "Aberdeen", "Brookings", "Mitchell"],
-        "Tennessee": ["Nashville", "Memphis", "Knoxville", "Chattanooga", "Clarksville"],
-        "Texas": ["Houston", "San Antonio", "Dallas", "Austin", "Fort Worth"],
-        "Utah": ["Salt Lake City", "West Valley City", "Provo", "Sandy", "Orem"],
-        "Vermont": ["Burlington", "Essex", "South Burlington", "Rutland", "Barre"],
-        "Virginia": ["Virginia Beach", "Norfolk", "Chesapeake", "Richmond", "Newport News"],
-        "Washington": ["Seattle", "Spokane", "Tacoma", "Vancouver", "Bellevue"],
-        "West Virginia": ["Charleston", "Huntington", "Morgantown", "Parkersburg", "Weirton"],
-        "Wisconsin": ["Milwaukee", "Madison", "Green Bay", "Kenosha", "Racine"],
-        "Wyoming": ["Cheyenne", "Casper", "Laramie", "Gillette", "Rock Springs"]
-    };
-
-    const regionOptions =
-    selectedCountry === "Colombia"
-      ? Object.keys(colombia)
-      : selectedCountry === "Estados Unidos"
-      ? Object.keys(estadosUnidos)
-      : [];
-
-  const cityOptions =
-    selectedCountry === "Colombia"
-      ? colombia[selectedRegion] || []
-      : selectedCountry === "Estados Unidos"
-      ? estadosUnidos[selectedRegion] || []
-      : [];
-
     return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+    <form onSubmit={handleSubmit} className="relative mt-6 overflow-hidden rounded-3xl border border-gray-200 bg-white p-5 shadow-xl shadow-slate-200/60 sm:p-6">
+      <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-red-900 via-gray-300 to-red-900" />
+
+      <div className="mb-6 border-b border-gray-100 pb-5">
+        <span className="inline-flex rounded-full border border-red-900/10 bg-red-900/5 px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-red-900">
+          Cuenta personal
+        </span>
+        <h3 className="mt-3 text-xl font-black text-slate-800">Datos de registro</h3>
+        <p className="mt-1 text-sm font-medium text-slate-500">
+          Completa tu informacion personal, contacto y credenciales de acceso.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <div className="flex items-center gap-3">
+            <span className="h-2 w-2 rounded-full bg-red-900" />
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Identificacion</p>
+            <span className="h-px flex-1 bg-gray-200" />
+          </div>
+        </div>
         <div>
-        <label className="block font-medium mb-1">Tipo de identificación *</label>
-        <select required className="w-full p-2 border rounded"
+        <label className={labelBase}>Tipo de identificación *</label>
+        <select required className={inputBase}
             value={tipoIdentificacion}
             onChange={(e) => setTipoIdentificacion(e.target.value)}
             >
@@ -239,217 +252,240 @@ export default function PersonalForm({ tipoCliente }: Props) {
         </div>
   
         <div>
-            <label className="block font-medium mb-1">Número de identificación *</label>
+            <label className={labelBase}>Número de identificación *</label>
             <input 
             type="text" 
             value={numeroIdentificacion}
             onChange={(e) => setNumeroIdentificacion(e.target.value)}
-            className="w-full p-2 border rounded" 
+            className={inputBase} 
             required />
           {errores.identificacionExistente && (
-            <p className="text-red-600 text-sm mt-1">Ya existe un cliente con este número de identificación.</p>
+            <p className={errorBase}>Ya existe un cliente con este número de identificación.</p>
           )}
         </div>
   
         <div>
-          <label className="block font-medium mb-1">Primer nombre *</label>
+          <label className={labelBase}>Primer nombre *</label>
           <input
             type="text" 
             value={primerNombre}
             onChange={(e) => setPrimerNombre(e.target.value)}
-            className="w-full p-2 border rounded" 
+            className={inputBase} 
             required />
         </div>
   
         <div>
-          <label className="block font-medium mb-1">Segundo nombre</label>
+          <label className={labelBase}>Segundo nombre</label>
           <input
             type="text"
             value={segundoNombre}
             onChange={(e) => setSegundoNombre(e.target.value)}
-            className="w-full p-2 border rounded"/>
+            className={inputBase}/>
         </div>
   
         <div>
-          <label className="block font-medium mb-1">Primer apellido *</label>
+          <label className={labelBase}>Primer apellido *</label>
           <input
             type="text"
             value={primerApellido}
             onChange={(e) => setPrimerApellido(e.target.value)} 
-            className="w-full p-2 border rounded" 
+            className={inputBase} 
             required />
         </div>
   
         <div>
-          <label className="block font-medium mb-1">Segundo apellido</label>
+          <label className={labelBase}>Segundo apellido</label>
           <input 
             type="text" 
             value={segundoApellido}
             onChange={(e) => setSegundoApellido(e.target.value)}
-            className="w-full p-2 border rounded" />
+            className={inputBase} />
         </div>
   
+        <div className="md:col-span-2 pt-2">
+          <div className="flex items-center gap-3">
+            <span className="h-2 w-2 rounded-full bg-red-900" />
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Credenciales</p>
+            <span className="h-px flex-1 bg-gray-200" />
+          </div>
+        </div>
+
         <div>
-          <label className="block font-medium mb-1">Email *</label>
+          <label className={labelBase}>Email *</label>
           <input 
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)} 
-            className="w-full p-2 border rounded" 
+            className={inputBase} 
             required />
           {errores.emailExistente && (
-            <p className="text-red-600 text-sm mt-1">Ya existe un cliente con este correo electrónico.</p>
+            <p className={errorBase}>Ya existe un cliente con este correo electrónico.</p>
           )}
         </div>
   
         <div>
-          <label className="block font-medium mb-1">Confirmar email *</label>
+          <label className={labelBase}>Confirmar email *</label>
           <input 
             type="email" 
             value={confirmarEmail}
             onChange={(e) => setConfirmarEmail(e.target.value)}
-            className="w-full p-2 border rounded" 
+            className={`${inputBase} ${!errores.emailCoincide ? "border-red-500 focus:border-red-600 focus:ring-red-600/10" : ""}`} 
             required />
           {!errores.emailCoincide && (
-            <p className="text-sm text-red-600 mt-1">Los correos no coinciden</p>
+            <p className={errorBase}>Los correos no coinciden</p>
           )}
         </div>
   
         <div>
-          <label className="block font-medium mb-1">Contraseña *</label>
+          <label className={labelBase}>Contraseña *</label>
           <input 
             type="password" 
             value={contrasena}
             onChange={(e) => setContrasena(e.target.value)}
-            className="w-full p-2 border rounded" 
+            className={inputBase} 
             required />
         </div>
   
         <div>
-          <label className="block font-medium mb-1">Confirmación de contraseña *</label>
+          <label className={labelBase}>Confirmación de contraseña *</label>
           <input 
             type="password"
             value={confirmarContrasena}
             onChange={(e) => setConfirmarContrasena(e.target.value)} 
-            className="w-full p-2 border rounded" 
+            className={`${inputBase} ${!errores.contrasenaCoincide ? "border-red-500 focus:border-red-600 focus:ring-red-600/10" : ""}`} 
             required />
           {!errores.contrasenaCoincide && (
-            <p className="text-sm text-red-600 mt-1">Las contraseñas no coinciden</p>
+            <p className={errorBase}>Las contraseñas no coinciden</p>
           )}
         </div>
 
+        <div className="md:col-span-2 pt-2">
+          <div className="flex items-center gap-3">
+            <span className="h-2 w-2 rounded-full bg-red-900" />
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Ubicacion y contacto</p>
+            <span className="h-px flex-1 bg-gray-200" />
+          </div>
+        </div>
+
         <div>
-            <label className="block font-medium mb-1">Fecha de nacimiento *</label>
+            <label className={labelBase}>Fecha de nacimiento *</label>
             <input
             type="date"
             value={fechaNacimiento}
             onChange={(e) => setFechaNacimiento(e.target.value)}
             required
-            className="w-full p-2 border rounded"
+            className={inputBase}
             />
         </div>
   
         <div>
-        <label className="block font-medium mb-1">País *</label>
-        <select 
-            required 
-            className="w-full p-2 border rounded"
-            value={selectedCountry}
-            onChange={(e) => {
-                setSelectedCountry(e.target.value);
-                setSelectedRegion("");
-            }}
-            >
-            <option value="">Seleccionar país</option>
-            <option value="Colombia">Colombia</option>
-            <option value="Estados Unidos">Estados Unidos</option>
-        </select>
-        </div>
-  
-        <div>
-        <label className="block font-medium mb-1">Departamento / Estado *</label>
-        <select 
-            required 
-            className="w-full p-2 border rounded"
-            value={selectedRegion}
-            onChange={(e) => setSelectedRegion(e.target.value)}
-            disabled={!selectedCountry}
-        >
-            <option value="">Seleccionar departamento/estado</option>
-            {regionOptions.map((region) => (
-                <option key={region} value={region}>{region}</option>
-            ))}
-        </select>
-        </div>
-  
-        <div>
-        <label className="block font-medium mb-1">Ciudad *</label>
+        <label className={labelBase}>País *</label>
         <select
-            required
-            className="w-full p-2 border rounded"
-            value={ciudad}
-            onChange={(e) => setCiudad(e.target.value)}
-            disabled={!selectedRegion}
+          value={selectedCountry}
+          onChange={(e) => setSelectedCountry(e.target.value)}
+          className={inputBase}
+          required
         >
-          <option value="">Seleccionar ciudad</option>
-          {cityOptions.map((city: string) => (
-            <option key={city} value={city}>{city}</option>
+          <option value="">Seleccione país</option>
+
+          {paises.map((pais) => (
+            <option key={pais.id} value={pais.id}>
+              {pais.nombre}
+            </option>
+          ))}
+        </select>
+        </div>
+  
+        <div>
+        <label className={labelBase}>Departamento / Estado *</label>
+        <select
+          value={selectedRegion}
+          onChange={(e) => setSelectedRegion(e.target.value)}
+          className={inputBase}
+          required
+          disabled={!selectedCountry}
+        >
+          <option value="">Seleccione región/departamento</option>
+
+          {regiones.map((region) => (
+            <option key={region.id} value={region.id}>
+              {region.nombre}
+            </option>
+          ))}
+        </select>
+        </div>
+  
+        <div>
+        <label className={labelBase}>Ciudad *</label>
+        <select
+          value={ciudad}
+          onChange={(e) => setCiudad(e.target.value)}
+          className={inputBase}
+          required
+          disabled={!selectedRegion}
+        >
+          <option value="">Seleccione ciudad</option>
+
+          {ciudades.map((ciudad) => (
+            <option key={ciudad.id} value={ciudad.id}>
+              {ciudad.nombre}
+            </option>
           ))}
         </select>
         </div>
   
         <div className="md:col-span-2">
-            <label className="block font-medium mb-1">Dirección *</label>
+            <label className={labelBase}>Dirección *</label>
             <input 
             type="text" 
             value={direccion}
             onChange={(e) => setDireccion(e.target.value)}
-            className="w-full p-2 border rounded" 
+            className={inputBase} 
             required />
         </div>
 
-        <div className="col-span-2 flex gap-4">
-            <div className="w-1/4">
-            <label className="block font-medium mb-1">Indicativo</label>
+        <div className="md:col-span-2 grid grid-cols-1 gap-5 sm:grid-cols-[150px_1fr]">
+            <div>
+            <label className={labelBase}>Indicativo</label>
             <select
             value={indicativo}
             onChange={(e) => setIndicativo(e.target.value)}
-            className="w-full p-2 border rounded">
+            className={inputBase}>
                 <option value="">Indicativo</option>
                 <option value="+57">+57 (Colombia)</option>
                 <option value="+1">+1 (EE.UU.)</option>
             </select>
             </div>
             <div className="flex-1">
-            <label className="block font-medium mb-1">Teléfono celular *</label>
+            <label className={labelBase}>Teléfono celular *</label>
             <input
                 type="tel"
                 value={celular}
                 onChange={(e) => setCelular(e.target.value)}
                 placeholder="Número de celular"
                 required
-                className="w-full p-2 border rounded"
+                className={inputBase}
             />
             </div>
         </div>
   
         <div className="md:col-span-2">
-            <label className="block font-medium mb-1">Teléfono fijo*</label>
+            <label className={labelBase}>Teléfono fijo*</label>
             <input
             type="text"
             value={telefonoFijo}
             onChange={(e) => setTelefonoFijo(e.target.value)}
             placeholder="Número de teléfono fijo"
-            className="w-full p-2 border rounded"
+            className={inputBase}
             required />
         </div>
 
         <div>
-            <label className="block font-medium mb-1">Género</label>
+            <label className={labelBase}>Género</label>
             <select
             value={genero}
             onChange={(e) => setGenero(e.target.value)}
-            className="w-full p-2 border rounded">
+            className={inputBase}>
             <option value="">Seleccionar género</option>
             <option value="masculino">Masculino</option>
             <option value="femenino">Femenino</option>
@@ -457,24 +493,24 @@ export default function PersonalForm({ tipoCliente }: Props) {
             </select>
         </div>
   
-        <div className="md:col-span-2 flex items-start gap-2 mt-2">
+        <div className="md:col-span-2 flex items-start gap-3 rounded-2xl border border-gray-200 bg-slate-50/80 p-4">
           <input 
           type="checkbox" 
           id="terms" 
           checked={termsAccepted}
           onChange={(e) => setTermsAccepted(e.target.checked)}
           required 
-          className="mt-1 w-5 h-5" />
-          <label htmlFor="terms" className="text-sm text-gray-700">
+          className="mt-0.5 h-5 w-5 shrink-0 accent-green-700" />
+          <label htmlFor="terms" className="text-sm font-semibold leading-6 text-slate-600">
             Acepto los <a href="#" className="text-blue-600 underline">términos y condiciones</a>.
           </label>
         </div>
   
-        <div className="md:col-span-2 flex justify-end gap-4 mt-4">
+        <div className="md:col-span-2 flex flex-col justify-end gap-3 sm:flex-row">
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="px-6 py-2 rounded border border-gray-400 text-gray-700 hover:bg-gray-100 transition cursor-pointer"
+            className="rounded-2xl border border-gray-300 bg-white px-6 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
           >
             Cancelar
           </button>
@@ -485,15 +521,16 @@ export default function PersonalForm({ tipoCliente }: Props) {
             !errores.emailCoincide ||
             !errores.contrasenaCoincide
             }
-            className={`px-6 py-2 rounded text-white transition
+            className={`rounded-2xl px-7 py-3 text-sm font-black text-white shadow-lg transition-all
             ${!termsAccepted || !errores.emailCoincide || !errores.contrasenaCoincide
-            ? 'bg-gray-400 cursor-not-allowed'
-            : 'bg-red-900 hover:bg-red-950 cursor-pointer'}
+            ? 'bg-gray-400 cursor-not-allowed shadow-none'
+            : 'bg-gradient-to-r from-red-950 to-red-900 shadow-red-950/20 hover:-translate-y-0.5 hover:from-red-900 hover:to-red-800 hover:shadow-xl cursor-pointer'}
             `}
           >
           Enviar
           </button>
         </div>
+      </div>
     </form>
     );
   }  

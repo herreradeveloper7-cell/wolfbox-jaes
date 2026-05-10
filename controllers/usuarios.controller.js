@@ -80,7 +80,7 @@ export const obtenerUsuariosSistema = async (req, res) => {
     const pool = await poolPromise;
     const result = await pool.request()
       .query(`
-        SELECT id, nombre, correo, tipo_usuario, genero, estado
+        SELECT id, nombre, correo, tipo_usuario, genero, estado, fecha_creacion
         FROM usuarios
         WHERE tipo_usuario IN ('admin', 'usuario')
       `);
@@ -102,7 +102,7 @@ export const obtenerUsuarioPorId = async (req, res) => {
     const resultUsuario = await pool.request()
       .input("id", sql.Int, id)
       .query(`
-        SELECT id, nombre, correo, tipo_usuario, genero
+        SELECT id, nombre, correo, tipo_usuario, genero, estado, fecha_creacion
         FROM usuarios
         WHERE id = @id
       `);
@@ -318,6 +318,62 @@ export const cambiarEstadoUsuario = async (req, res) => {
   }
 };
 
+export const obtenerUsuariosSelect = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+
+    const result = await pool.request().query(`
+      SELECT id, nombre
+      FROM usuarios
+      WHERE tipo_usuario IN ('admin', 'usuario')
+        AND estado = 'activo'
+      ORDER BY nombre
+    `);
+
+    return res.json({ ok: true, usuarios: result.recordset });
+  } catch (error) {
+    console.error("❌ Error obteniendo usuarios select:", error);
+    return res.status(500).json({ ok: false, mensaje: "Error al obtener usuarios" });
+  }
+};
+
+export const buscarUsuarios = async (req, res) => {
+  try {
+    const { texto } = req.params;
+
+    const pool = await poolPromise;
+
+    const result = await pool.request()
+      .input("texto", sql.VarChar, `%${texto}%`)
+      .query(`
+        SELECT TOP 10 
+          id,
+          nombre,
+          correo,
+          tipo_usuario
+        FROM usuarios
+        WHERE estado = 'activo'
+          AND tipo_usuario IN ('admin', 'usuario')
+          AND (
+            nombre LIKE @texto
+            OR correo LIKE @texto
+          )
+        ORDER BY nombre
+      `);
+
+    return res.json({
+      ok: true,
+      usuarios: result.recordset
+    });
+
+  } catch (error) {
+    console.error("❌ Error buscando usuarios:", error);
+    return res.status(500).json({
+      ok: false,
+      mensaje: "Error al buscar usuarios"
+    });
+  }
+};
 
 
 

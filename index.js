@@ -1,10 +1,9 @@
+import "./env.js";
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import dotenv from 'dotenv';
 import fs from "fs";
 import path from "path";
-
 import authRoutes from './routes/auth.routes.js';
 import paquetesRoutes from './routes/paquetes.routes.js';
 import clientesRoutes from './routes/clientes.routes.js';
@@ -14,11 +13,15 @@ import solicitudesRoutes from "./routes/solicitudes.routes.js";
 import destinatariosRoutes from "./routes/destinatarios.routes.js";
 import configRoutes from "./routes/config.routes.js";
 import trmRoutes from "./routes/trm.routes.js";
-import cargosRoutes from "./routes/cargos.routes.js";
-import serviciosRoutes from "./routes/servicios.routes.js";
+import cargosRoutes from "./routes/catalogos/cargos.routes.js";
+import serviciosRoutes from "./routes/catalogos/servicios.routes.js";
+import agrupacionesRoutes from "./routes/agruparPaquetes.routes.js";
+import conciliacionRoutes from "./routes/conciliacion.routes.js";
+import oficinasRoutes from "./routes/catalogos/oficinas.routes.js";
+import paisesRoutes from "./routes/catalogos/paises.routes.js";
+import regionesRoutes from "./routes/catalogos/regiones.routes.js";
+import ciudadesRoutes from "./routes/catalogos/ciudades.routes.js";
 
-
-dotenv.config();
 const app = express();
 
 const uploadsPath = path.resolve("uploads/comprobantes");
@@ -47,6 +50,16 @@ app.use("/api/config", configRoutes);
 app.use("/api/trm", trmRoutes);
 app.use("/api/cargos", cargosRoutes);
 app.use("/api/servicios", serviciosRoutes);
+app.use("/api/agrupaciones", agrupacionesRoutes);
+app.use("/api/conciliacion", conciliacionRoutes);
+app.use("/api/oficinas", oficinasRoutes);
+app.use("/api/catalogos/paises", paisesRoutes);
+app.use("/api/catalogos/regiones", regionesRoutes);
+app.use("/api/catalogos/ciudades", ciudadesRoutes);
+
+
+app.use("/uploads", express.static("uploads"));
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

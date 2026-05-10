@@ -1,7 +1,7 @@
 import ReactDOM from "react-dom";
 import { useState,useEffect } from "react";
-import iconExcel from "../assets/file-excel-svgrepo-com.svg";
-import iconInfo from "../assets/info-circle-svgrepo-com.svg";
+import iconExcel from "../../assets/file-excel-svgrepo-com.svg";
+import iconInfo from "../../assets/info-circle-svgrepo-com.svg";
 
 
 export default function PlantillaInfoCrearTracking({ onClose }: { onClose: () => void }) {

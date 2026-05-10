@@ -1,8 +1,6 @@
-import { poolPromise, sql } from "../config/db.js";
+import { poolPromise, sql } from "../../config/db.js";
 
-/* ============================================================
-   1. LISTAR SERVICIOS
-============================================================ */
+
 export const obtenerServicios = async (req, res) => {
   try {
     const pool = await poolPromise;
@@ -18,7 +16,13 @@ export const obtenerServicios = async (req, res) => {
         tarifa_fija_6a10,
         tarifa_por_libra_extra,
         tarifa_por_libra_cc,
-        porcentaje_seguro
+        porcentaje_seguro,
+        seguro_minimo_usd,
+        aplica_minimo,
+        peso_minimo,
+        tarifa_minima_usd,
+        aplica_peso_maximo,
+        peso_maximo
       FROM servicios
       ORDER BY nombre
     `);
@@ -31,9 +35,7 @@ export const obtenerServicios = async (req, res) => {
 };
 
 
-/* ============================================================
-   2. CREAR SERVICIO
-============================================================ */
+
 export const crearServicio = async (req, res) => {
   try {
     const {
@@ -46,7 +48,13 @@ export const crearServicio = async (req, res) => {
       tarifa_fija_6a10,
       tarifa_por_libra_extra,
       tarifa_por_libra_cc,
-      porcentaje_seguro
+      porcentaje_seguro,
+      seguro_minimo_usd,
+      aplica_minimo,
+      peso_minimo,
+      tarifa_minima_usd,
+      aplica_peso_maximo,
+      peso_maximo
     } = req.body;
 
     if (!codigo || !nombre || !tipo) {
@@ -69,16 +77,27 @@ export const crearServicio = async (req, res) => {
       .input("tarifa_por_libra_extra", sql.Decimal(10,2), tarifa_por_libra_extra || 0)
       .input("tarifa_por_libra_cc", sql.Decimal(10,2), tarifa_por_libra_cc || 0)
       .input("porcentaje_seguro", sql.Decimal(5,2), porcentaje_seguro || 0)
+      .input("seguro_minimo_usd", sql.Decimal(10,2), seguro_minimo_usd || 0)
+      .input("aplica_minimo", sql.Bit, aplica_minimo || 0)
+      .input("peso_minimo", sql.Decimal(10,2), peso_minimo || 0)
+      .input("tarifa_minima_usd", sql.Decimal(10,2), tarifa_minima_usd || 0)
+      .input("aplica_peso_maximo", sql.Bit, aplica_peso_maximo || 0)
+      .input("peso_maximo", sql.Decimal(10,2), peso_maximo || 0)
+
       .query(`
         INSERT INTO servicios (
           codigo, nombre, tipo, descripcion,
           tarifa_fija_1lb, tarifa_fija_2a5, tarifa_fija_6a10,
-          tarifa_por_libra_extra, tarifa_por_libra_cc, porcentaje_seguro
+          tarifa_por_libra_extra, tarifa_por_libra_cc,
+          porcentaje_seguro, seguro_minimo_usd, aplica_minimo, peso_minimo, tarifa_minima_usd,
+          aplica_peso_maximo, peso_maximo
         )
         VALUES (
           @codigo, @nombre, @tipo, @descripcion,
           @tarifa_fija_1lb, @tarifa_fija_2a5, @tarifa_fija_6a10,
-          @tarifa_por_libra_extra, @tarifa_por_libra_cc, @porcentaje_seguro
+          @tarifa_por_libra_extra, @tarifa_por_libra_cc,
+          @porcentaje_seguro, @seguro_minimo_usd, @aplica_minimo, @peso_minimo, @tarifa_minima_usd,
+          @aplica_peso_maximo, @peso_maximo
         )
       `);
 
@@ -94,9 +113,7 @@ export const crearServicio = async (req, res) => {
 };
 
 
-/* ============================================================
-   3. ACTUALIZAR SERVICIO
-============================================================ */
+
 export const actualizarServicio = async (req, res) => {
   try {
     const { id } = req.params;
@@ -111,7 +128,13 @@ export const actualizarServicio = async (req, res) => {
       tarifa_fija_6a10,
       tarifa_por_libra_extra,
       tarifa_por_libra_cc,
-      porcentaje_seguro
+      porcentaje_seguro,
+      seguro_minimo_usd,
+      aplica_minimo,
+      peso_minimo,
+      tarifa_minima_usd,
+      aplica_peso_maximo,
+      peso_maximo
     } = req.body;
 
     const pool = await poolPromise;
@@ -128,6 +151,12 @@ export const actualizarServicio = async (req, res) => {
       .input("tarifa_por_libra_extra", sql.Decimal(10,2), tarifa_por_libra_extra || 0)
       .input("tarifa_por_libra_cc", sql.Decimal(10,2), tarifa_por_libra_cc || 0)
       .input("porcentaje_seguro", sql.Decimal(5,2), porcentaje_seguro || 0)
+      .input("seguro_minimo_usd", sql.Decimal(10,2), seguro_minimo_usd || 0)
+      .input("aplica_minimo", sql.Bit, aplica_minimo || 0)
+      .input("peso_minimo", sql.Decimal(10,2), peso_minimo || 0)
+      .input("tarifa_minima_usd", sql.Decimal(10,2), tarifa_minima_usd || 0)
+      .input("aplica_peso_maximo", sql.Bit, aplica_peso_maximo || 0)
+      .input("peso_maximo", sql.Decimal(10,2), peso_maximo || 0)
       .query(`
         UPDATE servicios
         SET
@@ -140,7 +169,13 @@ export const actualizarServicio = async (req, res) => {
           tarifa_fija_6a10 = @tarifa_fija_6a10,
           tarifa_por_libra_extra = @tarifa_por_libra_extra,
           tarifa_por_libra_cc = @tarifa_por_libra_cc,
-          porcentaje_seguro = @porcentaje_seguro
+          porcentaje_seguro = @porcentaje_seguro,
+          seguro_minimo_usd = @seguro_minimo_usd,
+          aplica_minimo = @aplica_minimo,
+          peso_minimo = @peso_minimo,
+          tarifa_minima_usd = @tarifa_minima_usd,
+          aplica_peso_maximo = @aplica_peso_maximo,
+          peso_maximo = @peso_maximo
         WHERE id = @id
       `);
 
@@ -153,16 +188,13 @@ export const actualizarServicio = async (req, res) => {
 };
 
 
-/* ============================================================
-   4. ELIMINAR SERVICIO
-============================================================ */
+
 export const eliminarServicio = async (req, res) => {
   try {
     const { id } = req.params;
 
     const pool = await poolPromise;
 
-    // Verificar si está siendo usado por algún paquete
     const usados = await pool.request()
       .input("id", sql.Int, id)
       .query(`SELECT TOP 1 id FROM paquetes WHERE servicio_id = @id`);
@@ -186,12 +218,7 @@ export const eliminarServicio = async (req, res) => {
   }
 };
 
-/* ============================================================
-   5. OBTENER SERVICIO POR ID (Necesario para Solicitar Despachos)
-============================================================ */
-/* ============================================================
-   OBTENER SERVICIO POR ID
-============================================================ */
+
 export const obtenerServicioPorId = async (req, res) => {
   try {
     const { id } = req.params;
@@ -212,7 +239,13 @@ export const obtenerServicioPorId = async (req, res) => {
           tarifa_fija_6a10,
           tarifa_por_libra_extra,
           tarifa_por_libra_cc,
-          porcentaje_seguro
+          porcentaje_seguro,
+          seguro_minimo_usd,
+          aplica_minimo,
+          peso_minimo,
+          tarifa_minima_usd,
+          aplica_peso_maximo,
+          peso_maximo
         FROM servicios
         WHERE id = @id
       `);

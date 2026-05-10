@@ -1,8 +1,9 @@
 import express from "express";
-import { buscarPaquetesFiltrados } from "../controllers/paquetes.controller.js";
+import { buscarGuias, obtenerTiendasUnicas, consultarTrackingFiltrado  } from "../controllers/consultarGuias.controller.js";
 
 const router = express.Router();
 
-router.post("/buscar", buscarPaquetesFiltrados);
-
+router.post("/buscar", buscarGuias);
+router.get("/tiendas", obtenerTiendasUnicas);
+router.get("/consultar-tracking", consultarTrackingFiltrado);
 export default router;

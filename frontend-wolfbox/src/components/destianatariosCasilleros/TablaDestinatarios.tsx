@@ -9,8 +9,8 @@ interface Props {
 
 export default function TablaDestinatarios({ lista, onEditar, onEliminar }: Props) {
   return (
-    <div className="mt-4 overflow-x-auto rounded-xl shadow-md border border-gray-200 bg-white animate-fade-in">
-      <table className="min-w-full border-collapse">
+    <div className="mt-4 w-full overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-md animate-fade-in">
+      <table className="w-full min-w-[900px] border-collapse">
         <thead className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 text-sm uppercase font-semibold tracking-wide">
           <tr>
             <th className="py-3 px-4 text-left">Nombre</th>
@@ -41,9 +41,9 @@ export default function TablaDestinatarios({ lista, onEditar, onEliminar }: Prop
                 <td className="p-3 text-gray-700">{d.ciudad}</td>
                 <td className="p-3 text-gray-700">{d.pais}</td>
 
-                <td className="p-3 text-center flex justify-center gap-3">
+                <td className="p-3 text-center">
+                  <div className="flex justify-center gap-3">
 
-                  {/* EDITAR DESTINATARIO */}
                   <button
                     onClick={() => onEditar && onEditar(d)}
                     className="hover:scale-110 transition-transform"
@@ -55,7 +55,6 @@ export default function TablaDestinatarios({ lista, onEditar, onEliminar }: Prop
                     />
                   </button>
 
-                  {/* ELIMINAR DESTINATARIO */}
                   <button
                     onClick={() => onEliminar && onEliminar(d)}
                     className="hover:scale-110 transition-transform"
@@ -66,6 +65,7 @@ export default function TablaDestinatarios({ lista, onEditar, onEliminar }: Prop
                       className="w-5 h-5 opacity-80 hover:opacity-100"
                     />
                   </button>
+                  </div>
                 </td>
               </tr>
             ))
