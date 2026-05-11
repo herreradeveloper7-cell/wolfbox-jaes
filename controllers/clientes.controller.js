@@ -1,5 +1,6 @@
 import { sql, poolPromise } from "../config/db.js";
 import bcrypt from "bcrypt";
+import { firmarToken } from "../middleware/auth.middleware.js";
 
 function generarCodigoReferencia(texto) {
   const letras = (texto || "").trim().toUpperCase().slice(0, 3);
@@ -204,9 +205,17 @@ export const loginCliente = async (req, res) => {
       return res.status(401).json({ ok: false, message: "Contraseña incorrecta" });
     }
 
+    const token = firmarToken({
+      id: cliente.id,
+      email: cliente.correo,
+      tipo: "cliente",
+      codigoReferencia: cliente.codigo_referencia,
+    });
+
     return res.status(200).json({
       ok: true,
       message: "Inicio de sesión exitoso",
+      token,
       cliente: {
         id: cliente.id,
         nombre: `${cliente.primer_nombre} ${cliente.primer_apellido}`,

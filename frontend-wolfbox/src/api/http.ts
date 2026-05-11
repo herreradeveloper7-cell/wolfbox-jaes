@@ -9,6 +9,23 @@ export const API_URL = (
 const stripApiPrefix = (url: string) =>
   url.replace(/^\/api(?=\/|$)/, "") || "/";
 
+const getAuthToken = () => {
+  if (typeof window === "undefined") return null;
+
+  return localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+};
+
+const withAuthHeaders = (headers?: HeadersInit) => {
+  const nextHeaders = new Headers(headers);
+  const token = getAuthToken();
+
+  if (token && !nextHeaders.has("Authorization")) {
+    nextHeaders.set("Authorization", `Bearer ${token}`);
+  }
+
+  return nextHeaders;
+};
+
 export const apiUrl = (url: string) => {
   if (url.startsWith("/api")) {
     return `${API_URL}${stripApiPrefix(url)}`;
@@ -34,6 +51,12 @@ axios.interceptors.request.use((config) => {
     }
   }
 
+  const token = getAuthToken();
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
   return config;
 });
 
@@ -42,14 +65,25 @@ if (typeof window !== "undefined") {
 
   window.fetch = (input, init) => {
     if (typeof input === "string") {
-      return nativeFetch(apiUrl(input), init);
+      return nativeFetch(apiUrl(input), {
+        ...init,
+        headers: withAuthHeaders(init?.headers),
+      });
     }
 
     if (input instanceof Request) {
-      return nativeFetch(new Request(apiUrl(input.url), input), init);
+      const nextRequest = new Request(apiUrl(input.url), input);
+
+      return nativeFetch(nextRequest, {
+        ...init,
+        headers: withAuthHeaders(init?.headers || nextRequest.headers),
+      });
     }
 
-    return nativeFetch(input, init);
+    return nativeFetch(input, {
+      ...init,
+      headers: withAuthHeaders(init?.headers),
+    });
   };
 
   const nativeOpen = window.open.bind(window);

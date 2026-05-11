@@ -1,4 +1,7 @@
 import express from "express";
+import { autenticarToken, autorizarClientePropio, autorizarRoles } from "../middleware/auth.middleware.js";
+import { validar } from "../middleware/validate.middleware.js";
+import { idParam, paqueteSchemas, textParam } from "../validators/api.schemas.js";
 
 import {
   registrarPaquete,
@@ -21,28 +24,40 @@ import {
 
 const router = express.Router();
 
-router.post("/registrar", registrarPaquete);
+router.get("/tracking/hawb/:hawb", validar({ params: textParam("hawb") }), obtenerPaquetePorHAWB);
 
-router.get("/", obtenerPaquetes);
+router.use(autenticarToken);
 
-router.put("/editar/:id", editarPaquete);
-router.put("/editar-basico/:id", editarCamposBasicos);
+const soloOperacion = autorizarRoles("admin", "usuario");
+const autenticados = autorizarRoles("admin", "usuario", "cliente");
 
-router.post("/buscar", buscarPaquetesFiltrados);
-router.get("/reporte", generarReporteCSV);
+router.post("/registrar", soloOperacion, validar({ body: paqueteSchemas.registrar }), registrarPaquete);
 
-router.get("/tracking/hawb/:hawb", obtenerPaquetePorHAWB);
-router.post("/tracking/estado", crearEstadoTracking);   
-router.put("/tracking/estado/historial/:id", editarEstadoHistorial);
-router.delete("/tracking/estado/historial/:id", eliminarEstadoTracking);
+router.get("/", soloOperacion, obtenerPaquetes);
 
-router.get("/validar/tracking/:valor", validarTracking);
-router.get("/validar/referencia/:valor", validarReferencia);
-router.get("/catalogo-estados", obtenerCatalogoEstados);
-router.get("/pdf/:hawb", generarPDFEtiqueta);
+router.put("/editar/:id", soloOperacion, validar({ params: idParam(), body: paqueteSchemas.editar }), editarPaquete);
+router.put("/editar-basico/:id", soloOperacion, validar({ params: idParam(), body: paqueteSchemas.editarBasico }), editarCamposBasicos);
 
-router.get("/por-cliente/:referencia", obtenerPaquetesPorCliente);
+router.post("/buscar", soloOperacion, validar({ body: paqueteSchemas.buscar }), buscarPaquetesFiltrados);
+router.get("/reporte", soloOperacion, generarReporteCSV);
 
-router.put("/anular/:hawb", anularGuia);
+router.post("/tracking/estado", soloOperacion, validar({ body: paqueteSchemas.estadoTracking }), crearEstadoTracking);   
+router.put("/tracking/estado/historial/:id", soloOperacion, validar({ params: idParam(), body: paqueteSchemas.editarEstado }), editarEstadoHistorial);
+router.delete("/tracking/estado/historial/:id", soloOperacion, validar({ params: idParam() }), eliminarEstadoTracking);
+
+router.get("/validar/tracking/:valor", soloOperacion, validar({ params: textParam("valor") }), validarTracking);
+router.get("/validar/referencia/:valor", soloOperacion, validar({ params: textParam("valor") }), validarReferencia);
+router.get("/catalogo-estados", soloOperacion, obtenerCatalogoEstados);
+router.get("/pdf/:hawb", soloOperacion, validar({ params: textParam("hawb") }), generarPDFEtiqueta);
+
+router.get(
+  "/por-cliente/:referencia",
+  autenticados,
+  validar({ params: textParam("referencia") }),
+  autorizarClientePropio((req) => req.params.referencia, "codigoReferencia"),
+  obtenerPaquetesPorCliente
+);
+
+router.put("/anular/:hawb", soloOperacion, validar({ params: textParam("hawb"), body: paqueteSchemas.anular }), anularGuia);
 
 export default router;

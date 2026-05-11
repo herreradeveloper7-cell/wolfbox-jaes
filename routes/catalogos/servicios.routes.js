@@ -1,4 +1,5 @@
 import express from "express";
+import { autenticarToken, autorizarRoles } from "../../middleware/auth.middleware.js";
 import {
   crearServicio,
   obtenerServicios,
@@ -8,14 +9,18 @@ import {
 } from "../../controllers/catalogos/servicios.controller.js";
 
 const router = express.Router();
+const soloAdmin = autorizarRoles("admin");
+const autenticados = autorizarRoles("admin", "usuario", "cliente");
 
-router.get("/", obtenerServicios);
-router.get("/:id", obtenerServicioPorId);
+router.use(autenticarToken);
 
-router.post("/", crearServicio);
+router.get("/", autenticados, obtenerServicios);
+router.get("/:id", autenticados, obtenerServicioPorId);
 
-router.put("/:id", actualizarServicio);
+router.post("/", soloAdmin, crearServicio);
 
-router.delete("/:id", eliminarServicio);
+router.put("/:id", soloAdmin, actualizarServicio);
+
+router.delete("/:id", soloAdmin, eliminarServicio);
 
 export default router;

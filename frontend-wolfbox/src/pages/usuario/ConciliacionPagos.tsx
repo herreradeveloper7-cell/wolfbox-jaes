@@ -117,8 +117,6 @@ export default function ConciliacionPago() {
 
     const handleSubirComprobante = async (id: number, archivo: File) => {
     try {
-        console.log("Subiendo archivo para", id);
-
         const formData = new FormData();
         formData.append("comprobante", archivo);
 
@@ -129,17 +127,14 @@ export default function ConciliacionPago() {
 
         const data = await res.json();
 
-        console.log("RESPUESTA BACKEND:", data);
-
         if (!res.ok) {
         throw new Error(data.mensaje || "Error al subir comprobante");
         }
 
-        // 🔥 ACTUALIZAR EL ESTADO EN FRONTEND
         setSolicitudes((prev) =>
         prev.map((s) =>
             s.solicitud_id === id
-            ? { ...s, comprobante: data.url } // 👈 IMPORTANTE
+            ? { ...s, comprobante: data.url } 
             : s
         )
         );

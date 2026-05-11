@@ -19,7 +19,7 @@ export default function LoginPage() {
         const res = await fetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, contrasena: password }),
+          body: JSON.stringify({ email, contrasena: password, mantenerSesion: stayLoggedIn }),
         });
 
         const data = await res.json();
@@ -36,13 +36,18 @@ export default function LoginPage() {
 
         setLoginError("");
         const usuario = data.usuario;
+        const storage = stayLoggedIn ? localStorage : sessionStorage;
+
+        localStorage.removeItem("authToken");
+        sessionStorage.removeItem("authToken");
+        storage.setItem("authToken", data.token);
 
 
         if (usuario.tipo === "cliente") {
           localStorage.setItem("cliente", JSON.stringify(usuario));
           navigate("/dashboardCliente");
 
-        } else if (usuario.tipo === "admin") {
+        } else if (usuario.tipo === "admin" || usuario.tipo === "usuario") {
           localStorage.setItem("usuario", JSON.stringify(usuario));
           navigate("/dashboardUsuario");
 
@@ -82,41 +87,26 @@ export default function LoginPage() {
           <div className="absolute -bottom-24 -left-24 h-60 w-60 rounded-full bg-green-500/10 blur-3xl"></div>
 
           <div>
-            <img
-              src={logo}
-              alt="Logo Jaes Cargo"
-              className="h-24 w-24 rounded-3xl bg-white/95 object-contain p-4 shadow-2xl"
-            />
+            <div className="flex justify-center">
+              <img
+                src={logo}
+                alt="Logo Jaes Cargo"
+                className="h-40 w-40 rounded-[2rem] bg-white/95 object-contain p-5 shadow-2xl shadow-slate-950/45 ring-2 ring-white/85 xl:h-48 xl:w-48"
+              />
+            </div>
 
-            <div className="mt-9">
+            <div className="mt-7">
               <p className="mb-3 inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.24em] text-white/80">
                 Acceso seguro para todos
               </p>
 
-              <h1 className="max-w-md text-3xl font-black leading-tight tracking-tight">
+              <h1 className="max-w-md text-2xl font-black leading-tight tracking-tight xl:text-3xl">
                 Plataforma operativa Jaes Cargo Internacional SAS
               </h1>
 
               <p className="mt-4 max-w-md text-sm leading-6 text-white/70">
-                Gestiona tus operaciones logísticas con nuestra plataforma, diseñada para ofrecer seguridad, eficiencia y control total sobre tus envíos. Con Jaes Cargo, tu carga está en buenas manos.
+                Gestiona tus envíos logísticos 24/7 con nuestra plataforma, diseñada para ofrecer control total sobre tus envíos. Con Jaes Cargo, tu carga está en buenas manos.
               </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur">
-              <p className="text-xl font-black">24/7</p>
-              <p className="mt-1 text-xs text-white/60">Acceso seguro</p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur">
-              <p className="text-xl font-black">Wolfbox</p>
-              <p className="mt-1 text-xs text-white/60">Cargo system</p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur">
-              <p className="text-xl font-black">JaesCargo</p>
-              <p className="mt-1 text-xs text-white/60">Operaciones</p>
             </div>
           </div>
         </section>
@@ -127,7 +117,7 @@ export default function LoginPage() {
               <img
                 src={logo}
                 alt="Logo Jaes Cargo"
-                className="h-24 w-24 object-contain"
+                className="h-32 w-32 rounded-[1.75rem] bg-white object-contain p-3 shadow-xl ring-1 ring-red-900/10 sm:h-36 sm:w-36"
               />
             </div>
 

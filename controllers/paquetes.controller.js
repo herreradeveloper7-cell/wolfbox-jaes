@@ -47,13 +47,6 @@ const validarRestriccionesServicio = async (pool, servicio_id, peso) => {
 
   const data = servicio.recordset[0];
 
-  console.log("VALIDANDO SERVICIO:", {
-    servicio_id,
-    peso,
-    nombre: data.nombre,
-    aplica_peso_maximo: data.aplica_peso_maximo,
-    peso_maximo: data.peso_maximo,
-  });
 
   if (
     data.aplica_peso_maximo &&
@@ -716,9 +709,15 @@ export const editarPaquete = async (req, res) => {
 export const anularGuia = async (req, res) => {
   const { hawb } = req.params;
   const { responsable } = req.body;
+  let transaction;
+  let transactionStarted = false;
 
   try {
     const pool = await poolPromise;
+    transaction = new sql.Transaction(pool);
+    await transaction.begin();
+    transactionStarted = true;
+    const request = () => new sql.Request(transaction);
 
     if (!hawb || !hawb.trim()) {
       return res.status(400).json({
@@ -726,7 +725,7 @@ export const anularGuia = async (req, res) => {
       });
     }
 
-    const paqueteResult = await pool.request()
+    const paqueteResult = await request()
       .input("hawb", sql.NVarChar, hawb)
       .query(`
         SELECT 
@@ -740,6 +739,8 @@ export const anularGuia = async (req, res) => {
       `);
 
     if (!paqueteResult.recordset.length) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(404).json({
         mensaje: "No se encontró una guía con ese HAWB."
       });
@@ -751,12 +752,16 @@ export const anularGuia = async (req, res) => {
       paquete.estado_actual &&
       paquete.estado_actual.trim().toLowerCase() === "anulado"
     ) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         mensaje: "La guía ya se encuentra anulada."
       });
     }
 
     if (![5, 22].includes(Number(paquete.estado_id))) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         mensaje: `La guía no puede anularse desde su estado actual (${paquete.estado_actual}). Solo se permite cuando el estado_id sea 5 o 22.`
       });
@@ -766,12 +771,14 @@ export const anularGuia = async (req, res) => {
       paquete.estado_actual &&
       paquete.estado_actual.trim().toLowerCase() === "anulado"
     ) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         mensaje: "La guía ya se encuentra anulada."
       });
     }
 
-    const estadoCatalogo = await pool.request()
+    const estadoCatalogo = await request()
       .input("estado", sql.NVarChar, "Anulado")
       .query(`
         SELECT TOP 1 id
@@ -781,6 +788,8 @@ export const anularGuia = async (req, res) => {
       `);
 
     if (!estadoCatalogo.recordset.length) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         mensaje: "El estado 'Anulado' no existe en el catálogo o está inactivo."
       });
@@ -789,7 +798,7 @@ export const anularGuia = async (req, res) => {
     const estado_id = estadoCatalogo.recordset[0].id;
     const responsableFinal = responsable?.trim() || "Usuario del sistema";
 
-    const updateResult = await pool.request()
+    const updateResult = await request()
       .input("hawb", sql.NVarChar, hawb)
       .input("estado_id", sql.Int, estado_id)
       .input("punto_control", sql.NVarChar, "Anulación")
@@ -802,12 +811,14 @@ export const anularGuia = async (req, res) => {
       `);
 
     if (!updateResult.rowsAffected[0]) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         mensaje: "No se pudo actualizar el estado de la guía."
       });
     }
 
-    await pool.request()
+    await request()
       .input("hawb", sql.NVarChar, hawb)
       .input("estado_id", sql.Int, estado_id)
       .input("punto_control", sql.NVarChar, "Anulación")
@@ -820,6 +831,9 @@ export const anularGuia = async (req, res) => {
         (@hawb, @estado_id, @punto_control, @observaciones, @responsable)
       `);
 
+    await transaction.commit();
+    transactionStarted = false;
+
     return res.status(200).json({
       mensaje: "Guía anulada correctamente",
       hawb,
@@ -827,6 +841,14 @@ export const anularGuia = async (req, res) => {
     });
 
   } catch (error) {
+    if (transactionStarted) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error("Error revirtiendo anularGuia:", rollbackError);
+      }
+    }
+
     console.error("❌ Error al anular guía:", error);
     return res.status(500).json({
       mensaje: "Error al anular guía"
@@ -835,14 +857,21 @@ export const anularGuia = async (req, res) => {
 };
 
 export const actualizarEstadoTracking = async (req, res) => {
+  let transaction;
+  let transactionStarted = false;
+
   try {
     const { hawb } = req.params;
     const { estado, punto_control, observaciones, responsable } = req.body;
 
     const pool = await poolPromise;
+    transaction = new sql.Transaction(pool);
+    await transaction.begin();
+    transactionStarted = true;
+    const request = () => new sql.Request(transaction);
 
     // 1️⃣ Verificar que el paquete exista
-    const existe = await pool.request()
+    const existe = await request()
       .input("hawb", sql.NVarChar, hawb)
       .query(`
         SELECT 1
@@ -851,13 +880,15 @@ export const actualizarEstadoTracking = async (req, res) => {
       `);
 
     if (!existe.recordset.length) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(404).json({
         mensaje: "No se encontró el paquete"
       });
     }
 
     // 2️⃣ Obtener estado_id desde el catálogo
-    const estadoCatalogo = await pool.request()
+    const estadoCatalogo = await request()
       .input("estado", sql.NVarChar, estado)
       .query(`
         SELECT TOP 1 id
@@ -867,6 +898,8 @@ export const actualizarEstadoTracking = async (req, res) => {
       `);
 
     if (!estadoCatalogo.recordset.length) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         mensaje: "El estado no existe en el catálogo"
       });
@@ -875,7 +908,7 @@ export const actualizarEstadoTracking = async (req, res) => {
     const estado_id = estadoCatalogo.recordset[0].id;
 
     // 3️⃣ Insertar historial
-    await pool.request()
+    await request()
       .input("hawb", sql.NVarChar, hawb)
       .input("estado_id", sql.Int, estado_id)
       .input("punto_control", sql.NVarChar, punto_control)
@@ -889,7 +922,7 @@ export const actualizarEstadoTracking = async (req, res) => {
       `);
 
     // 4️⃣ Actualizar estado actual del paquete
-    await pool.request()
+    await request()
       .input("hawb", sql.NVarChar, hawb)
       .input("estado_id", sql.Int, estado_id)
       .input("punto_control", sql.NVarChar, punto_control)
@@ -900,11 +933,22 @@ export const actualizarEstadoTracking = async (req, res) => {
         WHERE hawb = @hawb
       `);
 
+    await transaction.commit();
+    transactionStarted = false;
+
     res.json({
       mensaje: "✅ Estado actualizado correctamente"
     });
 
   } catch (err) {
+    if (transactionStarted) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error("Error revirtiendo actualizarEstadoTracking:", rollbackError);
+      }
+    }
+
     console.error("❌ Error actualizarEstadoTracking:", err);
     res.status(500).json({
       mensaje: "Error al actualizar estado"
@@ -1172,11 +1216,17 @@ export const generarPDFEtiqueta = async (req, res) => {
 
 export const eliminarEstadoTracking = async (req, res) => {
   const { id } = req.params;
+  let transaction;
+  let transactionStarted = false;
 
   try {
     const pool = await poolPromise;
+    transaction = new sql.Transaction(pool);
+    await transaction.begin();
+    transactionStarted = true;
+    const request = () => new sql.Request(transaction);
 
-    const estadoData = await pool.request()
+    const estadoData = await request()
       .input('id', sql.Int, id)
       .query(`
         SELECT 
@@ -1189,6 +1239,8 @@ export const eliminarEstadoTracking = async (req, res) => {
       `);
 
     if (!estadoData.recordset.length) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(404).json({
         mensaje: 'Estado no encontrado'
       });
@@ -1196,7 +1248,7 @@ export const eliminarEstadoTracking = async (req, res) => {
 
     const { hawb, estado } = estadoData.recordset[0];
 
-    const estadosHawb = await pool.request()
+    const estadosHawb = await request()
       .input('hawb', sql.NVarChar, hawb)
       .query(`
         SELECT 
@@ -1210,6 +1262,8 @@ export const eliminarEstadoTracking = async (req, res) => {
       `);
 
     if (estadosHawb.recordset.length === 1) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         mensaje: 'No se puede eliminar el único estado del historial.'
       });
@@ -1218,19 +1272,21 @@ export const eliminarEstadoTracking = async (req, res) => {
     const esUltimo = estadosHawb.recordset[0].id === parseInt(id);
 
     if (esUltimo && estado.toLowerCase() === 'digitado') {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         mensaje: 'No se puede eliminar el estado "Digitado" si es el último del historial.'
       });
     }
 
-    await pool.request()
+    await request()
       .input('id', sql.Int, id)
       .query(`
         DELETE FROM historial_estados
         WHERE id = @id
       `);
 
-    const nuevoEstado = await pool.request()
+    const nuevoEstado = await request()
       .input('hawb', sql.NVarChar, hawb)
       .query(`
         SELECT TOP 1 estado_id
@@ -1242,7 +1298,7 @@ export const eliminarEstadoTracking = async (req, res) => {
     const estado_id = nuevoEstado.recordset[0].estado_id;
 
     // 7️⃣ Actualizar estado actual del paquete
-    await pool.request()
+    await request()
       .input('hawb', sql.NVarChar, hawb)
       .input('estado_id', sql.Int, estado_id)
       .query(`
@@ -1251,11 +1307,22 @@ export const eliminarEstadoTracking = async (req, res) => {
         WHERE hawb = @hawb
       `);
 
+    await transaction.commit();
+    transactionStarted = false;
+
     res.status(200).json({
       mensaje: 'Estado eliminado y estado del paquete actualizado'
     });
 
   } catch (error) {
+    if (transactionStarted) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error("Error revirtiendo eliminarEstadoTracking:", rollbackError);
+      }
+    }
+
     console.error('❌ Error al eliminar estado:', error);
     res.status(500).json({
       mensaje: 'Error al eliminar estado'
@@ -1329,12 +1396,19 @@ export const editarEstadoHistorial = async (req, res) => {
 
 
 export const crearEstadoTracking = async (req, res) => {
+  let transaction;
+  let transactionStarted = false;
+
   try {
     const { hawb, estado, punto_control, observaciones, responsable } = req.body;
     const pool = await poolPromise;
+    transaction = new sql.Transaction(pool);
+    await transaction.begin();
+    transactionStarted = true;
+    const request = () => new sql.Request(transaction);
 
     // 1️⃣ Verificar que el paquete exista
-    const existe = await pool.request()
+    const existe = await request()
       .input("hawb", sql.NVarChar, hawb)
       .query(`
         SELECT 1 
@@ -1343,13 +1417,15 @@ export const crearEstadoTracking = async (req, res) => {
       `);
 
     if (!existe.recordset.length) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(404).json({
         mensaje: "No se encontró el paquete con ese HAWB"
       });
     }
 
     // 2️⃣ Obtener estado_id desde el catálogo
-    const estadoCatalogo = await pool.request()
+    const estadoCatalogo = await request()
       .input("estado", sql.NVarChar, estado)
       .query(`
         SELECT TOP 1 id
@@ -1359,6 +1435,8 @@ export const crearEstadoTracking = async (req, res) => {
       `);
 
     if (!estadoCatalogo.recordset.length) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         mensaje: "El estado no existe en el catálogo"
       });
@@ -1367,7 +1445,7 @@ export const crearEstadoTracking = async (req, res) => {
     const estado_id = estadoCatalogo.recordset[0].id;
 
     // 3️⃣ Insertar historial
-    await pool.request()
+    await request()
       .input("hawb", sql.NVarChar, hawb)
       .input("estado_id", sql.Int, estado_id)
       .input("punto_control", sql.NVarChar, punto_control)
@@ -1381,7 +1459,7 @@ export const crearEstadoTracking = async (req, res) => {
       `);
 
     // 4️⃣ Actualizar estado actual del paquete
-    await pool.request()
+    await request()
       .input("hawb", sql.NVarChar, hawb)
       .input("estado_id", sql.Int, estado_id)
       .input("punto_control", sql.NVarChar, punto_control)
@@ -1392,11 +1470,22 @@ export const crearEstadoTracking = async (req, res) => {
         WHERE hawb = @hawb
       `);
 
+    await transaction.commit();
+    transactionStarted = false;
+
     return res.status(201).json({
       mensaje: "Estado creado y paquete actualizado"
     });
 
   } catch (error) {
+    if (transactionStarted) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error("Error revirtiendo crearEstadoTracking:", rollbackError);
+      }
+    }
+
     console.error("❌ Error crearEstadoTracking:", error);
     return res.status(500).json({
       mensaje: "Error al crear estado"

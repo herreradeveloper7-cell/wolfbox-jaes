@@ -2,6 +2,9 @@
   import multer from "multer";
   import path from "path";
   import { fileURLToPath } from "url";
+  import { autenticarToken, autorizarRoles } from "../middleware/auth.middleware.js";
+  import { validar } from "../middleware/validate.middleware.js";
+  import { idParam, solicitudSchemas, textParam } from "../validators/api.schemas.js";
 
   import {
     crearSolicitud,
@@ -23,8 +26,6 @@
     agruparSolicitud,
     generarEtiquetaHawbPadre
   } from "../controllers/solicitudes.controller.js";
-
-  console.log("📌 Ruta /api/solicitudes cargada correctamente");
 
   const router = express.Router();
 
@@ -49,36 +50,40 @@
   });
 
   const upload = multer({ storage });
+  const soloOperacion = autorizarRoles("admin", "usuario");
 
-  router.post("/crear", crearSolicitud);
+  router.use(autenticarToken, soloOperacion);
+
+  router.post("/crear", validar({ body: solicitudSchemas.crear }), crearSolicitud);
   router.get("/listar", obtenerSolicitudes);
-  router.get("/detalle/:id", obtenerDetalleSolicitud);
+  router.get("/detalle/:id", validar({ params: idParam() }), obtenerDetalleSolicitud);
 
-  router.get("/pdf-data/:id", obtenerDatosPDFSolicitud);
+  router.get("/pdf-data/:id", validar({ params: idParam() }), obtenerDatosPDFSolicitud);
 
-  router.put("/estado/:id", actualizarEstadoSolicitud);
-  router.delete("/eliminar/:id", eliminarSolicitud);
-  router.put("/editar/:id", editarSolicitudCompleta);
+  router.put("/estado/:id", validar({ params: idParam(), body: solicitudSchemas.estado }), actualizarEstadoSolicitud);
+  router.delete("/eliminar/:id", validar({ params: idParam() }), eliminarSolicitud);
+  router.put("/editar/:id", validar({ params: idParam(), body: solicitudSchemas.editarCompleta }), editarSolicitudCompleta);
 
-  router.get("/cargos/:id", obtenerCargosAdicionales);
+  router.get("/cargos/:id", validar({ params: idParam() }), obtenerCargosAdicionales);
   router.get("/catalogo/cargos", obtenerCatalogoCargos);
-  router.post("/cargos/:id", agregarCargoAdicional);
+  router.post("/cargos/:id", validar({ params: idParam(), body: solicitudSchemas.cargo }), agregarCargoAdicional);
 
-  router.put("/paquete/actualizar/:paquete_id", actualizarPaqueteSolicitud);
-  router.put("/paquete/remover/:paquete_id", removerPaqueteDeSolicitud);
-  router.put("/paquete/agregar/:solicitud_id", agregarPaqueteASolicitud);
+  router.put("/paquete/actualizar/:paquete_id", validar({ params: idParam("paquete_id"), body: solicitudSchemas.actualizarPaquete }), actualizarPaqueteSolicitud);
+  router.put("/paquete/remover/:paquete_id", validar({ params: idParam("paquete_id") }), removerPaqueteDeSolicitud);
+  router.put("/paquete/agregar/:solicitud_id", validar({ params: idParam("solicitud_id"), body: solicitudSchemas.agregarPaquete }), agregarPaqueteASolicitud);
 
-  router.post("/agrupar/:id", agruparSolicitud);
+  router.post("/agrupar/:id", validar({ params: idParam(), body: solicitudSchemas.agrupar }), agruparSolicitud);
 
   router.post(
     "/comprobante/:id",
+    validar({ params: idParam() }),
     upload.single("comprobante"),
     subirComprobantePago
   );
 
-  router.get("/comprobante/:id", obtenerComprobantePago);
-  router.get("/etiqueta/:hawbPadre", generarEtiquetaHawbPadre);
+  router.get("/comprobante/:id", validar({ params: idParam() }), obtenerComprobantePago);
+  router.get("/etiqueta/:hawbPadre", validar({ params: textParam("hawbPadre") }), generarEtiquetaHawbPadre);
 
-  router.delete("/comprobante/:id", eliminarComprobantePago);
+  router.delete("/comprobante/:id", validar({ params: idParam() }), eliminarComprobantePago);
 
   export default router;

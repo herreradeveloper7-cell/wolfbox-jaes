@@ -353,6 +353,8 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
             <button
               onClick={() => {
                 localStorage.removeItem("usuario");
+                localStorage.removeItem("authToken");
+                sessionStorage.removeItem("authToken");
                 navigate("/login");
               }}
               className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer"
