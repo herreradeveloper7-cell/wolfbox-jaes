@@ -1,5 +1,6 @@
 import express from "express";
 import multer from "multer";
+import { autenticarToken, autorizarRoles } from "../middleware/auth.middleware.js";
 import {
   buscarConciliacion,
   autorizarSolicitud,
@@ -8,6 +9,7 @@ import {
 } from "../controllers/conciliacion.controller.js";
 
 const router = express.Router();
+const soloOperacion = autorizarRoles("admin", "usuario");
 
 
 // 📁 CONFIGURACIÓN DE MULTER
@@ -22,6 +24,7 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+router.use(autenticarToken, soloOperacion);
 
 
 // 🔎 CONSULTA

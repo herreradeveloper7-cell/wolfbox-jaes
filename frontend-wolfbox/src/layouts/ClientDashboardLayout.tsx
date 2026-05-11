@@ -128,6 +128,8 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
             <button
               onClick={() => {
                 localStorage.removeItem("cliente");
+                localStorage.removeItem("authToken");
+                sessionStorage.removeItem("authToken");
                 navigate("/login");
               }}
               className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition duration-200 cursor-pointer"

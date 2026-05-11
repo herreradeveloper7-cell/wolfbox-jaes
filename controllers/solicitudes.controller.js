@@ -68,6 +68,9 @@ const calcularFleteServicio = (servicio, pesoTotal) => {
 };
 
 export const crearSolicitud = async (req, res) => {
+  let transaction;
+  let transactionStarted = false;
+
   try {
     const {
       cliente_id,
@@ -91,13 +94,16 @@ export const crearSolicitud = async (req, res) => {
     }
 
     const pool = await poolPromise;
+    transaction = new sql.Transaction(pool);
+    await transaction.begin();
+    transactionStarted = true;
+    const request = () => new sql.Request(transaction);
 
     const paqueteIds = paquetes.map(p => p.id);
 
     for (const p of paquetes) {
       if (p.asegurado !== undefined && p.asegurado !== null) {
-        await pool
-          .request()
+        await request()
           .input("id", sql.Int, p.id)
           .input("asegurado", sql.Decimal(10, 2), p.asegurado)
           .query(`
@@ -108,7 +114,7 @@ export const crearSolicitud = async (req, res) => {
       }
     }
 
-    const resultServicios = await pool.request().query(`
+    const resultServicios = await request().query(`
       SELECT servicio_id, peso, asegurado
       FROM paquetes
       WHERE id IN (${paqueteIds.join(",")})
@@ -119,6 +125,8 @@ export const crearSolicitud = async (req, res) => {
     ];
 
     if (serviciosEncontrados.length === 0) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         ok: false,
         mensaje: "No se encontró servicio para los paquetes seleccionados (servicio_id = null)."
@@ -126,6 +134,8 @@ export const crearSolicitud = async (req, res) => {
     }
 
     if (serviciosEncontrados.length > 1) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         ok: false,
         mensaje: "Los paquetes seleccionados pertenecen a servicios diferentes."
@@ -135,7 +145,7 @@ export const crearSolicitud = async (req, res) => {
     const servicio_id = serviciosEncontrados[0];
 
     
-    const datosServicio = await pool.request()
+    const datosServicio = await request()
       .input("id", sql.Int, servicio_id)
       .query(`
         SELECT 
@@ -159,6 +169,8 @@ export const crearSolicitud = async (req, res) => {
       `);
 
     if (datosServicio.recordset.length === 0) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         ok: false,
         mensaje: "Servicio no encontrado para los paquetes."
@@ -169,6 +181,8 @@ export const crearSolicitud = async (req, res) => {
 
 
     if (!servicio.codigo) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(500).json({
         ok: false,
         mensaje: "El servicio no tiene código configurado."
@@ -190,6 +204,8 @@ export const crearSolicitud = async (req, res) => {
     const calculoFlete = calcularFleteServicio(servicio, peso_total);
 
     if (!calculoFlete.ok) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         ok: false,
         mensaje: calculoFlete.mensaje,
@@ -208,7 +224,7 @@ export const crearSolicitud = async (req, res) => {
     const valor_estimado_usd = fleteUSD + seguroUSD;
 
   
-    const trmQuery = await pool.request().query(`
+    const trmQuery = await request().query(`
       SELECT TOP 1 valor
       FROM trm
       ORDER BY fecha DESC
@@ -218,8 +234,7 @@ export const crearSolicitud = async (req, res) => {
     const valor_moneda_local = valor_estimado_usd * trmValor;
 
 
-    const resultSolicitud = await pool
-      .request()
+    const resultSolicitud = await request()
       .input("cliente_id", sql.Int, cliente_id)
       .input("usuario_id", sql.Int, usuario_id)
       .input("destinatario", sql.Int, destinatario)
@@ -244,8 +259,7 @@ export const crearSolicitud = async (req, res) => {
 
 
     for (const p of paquetes) {
-      await pool
-        .request()
+      await request()
         .input("solicitud_id", sql.Int, solicitud_id)
         .input("paquete_id", sql.Int, p.id)
         .query(`
@@ -255,6 +269,8 @@ export const crearSolicitud = async (req, res) => {
         `);
     }
 
+    await transaction.commit();
+    transactionStarted = false;
 
     res.status(201).json({
       ok: true,
@@ -265,6 +281,14 @@ export const crearSolicitud = async (req, res) => {
     });
 
   } catch (error) {
+    if (transactionStarted) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error("Error revirtiendo crearSolicitud:", rollbackError);
+      }
+    }
+
     console.error("❌ Error en crearSolicitud:", error);
     res.status(500).json({
       ok: false,
@@ -944,6 +968,8 @@ export const agregarPaqueteASolicitud = async (req, res) => {
 
 export const editarSolicitudCompleta = async (req, res) => {
   const { id } = req.params;
+  let transaction;
+  let transactionStarted = false;
 
   // ✅ ahora recibe destinatario
   const { paquetes, cargos, destinatario } = req.body;
@@ -962,10 +988,13 @@ export const editarSolicitudCompleta = async (req, res) => {
 
   try {
     const pool = await poolPromise;
+    transaction = new sql.Transaction(pool);
+    await transaction.begin();
+    transactionStarted = true;
+    const request = () => new sql.Request(transaction);
 
     if (destinatario !== undefined && destinatario !== null && destinatario !== "") {
-      await pool
-        .request()
+      await request()
         .input("id", sql.Int, id)
         .input("destinatario", sql.Int, Number(destinatario))
         .query(`
@@ -977,8 +1006,7 @@ export const editarSolicitudCompleta = async (req, res) => {
 
     // ✅ 2) Actualizar paquetes (si vienen)
     for (const p of paquetesArr) {
-      await pool
-        .request()
+      await request()
         .input("paquete_id", sql.Int, p.paquete_id)
         .input("peso", sql.Decimal(10, 2), p.peso)
         .input("asegurado", sql.Decimal(10, 2), p.asegurado)
@@ -994,8 +1022,7 @@ export const editarSolicitudCompleta = async (req, res) => {
 
     // ✅ 3) Sincronizar cargos (si vienen)
     if (cargos !== undefined) {
-      const cargosDB = await pool
-        .request()
+      const cargosDB = await request()
         .input("id", sql.Int, id)
         .query(`SELECT id FROM cargos_adicionales WHERE solicitud_id = @id`);
 
@@ -1007,16 +1034,14 @@ export const editarSolicitudCompleta = async (req, res) => {
       );
 
       for (const cargoID of idsEliminar) {
-        await pool
-          .request()
+        await request()
           .input("id", sql.Int, cargoID)
           .query(`DELETE FROM cargos_adicionales WHERE id = @id`);
       }
 
       for (const c of cargosArr) {
         if (!c.id) {
-          await pool
-            .request()
+          await request()
             .input("solicitud_id", sql.Int, id)
             .input("tipo_cargo", sql.VarChar(100), c.tipo_cargo)
             .input("valor_usd", sql.Decimal(10, 2), c.valor_usd)
@@ -1026,8 +1051,7 @@ export const editarSolicitudCompleta = async (req, res) => {
               VALUES (@solicitud_id, @tipo_cargo, @valor_usd, @valor_cop)
             `);
         } else {
-          await pool
-            .request()
+          await request()
             .input("id", sql.Int, c.id)
             .input("tipo_cargo", sql.VarChar(100), c.tipo_cargo)
             .input("valor_usd", sql.Decimal(10, 2), c.valor_usd)
@@ -1043,11 +1067,22 @@ export const editarSolicitudCompleta = async (req, res) => {
       }
     }
 
+    await transaction.commit();
+    transactionStarted = false;
+
     res.json({
       ok: true,
       mensaje: "Solicitud actualizada correctamente.",
     });
   } catch (error) {
+    if (transactionStarted) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error("Error revirtiendo editarSolicitudCompleta:", rollbackError);
+      }
+    }
+
     console.error("❌ Error en editarSolicitudCompleta:", error);
     res.status(500).json({
       ok: false,
@@ -1137,7 +1172,7 @@ export const subirComprobantePago = async (req, res) => {
     }
 
     // Actualizar nuevo comprobante
-    await pool.request()
+    await request()
       .input("id", sql.Int, solicitudId)
       .input("url", sql.NVarChar, nuevoPath)
       .query(`
@@ -1235,6 +1270,8 @@ export const agruparSolicitud = async (req, res) => {
 
   const { id } = req.params;
   const { hawbs } = req.body;
+  let transaction;
+  let transactionStarted = false;
 
   if (!id) {
     return res.status(400).json({
@@ -1253,9 +1290,13 @@ export const agruparSolicitud = async (req, res) => {
   try {
 
     const pool = await poolPromise;
+    transaction = new sql.Transaction(pool);
+    await transaction.begin();
+    transactionStarted = true;
+    const request = () => new sql.Request(transaction);
 
     // 🔹 Obtener paquetes hijos
-    const paquetes = await pool.request()
+    const paquetes = await request()
       .input("solicitud_id", sql.Int, id)
       .query(`
         SELECT 
@@ -1276,6 +1317,8 @@ export const agruparSolicitud = async (req, res) => {
       `);
 
     if (!paquetes.recordset.length) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         ok: false,
         mensaje: "No hay paquetes válidos para agrupar"
@@ -1299,7 +1342,7 @@ export const agruparSolicitud = async (req, res) => {
     const codigo_referencia = hijos[0].codigo_referencia;
     const digitado_por = hijos[0].digitado_por;
 
-    const padre = await pool.request()
+    const padre = await request()
       .input("hawb", sql.NVarChar(50), hawbPadre)
       .input("tracking", sql.NVarChar(sql.MAX), tracking)
       .input("contenido", sql.NVarChar(sql.MAX), contenido)
@@ -1341,7 +1384,7 @@ export const agruparSolicitud = async (req, res) => {
       `);
 
     // 🔹 Marcar hijos
-    await pool.request()
+    await request()
       .input("padre", sql.NVarChar(50), hawbPadre)
       .query(`
         UPDATE paquetes
@@ -1351,7 +1394,7 @@ export const agruparSolicitud = async (req, res) => {
       `);
 
     // 🔹 Obtener estado Agrupado
-    const estado = await pool.request()
+    const estado = await request()
       .query(`
         SELECT TOP 1 id
         FROM estados_catalogo
@@ -1361,7 +1404,7 @@ export const agruparSolicitud = async (req, res) => {
     const estado_id = estado.recordset[0].id;
 
     // 🔹 Crear estado inicial
-    await pool.request()
+    await request()
       .input("hawb", sql.NVarChar(50), hawbPadre)
       .input("estado_id", sql.Int, estado_id)
       .input("punto_control", sql.NVarChar(100), "Otras operaciones")
@@ -1374,6 +1417,9 @@ export const agruparSolicitud = async (req, res) => {
         (@hawb, 'Agrupado', @estado_id, @punto_control, @observaciones, @responsable)
       `);
 
+    await transaction.commit();
+    transactionStarted = false;
+
     res.json({
       ok: true,
       mensaje: "Paquetes agrupados correctamente",
@@ -1382,6 +1428,13 @@ export const agruparSolicitud = async (req, res) => {
     });
 
   } catch (error) {
+    if (transactionStarted) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error("Error revirtiendo agruparSolicitud:", rollbackError);
+      }
+    }
 
     console.error("❌ Error agrupando solicitud:", error);
 

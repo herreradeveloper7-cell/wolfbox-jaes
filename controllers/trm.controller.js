@@ -9,7 +9,6 @@ export const listarTRM = async (req, res) => {
 
     res.json(result.recordset);
   } catch (err) {
-    console.log("error listarTRM:", err);
     res.status(500).json({ ok:false, msg:"Error listando TRM" });
   }
 };
@@ -35,7 +34,6 @@ export const crearTRM = async (req, res) => {
 
     res.json({ ok:true, msg:"TRM creado exitosamente" });
   } catch (err) {
-    console.log("error crearTRM:", err);
     res.status(500).json({ ok:false, msg:"Error creando TRM" });
   }
 };
@@ -59,7 +57,6 @@ export const editarTRM = async (req, res) => {
 
     res.json({ ok:true, msg:"TRM actualizado correctamente" });
   } catch (err) {
-    console.log("error editarTRM:", err);
     res.status(500).json({ ok:false, msg:"Error editando TRM" });
   }
 };
@@ -76,7 +73,6 @@ export const eliminarTRM = async (req, res) => {
     return res.json({ ok: true, mensaje: "TRM eliminado correctamente" });
 
   } catch (error) {
-    console.log("❌ Error eliminando TRM:", error);
     return res.status(500).json({ ok: false, mensaje: "Error eliminando TRM" });
   }
 };

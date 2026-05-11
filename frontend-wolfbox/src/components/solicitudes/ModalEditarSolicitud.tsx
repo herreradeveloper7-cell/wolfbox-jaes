@@ -35,7 +35,6 @@ export default function ModalEditarSolicitud({
         solicitud.codigoCasillero || solicitud.codigo || solicitud.codigo_casillero;
 
       if (!codigoCasillero) {
-        console.log("❌ No llegó codigoCasillero en solicitud:", solicitud);
         Swal.fire("Error", "No se encontró el código de casillero del cliente.", "error");
         return;
       }

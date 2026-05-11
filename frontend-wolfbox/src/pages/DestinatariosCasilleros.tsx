@@ -80,7 +80,6 @@ export default function DestinatariosCasilleros() {
       setDestinatarios(r2.data);
 
     } catch (e) {
-      console.log(e);
       Swal.fire("Error", "No se pudo crear el destinatario", "error");
     }
   };

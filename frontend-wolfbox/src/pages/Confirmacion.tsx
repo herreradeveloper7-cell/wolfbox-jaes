@@ -43,13 +43,13 @@ export default function ConfirmacionPage() {
               </div>
 
               <div className="relative mt-8 grid grid-cols-2 gap-3 text-left">
-                <div className="border border-white/15 bg-white/10 p-3">
+                <div className="border border-white/15 bg-white/10 p-3 rounded-xl">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/55">
                     Estado
                   </p>
                   <p className="mt-2 text-xs font-bold sm:text-sm">Aprobado</p>
                 </div>
-                <div className="border border-white/15 bg-white/10 p-3">
+                <div className="border border-white/15 bg-white/10 p-3 rounded-xl">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/55">
                     Canal
                   </p>

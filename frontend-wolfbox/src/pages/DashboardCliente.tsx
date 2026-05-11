@@ -53,6 +53,8 @@ export default function DashboardClients() {
           <button
             onClick={() => {
               localStorage.removeItem("cliente");
+              localStorage.removeItem("authToken");
+              sessionStorage.removeItem("authToken");
               navigate("/login");
             }}
             className="mt-6 px-6 py-2 bg-red-900 text-white rounded hover:bg-red-950 transition cursor-pointer"

@@ -75,8 +75,6 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
         genero,
         tipo_cliente: tipoCliente,
       };
-
-      console.log("Datos a enviar:", data); // 👈 Agrega este log
     
       try {
         const validarDuplicado = await fetch(`/api/clientes/validar`, {

@@ -23,7 +23,6 @@ export const buscarClienteDestinatarios = async (req, res) => {
     res.json(result.recordset);
 
   } catch (error) {
-    console.log("❌ Error buscando cliente:", error);
     res.status(500).json({ ok: false, msg: "Error buscando cliente" });
   }
 };
@@ -52,7 +51,6 @@ export const crearDestinatario = async (req, res) => {
     return res.status(200).json({ ok: true, msg: "Destinatario creado correctamente" });
 
   } catch (error) {
-    console.log("❌ Error al crear destinatario:", error);
     res.status(500).json({ ok: false, msg: "Error al crear destinatario" });
   }
 };
@@ -194,7 +192,6 @@ export const editarDestinatario = async (req, res) => {
     res.json({ ok: true, mensaje: "Destinatario actualizado correctamente" });
 
   } catch (error) {
-    console.log("❌ Error en editarDestinatario:", error);
     res.status(500).json({ ok: false, mensaje: "Error editando destinatario" });
   }
 };
