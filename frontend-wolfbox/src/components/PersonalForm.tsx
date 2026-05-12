@@ -6,6 +6,17 @@ interface Props {
   tipoCliente: string;
 }
 
+const getFechaMaximaMayorEdad = () => {
+  const fecha = new Date();
+  fecha.setFullYear(fecha.getFullYear() - 18);
+  return fecha.toISOString().slice(0, 10);
+};
+
+const esMayorDeEdad = (fechaNacimiento: string) => {
+  if (!fechaNacimiento) return false;
+  return fechaNacimiento <= getFechaMaximaMayorEdad();
+};
+
 export default function PersonalForm({ tipoCliente }: Props) {
   
     const [selectedCountry, setSelectedCountry] = useState("");
@@ -35,6 +46,7 @@ export default function PersonalForm({ tipoCliente }: Props) {
       termsAccepted: false,
       emailExistente: false,
       identificacionExistente: false,
+      fechaNacimientoValida: true,
     });
 
     const [termsAccepted, setTermsAccepted] = useState(false);
@@ -51,6 +63,14 @@ export default function PersonalForm({ tipoCliente }: Props) {
     
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!esMayorDeEdad(fechaNacimiento)) {
+          setErrores(prev => ({
+            ...prev,
+            fechaNacimientoValida: false,
+          }));
+          return;
+        }
 
         const data = {
           tipoIdentificacion,
@@ -372,10 +392,20 @@ export default function PersonalForm({ tipoCliente }: Props) {
             <input
             type="date"
             value={fechaNacimiento}
-            onChange={(e) => setFechaNacimiento(e.target.value)}
+            max={getFechaMaximaMayorEdad()}
+            onChange={(e) => {
+              setFechaNacimiento(e.target.value);
+              setErrores(prev => ({
+                ...prev,
+                fechaNacimientoValida: esMayorDeEdad(e.target.value),
+              }));
+            }}
             required
             className={inputBase}
             />
+            {!errores.fechaNacimientoValida && (
+              <p className={errorBase}>Debes ser mayor de 18 años para registrarte.</p>
+            )}
         </div>
   
         <div>
@@ -519,10 +549,11 @@ export default function PersonalForm({ tipoCliente }: Props) {
             disabled={
             !termsAccepted ||
             !errores.emailCoincide ||
-            !errores.contrasenaCoincide
+            !errores.contrasenaCoincide ||
+            !errores.fechaNacimientoValida
             }
             className={`rounded-2xl px-7 py-3 text-sm font-black text-white shadow-lg transition-all
-            ${!termsAccepted || !errores.emailCoincide || !errores.contrasenaCoincide
+            ${!termsAccepted || !errores.emailCoincide || !errores.contrasenaCoincide || !errores.fechaNacimientoValida
             ? 'bg-gray-400 cursor-not-allowed shadow-none'
             : 'bg-gradient-to-r from-red-950 to-red-900 shadow-red-950/20 hover:-translate-y-0.5 hover:from-red-900 hover:to-red-800 hover:shadow-xl cursor-pointer'}
             `}

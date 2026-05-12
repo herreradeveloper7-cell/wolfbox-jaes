@@ -5,6 +5,12 @@ import fs from 'fs';
 import path from 'path';
 import PDFDocument from "pdfkit";
 import bwipjs from "bwip-js";
+import {
+  normalizeDeclaracionValor,
+  normalizeResponsable,
+  optionalIntOrZero,
+  sqlStringOrNull,
+} from "../utils/paquetes.helpers.js";
 
 const generarHAWBUnico = async (pool) => {
   let hawb;
@@ -68,8 +74,18 @@ const validarRestriccionesServicio = async (pool, servicio_id, peso) => {
 
 
 export const registrarPaquete = async (req, res) => {
+  return registrarPaqueteConDeps(req, res, {
+    poolPromise,
+    sql,
+    generarHAWBUnico,
+    validarRestriccionesServicio,
+  });
+};
+
+export const registrarPaqueteConDeps = async (req, res, deps) => {
   let transaction;
   let transactionStarted = false;
+  const dbSql = deps.sql;
 
   const {
     tracking,
@@ -93,14 +109,14 @@ export const registrarPaquete = async (req, res) => {
   } = req.body;
 
   try {
-    const pool = await poolPromise;
-    transaction = new sql.Transaction(pool);
+    const pool = await deps.poolPromise;
+    transaction = new dbSql.Transaction(pool);
     await transaction.begin();
     transactionStarted = true;
-    const requestTx = () => new sql.Request(transaction);
+    const requestTx = () => new dbSql.Request(transaction);
 
     const cliente = await requestTx()
-      .input('codigo', sql.NVarChar, codigo_referencia)
+      .input('codigo', dbSql.NVarChar, codigo_referencia)
       .query('SELECT id FROM clientes WHERE codigo_referencia = @codigo');
 
     if (cliente.recordset.length === 0) {
@@ -117,7 +133,7 @@ export const registrarPaquete = async (req, res) => {
       });
     }
 
-    const validacionServicio = await validarRestriccionesServicio(
+    const validacionServicio = await deps.validarRestriccionesServicio(
       pool,
       servicio_id,
       peso
@@ -143,7 +159,7 @@ export const registrarPaquete = async (req, res) => {
 
 
     const cliente_id = cliente.recordset[0].id;
-    const hawb = await generarHAWBUnico(pool);
+    const hawb = await deps.generarHAWBUnico(pool);
 
     if (!hawb || hawb.trim() === "") {
       throw new Error("❌ Error: HAWB vacío antes de insertar en la base de datos");
@@ -151,35 +167,35 @@ export const registrarPaquete = async (req, res) => {
 
     const request = requestTx();
 
-    request.input('tracking', sql.NVarChar, tracking)
-      .input('hawb', sql.NVarChar, hawb)
-      .input('tienda', sql.NVarChar, tienda ?? null)
-      .input('contenido', sql.NVarChar, contenido)
-      .input('peso', sql.Decimal(10, 2), peso)
-      .input('digitado_por', sql.NVarChar, digitado_por ?? null)
-      .input('cliente_id', sql.Int, cliente_id)
-      .input('codigo_referencia', sql.NVarChar, codigo_referencia)
-      .input('oficina', sql.NVarChar, 'Bogota')
-      .input("destinatario_id", sql.Int, destinatarioIdInt)
-      .input('ancho', sql.Int, ancho ?? 0)
-      .input('alto', sql.Int, alto ?? 0)
-      .input('largo', sql.Int, largo ?? 0)
-      .input('asegurado', sql.Decimal(10, 2), asegurado || 0.00)
-      .input('declaracion_valor', sql.NVarChar, declaracion_valor == null ? null : String(declaracion_valor))
-      .input('ubicacion', sql.NVarChar, ubicacion ?? null)
-      .input('punto_control', sql.NVarChar, 'Casilleros bodega')
-      .input('posicion_arancelaria', sql.NVarChar, posicion_arancelaria ?? null)
-      .input('agrupado', sql.NVarChar, agrupado ?? 'No agrupado')
-      .input('notas', sql.NVarChar, notas ?? null)
-      .input('servicio_id', sql.Int, servicio_id);
+    request.input('tracking', dbSql.NVarChar, tracking)
+      .input('hawb', dbSql.NVarChar, hawb)
+      .input('tienda', dbSql.NVarChar, sqlStringOrNull(tienda))
+      .input('contenido', dbSql.NVarChar, contenido)
+      .input('peso', dbSql.Decimal(10, 2), peso)
+      .input('digitado_por', dbSql.NVarChar, sqlStringOrNull(digitado_por))
+      .input('cliente_id', dbSql.Int, cliente_id)
+      .input('codigo_referencia', dbSql.NVarChar, codigo_referencia)
+      .input('oficina', dbSql.NVarChar, 'Bogota')
+      .input("destinatario_id", dbSql.Int, destinatarioIdInt)
+      .input('ancho', dbSql.Int, optionalIntOrZero(ancho))
+      .input('alto', dbSql.Int, optionalIntOrZero(alto))
+      .input('largo', dbSql.Int, optionalIntOrZero(largo))
+      .input('asegurado', dbSql.Decimal(10, 2), asegurado || 0.00)
+      .input('declaracion_valor', dbSql.NVarChar, normalizeDeclaracionValor(declaracion_valor))
+      .input('ubicacion', dbSql.NVarChar, sqlStringOrNull(ubicacion))
+      .input('punto_control', dbSql.NVarChar, 'Casilleros bodega')
+      .input('posicion_arancelaria', dbSql.NVarChar, sqlStringOrNull(posicion_arancelaria))
+      .input('agrupado', dbSql.NVarChar, agrupado ?? 'No agrupado')
+      .input('notas', dbSql.NVarChar, sqlStringOrNull(notas))
+      .input('servicio_id', dbSql.Int, servicio_id);
 
     if (referencia && referencia.trim() !== '') {
-      request.input('referencia', sql.NVarChar, referencia);
+      request.input('referencia', dbSql.NVarChar, referencia);
     } else {
-      request.input('referencia', sql.NVarChar, null);
+      request.input('referencia', dbSql.NVarChar, null);
     }
     const estadoCatalogo = await requestTx()
-      .input('estado', sql.NVarChar, 'Digitado')
+      .input('estado', dbSql.NVarChar, 'Digitado')
       .query(`
         SELECT TOP 1 id
         FROM estados_catalogo
@@ -192,7 +208,7 @@ export const registrarPaquete = async (req, res) => {
 
     const estado_id = estadoCatalogo.recordset[0].id;
 
-    request.input('estado_id', sql.Int, estado_id);
+    request.input('estado_id', dbSql.Int, estado_id);
 
     await request.query(`
       INSERT INTO paquetes (
@@ -210,11 +226,11 @@ export const registrarPaquete = async (req, res) => {
 
 
     await requestTx()
-      .input("hawb", sql.NVarChar, hawb)
-      .input("estado_id", sql.Int, estado_id)
-      .input("punto_control", sql.NVarChar, "Casilleros bodega")
-      .input("responsable", sql.NVarChar, digitado_por ?? "Usuario del sistema")
-      .input("observaciones", sql.NVarChar, "Guía creada automáticamente")
+      .input("hawb", dbSql.NVarChar, hawb)
+      .input("estado_id", dbSql.Int, estado_id)
+      .input("punto_control", dbSql.NVarChar, "Casilleros bodega")
+      .input("responsable", dbSql.NVarChar, normalizeResponsable(digitado_por))
+      .input("observaciones", dbSql.NVarChar, "Guía creada automáticamente")
     .query(`
       INSERT INTO historial_estados (hawb, estado_id, punto_control, observaciones, responsable)
       VALUES (@hawb, @estado_id, @punto_control, @observaciones, @responsable)
@@ -681,21 +697,21 @@ export const editarPaquete = async (req, res) => {
     const result = await pool.request()
       .input('id', sql.Int, id)
       .input('tracking', sql.NVarChar, tracking)
-      .input('referencia', sql.NVarChar, referencia ?? null)
-      .input('tienda', sql.NVarChar, tienda ?? null)
+      .input('referencia', sql.NVarChar, sqlStringOrNull(referencia))
+      .input('tienda', sql.NVarChar, sqlStringOrNull(tienda))
       .input('contenido', sql.NVarChar, contenido)
       .input('peso', sql.Decimal(10,2), peso)
       .input("destinatario_id", sql.Int, destinatarioIdInt)
-      .input('digitado_por', sql.NVarChar, digitado_por ?? null)
+      .input('digitado_por', sql.NVarChar, sqlStringOrNull(digitado_por))
       .input('codigo_referencia', sql.NVarChar, codigo_referencia)
-      .input('ancho', sql.Int, ancho ?? 0)
-      .input('alto', sql.Int, alto ?? 0)
-      .input('largo', sql.Int, largo ?? 0)
-      .input('declaracion_valor', sql.NVarChar, declaracion_valor == null ? null : String(declaracion_valor))
-      .input('ubicacion', sql.NVarChar, ubicacion ?? null)
-      .input('posicion_arancelaria', sql.NVarChar, posicion_arancelaria ?? null)
+      .input('ancho', sql.Int, optionalIntOrZero(ancho))
+      .input('alto', sql.Int, optionalIntOrZero(alto))
+      .input('largo', sql.Int, optionalIntOrZero(largo))
+      .input('declaracion_valor', sql.NVarChar, normalizeDeclaracionValor(declaracion_valor))
+      .input('ubicacion', sql.NVarChar, sqlStringOrNull(ubicacion))
+      .input('posicion_arancelaria', sql.NVarChar, sqlStringOrNull(posicion_arancelaria))
       .input('agrupado', sql.NVarChar, agrupado ?? 'No agrupado')
-      .input('notas', sql.NVarChar, notas ?? null)
+      .input('notas', sql.NVarChar, sqlStringOrNull(notas))
       .input('servicio_id', sql.Int, servicioIdInt)
       .query(`
         UPDATE paquetes SET

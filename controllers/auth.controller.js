@@ -2,6 +2,13 @@ import { poolPromise, sql } from '../config/db.js';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { firmarToken } from '../middleware/auth.middleware.js';
+import {
+  buildClienteLoginResponse,
+  buildClienteTokenPayload,
+  buildUsuarioLoginResponse,
+  buildUsuarioTokenPayload,
+  getLoginExpiresIn,
+} from '../utils/auth.helpers.js';
 
 function generarCodigoReferencia(nombre) {
   const letras = nombre.trim().toUpperCase().slice(0, 3);
@@ -46,7 +53,7 @@ export const registrarUsuario = async (req, res) => {
 
 export const loginGeneral = async (req, res) => {
   const { email, contrasena, mantenerSesion } = req.body;
-  const expiresIn = mantenerSesion ? "30d" : "8h";
+  const expiresIn = getLoginExpiresIn(mantenerSesion);
 
   try {
     const pool = await poolPromise;
@@ -74,20 +81,8 @@ export const loginGeneral = async (req, res) => {
         });
       }
 
-      const usuarioResponse = {
-        id: usuario.id,
-        nombre: usuario.nombre,
-        email: usuario.correo,
-        tipo: usuario.tipo_usuario,
-        genero: usuario.genero,
-        fecha_creacion: usuario.fecha_creacion,
-      };
-
-      const token = firmarToken({
-        id: usuario.id,
-        email: usuario.correo,
-        tipo: usuario.tipo_usuario,
-      }, expiresIn);
+      const usuarioResponse = buildUsuarioLoginResponse(usuario);
+      const token = firmarToken(buildUsuarioTokenPayload(usuario), expiresIn);
 
       return res.status(200).json({
         ok: true,
@@ -113,21 +108,8 @@ export const loginGeneral = async (req, res) => {
         return res.status(401).json({ ok: false, message: "Contraseña incorrecta" });
       }
 
-      const usuarioResponse = {
-        id: cliente.id,
-        nombre: `${cliente.primer_nombre} ${cliente.primer_apellido}`,
-        email: cliente.correo,
-        codigoReferencia: cliente.codigo_referencia,
-        genero: cliente.genero,
-        tipo: "cliente"
-      };
-
-      const token = firmarToken({
-        id: cliente.id,
-        email: cliente.correo,
-        tipo: "cliente",
-        codigoReferencia: cliente.codigo_referencia,
-      }, expiresIn);
+      const usuarioResponse = buildClienteLoginResponse(cliente);
+      const token = firmarToken(buildClienteTokenPayload(cliente), expiresIn);
 
       return res.status(200).json({
         ok: true,

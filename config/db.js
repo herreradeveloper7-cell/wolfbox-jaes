@@ -12,15 +12,26 @@ const config = {
   },
 };
 
-export const poolPromise = new sql.ConnectionPool(config)
-  .connect()
-  .then((pool) => {
-    console.log("✅ Conectado a Azure SQL");
-    return pool;
-  })
-  .catch((err) => {
-    console.error("❌ Error de conexión a Azure SQL:", err);
-    throw err;
-  });
+export let poolPromise =
+  process.env.NODE_ENV === "test"
+    ? Promise.resolve(null)
+    : new sql.ConnectionPool(config)
+        .connect()
+        .then((pool) => {
+          console.log("Conectado a Azure SQL");
+          return pool;
+        })
+        .catch((err) => {
+          console.error("Error de conexion a Azure SQL:", err);
+          throw err;
+        });
+
+export const __setPoolPromiseForTests = (nextPoolPromise) => {
+  if (process.env.NODE_ENV !== "test") {
+    throw new Error("__setPoolPromiseForTests solo puede usarse en NODE_ENV=test");
+  }
+
+  poolPromise = nextPoolPromise;
+};
 
 export { sql };
