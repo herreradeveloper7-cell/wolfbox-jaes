@@ -25,42 +25,46 @@ import AgruparSolicitud from './pages/usuario/AgruparPaquetes/AgruparSolicitud';
 import VerClientes from './pages/usuario/VerClientes';
 import ConsultarGuiaHome from './pages/consultarGuiaHome';
 import PasswordResetPage from './pages/passwordReset';
+import SessionExpiredOverlay from './components/SessionExpiredOverlay';
 
 
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/password-reset" element={<PasswordResetPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="/confirmacion" element={<ConfirmacionPage />} />
-      <Route path="/consulta-hawb" element={<ConsultarGuiaHome />} />
-      <Route path="/dashboardCliente" element={<DashboardClientePage />} />
-      <Route path="/dashboardUsuario" element={<DashboardUsuarioPage />} />
-      <Route path="/editar-perfil" element={<EditarPerfilCliente />} />
-      <Route path="/digitacion-paquetes" element={<DigitacionPaquetes />} />
-      <Route path ="/crear-tracking" element={<CrearTracking/>} />
-      <Route path ="/consultar-tracking" element={<ConsultarTracking/>} />
-      <Route path ="/consultar-guia" element={<ConsultarGuia/>} />
-      <Route path="/perfil" element={<VerPerfil />} />
-      <Route path="/crear-usuario" element={<CrearUsuario />} />
-      <Route path="/consultar-usuario" element={<ConsultarUsuarios />} />
-      <Route path="/usuarios/editar/:id" element={<EditarUsuario />} />
-      <Route path="/solicitar-despachos" element={<SolicitarDespacho />} />
-      <Route path="/destinatarios-casilleros" element={<DestinatariosCasilleros />} />
-      <Route path="/config-trm" element={<ConfigTRM />} />
-      <Route path="/conciliacion-pagos" element={<ConciliacionPago />} />
-      <Route path="/config-tarifas" element={<ConfigTarifas />} />
-      <Route path="/agrupar-paquetes" element={<AgruparPaquetes />} />
-      <Route
-        path="/dashboardUsuario/agrupar-solicitud/:id"
-        element={<AgruparSolicitud />}
-      />
-      <Route path="/Clientes" element={<VerClientes />} />
+    <>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/password-reset" element={<PasswordResetPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/confirmacion" element={<ConfirmacionPage />} />
+        <Route path="/consulta-hawb" element={<ConsultarGuiaHome />} />
+        <Route path="/dashboardCliente" element={<DashboardClientePage />} />
+        <Route path="/dashboardUsuario" element={<DashboardUsuarioPage />} />
+        <Route path="/editar-perfil" element={<EditarPerfilCliente />} />
+        <Route path="/digitacion-paquetes" element={<DigitacionPaquetes />} />
+        <Route path ="/crear-tracking" element={<CrearTracking/>} />
+        <Route path ="/consultar-tracking" element={<ConsultarTracking/>} />
+        <Route path ="/consultar-guia" element={<ConsultarGuia/>} />
+        <Route path="/perfil" element={<VerPerfil />} />
+        <Route path="/crear-usuario" element={<CrearUsuario />} />
+        <Route path="/consultar-usuario" element={<ConsultarUsuarios />} />
+        <Route path="/usuarios/editar/:id" element={<EditarUsuario />} />
+        <Route path="/solicitar-despachos" element={<SolicitarDespacho />} />
+        <Route path="/destinatarios-casilleros" element={<DestinatariosCasilleros />} />
+        <Route path="/config-trm" element={<ConfigTRM />} />
+        <Route path="/conciliacion-pagos" element={<ConciliacionPago />} />
+        <Route path="/config-tarifas" element={<ConfigTarifas />} />
+        <Route path="/agrupar-paquetes" element={<AgruparPaquetes />} />
+        <Route
+          path="/dashboardUsuario/agrupar-solicitud/:id"
+          element={<AgruparSolicitud />}
+        />
+        <Route path="/Clientes" element={<VerClientes />} />
 
-    </Routes>
+      </Routes>
+      <SessionExpiredOverlay />
+    </>
   );
 }
 

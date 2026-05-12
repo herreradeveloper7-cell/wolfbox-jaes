@@ -15,6 +15,9 @@ import Swal from 'sweetalert2';
 const getAuthToken = () =>
   localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
 
+const getStoredUser = () =>
+  localStorage.getItem("usuario") || sessionStorage.getItem("usuario");
+
 export default function DigitacionPaquetes() {
     const navigate = useNavigate();
     const [fechaActual, setFechaActual] = useState("");
@@ -316,7 +319,7 @@ export default function DigitacionPaquetes() {
 
 
     useEffect(() => {
-      const usuarioGuardado = localStorage.getItem("usuario");
+      const usuarioGuardado = getStoredUser();
       if (usuarioGuardado) {
         const usuarioParseado = JSON.parse(usuarioGuardado);
         setUser(usuarioParseado);

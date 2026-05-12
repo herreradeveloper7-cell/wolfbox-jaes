@@ -21,6 +21,7 @@ import oficinasRoutes from "./routes/catalogos/oficinas.routes.js";
 import paisesRoutes from "./routes/catalogos/paises.routes.js";
 import regionesRoutes from "./routes/catalogos/regiones.routes.js";
 import ciudadesRoutes from "./routes/catalogos/ciudades.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
 
 const app = express();
 
@@ -70,6 +71,7 @@ app.use("/api/oficinas", oficinasRoutes);
 app.use("/api/catalogos/paises", paisesRoutes);
 app.use("/api/catalogos/regiones", regionesRoutes);
 app.use("/api/catalogos/ciudades", ciudadesRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 
 app.use("/uploads", express.static("uploads"));

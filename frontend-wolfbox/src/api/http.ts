@@ -15,6 +15,36 @@ const getAuthToken = () => {
   return localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
 };
 
+const AUTH_ERROR_MESSAGES = [
+  "Token de autenticacion requerido",
+  "Token invalido o expirado",
+];
+
+const clearStoredSession = () => {
+  localStorage.removeItem("authToken");
+  sessionStorage.removeItem("authToken");
+  localStorage.removeItem("usuario");
+  sessionStorage.removeItem("usuario");
+  localStorage.removeItem("cliente");
+  sessionStorage.removeItem("cliente");
+};
+
+const isAuthEndpoint = (url?: string) => Boolean(url?.includes("/auth/login"));
+
+const isAuthErrorPayload = (payload: unknown) => {
+  if (!payload || typeof payload !== "object") return false;
+
+  const message = "message" in payload ? String(payload.message) : "";
+  const mensaje = "mensaje" in payload ? String(payload.mensaje) : "";
+
+  return AUTH_ERROR_MESSAGES.includes(message) || AUTH_ERROR_MESSAGES.includes(mensaje);
+};
+
+const notifySessionExpired = () => {
+  clearStoredSession();
+  window.dispatchEvent(new Event("wolfbox:session-expired"));
+};
+
 const withAuthHeaders = (headers?: HeadersInit) => {
   const nextHeaders = new Headers(headers);
   const token = getAuthToken();
@@ -60,30 +90,60 @@ axios.interceptors.request.use((config) => {
   return config;
 });
 
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const url = error?.config?.url;
+    const payload = error?.response?.data;
+
+    if (status === 401 && !isAuthEndpoint(url) && isAuthErrorPayload(payload)) {
+      notifySessionExpired();
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 if (typeof window !== "undefined") {
   const nativeFetch = window.fetch.bind(window);
 
-  window.fetch = (input, init) => {
+  window.fetch = async (input, init) => {
+    let response: Response;
+
     if (typeof input === "string") {
-      return nativeFetch(apiUrl(input), {
+      response = await nativeFetch(apiUrl(input), {
+        ...init,
+        headers: withAuthHeaders(init?.headers),
+      });
+    } else if (input instanceof Request) {
+      const nextRequest = new Request(apiUrl(input.url), input);
+
+      response = await nativeFetch(nextRequest, {
+        ...init,
+        headers: withAuthHeaders(init?.headers || nextRequest.headers),
+      });
+    } else {
+      response = await nativeFetch(input, {
         ...init,
         headers: withAuthHeaders(init?.headers),
       });
     }
 
-    if (input instanceof Request) {
-      const nextRequest = new Request(apiUrl(input.url), input);
+    const requestUrl = typeof input === "string" ? apiUrl(input) : input instanceof Request ? apiUrl(input.url) : "";
 
-      return nativeFetch(nextRequest, {
-        ...init,
-        headers: withAuthHeaders(init?.headers || nextRequest.headers),
-      });
+    if (response.status === 401 && !isAuthEndpoint(requestUrl)) {
+      try {
+        const payload = await response.clone().json();
+        if (isAuthErrorPayload(payload)) {
+          notifySessionExpired();
+        }
+      } catch {
+        // Ignore non-JSON 401 responses.
+      }
     }
 
-    return nativeFetch(input, {
-      ...init,
-      headers: withAuthHeaders(init?.headers),
-    });
+    return response;
   };
 
   const nativeOpen = window.open.bind(window);

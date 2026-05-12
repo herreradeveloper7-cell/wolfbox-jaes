@@ -70,6 +70,22 @@ export default function ConsultarUsuario() {
   };
 
   const cambiarEstado = async (id: number, estado: string) => {
+    const esActivacion = estado === "activo";
+    const result = await Swal.fire({
+      icon: "warning",
+      title: esActivacion ? "¿Habilitar usuario?" : "¿Inhabilitar usuario?",
+      text: esActivacion
+        ? "El usuario podra iniciar sesion y operar nuevamente en el sistema."
+        : "El usuario no podra iniciar sesion ni operar en el sistema mientras este inhabilitado.",
+      showCancelButton: true,
+      confirmButtonColor: esActivacion ? "#15803d" : "#991b1b",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: esActivacion ? "Si, habilitar" : "Si, inhabilitar",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await axios.put(`/api/usuarios/estado/${id}`, { estado });
       await obtenerUsuarios();
@@ -88,7 +104,7 @@ export default function ConsultarUsuario() {
       title: "¿Eliminar usuario?",
       text: "Esta acción no se puede deshacer",
       showCancelButton: true,
-      confirmButtonColor: "#b91c1c",
+      confirmButtonColor: "#991b1b",
       cancelButtonColor: "#6b7280",
       confirmButtonText: "Eliminar",
     });
