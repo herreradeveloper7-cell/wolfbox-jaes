@@ -19,6 +19,18 @@ const emptyResumen: ResumenDashboard = {
   clientesConPaquetesDigitados: 0,
 };
 
+const parseJsonResponse = async (res: Response) => {
+  const contentType = res.headers.get("content-type") || "";
+
+  if (!contentType.includes("application/json")) {
+    return null;
+  }
+
+  return res.json();
+};
+
+const normalizeText = (value: unknown) => String(value || "").trim().toLowerCase();
+
 export default function DashboardUsuarios() {
   const [resumen, setResumen] = useState<ResumenDashboard>(emptyResumen);
   const [loading, setLoading] = useState(true);
@@ -31,15 +43,59 @@ export default function DashboardUsuarios() {
         setError("");
 
         const res = await fetch("/api/dashboard/usuario");
-        const data = await res.json();
+        const data = await parseJsonResponse(res);
 
-        if (!res.ok || !data.ok) {
-          throw new Error(data.mensaje || "No se pudo cargar el resumen");
+        if (res.ok && data?.ok) {
+          setResumen({
+            ...emptyResumen,
+            ...data.resumen,
+          });
+          return;
         }
 
+        if (res.status !== 404) {
+          throw new Error(data?.mensaje || "No se pudo cargar el resumen");
+        }
+
+        const [paquetesRes, solicitudesRes] = await Promise.all([
+          fetch("/api/paquetes"),
+          fetch("/api/solicitudes/listar"),
+        ]);
+
+        const paquetesData = await parseJsonResponse(paquetesRes);
+        const solicitudesData = await parseJsonResponse(solicitudesRes);
+
+        if (!paquetesRes.ok || !solicitudesRes.ok || !Array.isArray(paquetesData) || !Array.isArray(solicitudesData)) {
+          throw new Error("No se pudo cargar el resumen desde endpoints existentes");
+        }
+
+        const paquetesDigitados = paquetesData.filter(
+          (paquete: any) => normalizeText(paquete.estado) === "digitado"
+        );
+        const clientesConDigitados = new Set(
+          paquetesDigitados
+            .map((paquete: any) => paquete.codigo_referencia)
+            .filter(Boolean)
+        );
+
+        const solicitudesAgrupadas = solicitudesData.filter((solicitud: any) => {
+          const guiaAgrupada = normalizeText(solicitud.guia_agrupada);
+          const hawbsAgrupados = normalizeText(solicitud.hawbs_agrupados);
+          return Boolean(guiaAgrupada || hawbsAgrupados);
+        });
+
+        const solicitudesSinAgrupar = solicitudesData.filter((solicitud: any) => {
+          const guiaAgrupada = normalizeText(solicitud.guia_agrupada);
+          const hawbsAgrupados = normalizeText(solicitud.hawbs_agrupados);
+          const hawbsNormales = normalizeText(solicitud.hawbs_normales);
+          return Boolean(hawbsNormales) && !guiaAgrupada && !hawbsAgrupados;
+        });
+
         setResumen({
-          ...emptyResumen,
-          ...data.resumen,
+          paquetesDigitados: paquetesDigitados.length,
+          solicitudesSinAgrupar: solicitudesSinAgrupar.length,
+          solicitudesAgrupadas: solicitudesAgrupadas.length,
+          clientesConPaquetesDigitados: clientesConDigitados.size,
         });
       } catch (err) {
         console.error("Error cargando resumen dashboard:", err);
