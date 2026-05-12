@@ -12,6 +12,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
 
+const getAuthToken = () =>
+  localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+
 export default function DigitacionPaquetes() {
     const navigate = useNavigate();
     const [fechaActual, setFechaActual] = useState("");
@@ -38,6 +41,26 @@ export default function DigitacionPaquetes() {
     const [paquetesFiltrados, setPaquetesFiltrados] = useState<any[]>([]);
 
     const [servicios, setServicios] = useState<any[]>([]);
+
+    const obtenerHeadersAutenticados = () => {
+      const token = getAuthToken();
+
+      if (!token) {
+        Swal.fire({
+          icon: "warning",
+          title: "Sesión expirada",
+          text: "Inicia sesión nuevamente para poder digitar paquetes.",
+          confirmButtonColor: "#991b1b",
+        });
+        navigate("/login");
+        return null;
+      }
+
+      return {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+    };
 
     useEffect(() => {
       const cargarServicios = async () => {
@@ -425,6 +448,9 @@ export default function DigitacionPaquetes() {
         
         try {      
           if (modoEdicion) {
+            const authHeaders = obtenerHeadersAutenticados();
+            if (!authHeaders) return;
+
             const paquete = {
               tracking: paqueteFila.tracking,
               referencia: paqueteFila.referencia,
@@ -448,7 +474,7 @@ export default function DigitacionPaquetes() {
 
             const response = await fetch(`/api/paquetes/editar/${paqueteFila.id}`, {
               method: "PUT",
-              headers: { "Content-Type": "application/json" },
+              headers: authHeaders,
               body: JSON.stringify(paquete),
             });
       
@@ -525,11 +551,13 @@ export default function DigitacionPaquetes() {
               }
 
             let ultimaUrlPDF = "";
+            const authHeaders = obtenerHeadersAutenticados();
+            if (!authHeaders) return;
 
             for (const paquete of paquetesARegistrar) {
               const response = await fetch("/api/paquetes/registrar", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders,
                 body: JSON.stringify(paquete),
               });
 

@@ -35,20 +35,30 @@ export default function LoginPage() {
         }
 
         setLoginError("");
+        if (!data.token) {
+          setLoginError("No se recibió token de autenticación. Intenta iniciar sesión nuevamente.");
+          setLoading(false);
+          return;
+        }
+
         const usuario = data.usuario;
         const storage = stayLoggedIn ? localStorage : sessionStorage;
 
         localStorage.removeItem("authToken");
         sessionStorage.removeItem("authToken");
+        localStorage.removeItem("usuario");
+        sessionStorage.removeItem("usuario");
+        localStorage.removeItem("cliente");
+        sessionStorage.removeItem("cliente");
         storage.setItem("authToken", data.token);
 
 
         if (usuario.tipo === "cliente") {
-          localStorage.setItem("cliente", JSON.stringify(usuario));
+          storage.setItem("cliente", JSON.stringify(usuario));
           navigate("/dashboardCliente");
 
         } else if (usuario.tipo === "admin" || usuario.tipo === "usuario") {
-          localStorage.setItem("usuario", JSON.stringify(usuario));
+          storage.setItem("usuario", JSON.stringify(usuario));
           navigate("/dashboardUsuario");
 
         } else {

@@ -68,6 +68,9 @@ const validarRestriccionesServicio = async (pool, servicio_id, peso) => {
 
 
 export const registrarPaquete = async (req, res) => {
+  let transaction;
+  let transactionStarted = false;
+
   const {
     tracking,
     referencia,
@@ -91,16 +94,24 @@ export const registrarPaquete = async (req, res) => {
 
   try {
     const pool = await poolPromise;
+    transaction = new sql.Transaction(pool);
+    await transaction.begin();
+    transactionStarted = true;
+    const requestTx = () => new sql.Request(transaction);
 
-    const cliente = await pool.request()
+    const cliente = await requestTx()
       .input('codigo', sql.NVarChar, codigo_referencia)
       .query('SELECT id FROM clientes WHERE codigo_referencia = @codigo');
 
     if (cliente.recordset.length === 0) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(404).json({ mensaje: 'Cliente no encontrado' });
     }
 
     if (!servicio_id) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         mensaje: "Debe seleccionar un servicio para el paquete."
       });
@@ -113,6 +124,8 @@ export const registrarPaquete = async (req, res) => {
     );
 
     if (!validacionServicio.ok) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(validacionServicio.status).json({
         mensaje: validacionServicio.mensaje,
       });
@@ -121,6 +134,8 @@ export const registrarPaquete = async (req, res) => {
     const destinatarioIdInt = Number(destinatario_id);
 
     if (!destinatario_id || Number.isNaN(destinatarioIdInt) || destinatarioIdInt <= 0) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         mensaje: "Debe seleccionar un destinatario válido para el paquete."
       });
@@ -134,28 +149,28 @@ export const registrarPaquete = async (req, res) => {
       throw new Error("❌ Error: HAWB vacío antes de insertar en la base de datos");
     }
 
-    const request = pool.request();
+    const request = requestTx();
 
     request.input('tracking', sql.NVarChar, tracking)
       .input('hawb', sql.NVarChar, hawb)
-      .input('tienda', sql.NVarChar, tienda)
+      .input('tienda', sql.NVarChar, tienda ?? null)
       .input('contenido', sql.NVarChar, contenido)
       .input('peso', sql.Decimal(10, 2), peso)
-      .input('digitado_por', sql.NVarChar, digitado_por)
+      .input('digitado_por', sql.NVarChar, digitado_por ?? null)
       .input('cliente_id', sql.Int, cliente_id)
       .input('codigo_referencia', sql.NVarChar, codigo_referencia)
       .input('oficina', sql.NVarChar, 'Bogota')
       .input("destinatario_id", sql.Int, destinatarioIdInt)
-      .input('ancho', sql.Int, ancho)
-      .input('alto', sql.Int, alto)
-      .input('largo', sql.Int, largo)
+      .input('ancho', sql.Int, ancho ?? 0)
+      .input('alto', sql.Int, alto ?? 0)
+      .input('largo', sql.Int, largo ?? 0)
       .input('asegurado', sql.Decimal(10, 2), asegurado || 0.00)
-      .input('declaracion_valor', sql.NVarChar, declaracion_valor)
-      .input('ubicacion', sql.NVarChar, ubicacion)
+      .input('declaracion_valor', sql.NVarChar, declaracion_valor == null ? null : String(declaracion_valor))
+      .input('ubicacion', sql.NVarChar, ubicacion ?? null)
       .input('punto_control', sql.NVarChar, 'Casilleros bodega')
-      .input('posicion_arancelaria', sql.NVarChar, posicion_arancelaria)
+      .input('posicion_arancelaria', sql.NVarChar, posicion_arancelaria ?? null)
       .input('agrupado', sql.NVarChar, agrupado ?? 'No agrupado')
-      .input('notas', sql.NVarChar, notas)
+      .input('notas', sql.NVarChar, notas ?? null)
       .input('servicio_id', sql.Int, servicio_id);
 
     if (referencia && referencia.trim() !== '') {
@@ -163,7 +178,7 @@ export const registrarPaquete = async (req, res) => {
     } else {
       request.input('referencia', sql.NVarChar, null);
     }
-    const estadoCatalogo = await pool.request()
+    const estadoCatalogo = await requestTx()
       .input('estado', sql.NVarChar, 'Digitado')
       .query(`
         SELECT TOP 1 id
@@ -194,11 +209,11 @@ export const registrarPaquete = async (req, res) => {
     `);
 
 
-    await pool.request()
+    await requestTx()
       .input("hawb", sql.NVarChar, hawb)
       .input("estado_id", sql.Int, estado_id)
       .input("punto_control", sql.NVarChar, "Casilleros bodega")
-      .input("responsable", sql.NVarChar, digitado_por)
+      .input("responsable", sql.NVarChar, digitado_por ?? "Usuario del sistema")
       .input("observaciones", sql.NVarChar, "Guía creada automáticamente")
     .query(`
       INSERT INTO historial_estados (hawb, estado_id, punto_control, observaciones, responsable)
@@ -206,9 +221,19 @@ export const registrarPaquete = async (req, res) => {
     `);
   
 
+    await transaction.commit();
+    transactionStarted = false;
+
     res.status(201).json({ mensaje: 'Paquete registrado correctamente', hawb });
 
   } catch (error) {
+    if (transactionStarted) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error("Error revirtiendo registrarPaquete:", rollbackError);
+      }
+    }
     console.error('❌ Error al registrar paquete:', error);
     res.status(500).json({ mensaje: 'Error al registrar paquete' });
   }
@@ -656,21 +681,21 @@ export const editarPaquete = async (req, res) => {
     const result = await pool.request()
       .input('id', sql.Int, id)
       .input('tracking', sql.NVarChar, tracking)
-      .input('referencia', sql.NVarChar, referencia)
-      .input('tienda', sql.NVarChar, tienda)
+      .input('referencia', sql.NVarChar, referencia ?? null)
+      .input('tienda', sql.NVarChar, tienda ?? null)
       .input('contenido', sql.NVarChar, contenido)
       .input('peso', sql.Decimal(10,2), peso)
       .input("destinatario_id", sql.Int, destinatarioIdInt)
-      .input('digitado_por', sql.NVarChar, digitado_por)
+      .input('digitado_por', sql.NVarChar, digitado_por ?? null)
       .input('codigo_referencia', sql.NVarChar, codigo_referencia)
-      .input('ancho', sql.Int, ancho)
-      .input('alto', sql.Int, alto)
-      .input('largo', sql.Int, largo)
-      .input('declaracion_valor', sql.NVarChar, declaracion_valor)
-      .input('ubicacion', sql.NVarChar, ubicacion)
-      .input('posicion_arancelaria', sql.NVarChar, posicion_arancelaria)
+      .input('ancho', sql.Int, ancho ?? 0)
+      .input('alto', sql.Int, alto ?? 0)
+      .input('largo', sql.Int, largo ?? 0)
+      .input('declaracion_valor', sql.NVarChar, declaracion_valor == null ? null : String(declaracion_valor))
+      .input('ubicacion', sql.NVarChar, ubicacion ?? null)
+      .input('posicion_arancelaria', sql.NVarChar, posicion_arancelaria ?? null)
       .input('agrupado', sql.NVarChar, agrupado ?? 'No agrupado')
-      .input('notas', sql.NVarChar, notas)
+      .input('notas', sql.NVarChar, notas ?? null)
       .input('servicio_id', sql.Int, servicioIdInt)
       .query(`
         UPDATE paquetes SET
