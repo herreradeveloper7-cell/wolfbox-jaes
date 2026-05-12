@@ -28,12 +28,21 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
   const [perfilOpen, setPerfilOpen] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem("cliente");
+    const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+    const stored = localStorage.getItem("cliente") || sessionStorage.getItem("cliente");
+
+    if (!token || !stored) {
+      localStorage.removeItem("cliente");
+      sessionStorage.removeItem("cliente");
+      navigate("/login");
+      return;
+    }
+
     if (stored) {
       const parsed = JSON.parse(stored);
       setCliente(parsed);
     }
-  }, []);
+  }, [navigate]);
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 

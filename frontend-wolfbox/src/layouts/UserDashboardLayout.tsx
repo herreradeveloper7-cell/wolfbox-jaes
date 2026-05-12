@@ -37,12 +37,21 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
   const [configuracionOpen, setConfiguracionOpen] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem("usuario");
+    const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+    const stored = localStorage.getItem("usuario") || sessionStorage.getItem("usuario");
+
+    if (!token || !stored) {
+      localStorage.removeItem("usuario");
+      sessionStorage.removeItem("usuario");
+      navigate("/login");
+      return;
+    }
+
     if (stored) {
       const parsed = JSON.parse(stored);
       setCliente(parsed);
     }
-  }, []);
+  }, [navigate]);
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
