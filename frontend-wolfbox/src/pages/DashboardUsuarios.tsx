@@ -99,7 +99,7 @@ export default function DashboardUsuarios() {
               <p className="text-xs font-black uppercase tracking-[0.35em] text-red-900">
                 Centro operativo
               </p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+              <h1 className="mt-2 text-3xl font-black tracking-tight text-gray-700 sm:text-4xl">
                 Dashboard de Usuarios
               </h1>
               <p className="mt-2 max-w-2xl text-sm font-semibold text-slate-600">
@@ -107,14 +107,6 @@ export default function DashboardUsuarios() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-white/70 bg-white/80 px-5 py-4 shadow-lg">
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-                Estado del resumen
-              </p>
-              <p className="mt-1 text-sm font-black text-slate-900">
-                {loading ? "Sincronizando datos" : error ? "Revision requerida" : "Datos actualizados"}
-              </p>
-            </div>
           </div>
 
           {error && (
@@ -161,7 +153,7 @@ export default function DashboardUsuarios() {
                 <p className="text-xs font-black uppercase tracking-[0.28em] text-red-900">
                   Lectura rapida
                 </p>
-                <h2 className="mt-2 text-xl font-black text-slate-950">
+                <h2 className="mt-2 text-xl font-black text-gray-700">
                   Flujo operativo del dia
                 </h2>
                 <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
