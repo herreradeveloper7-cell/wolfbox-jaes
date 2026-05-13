@@ -6,6 +6,7 @@ import ModalHistorialGuia from "./ModalHistorialGuia";
 
 import Swal from "sweetalert2";
 import axios from "axios";
+import { openAuthenticatedPdf } from "../../utils/openAuthenticatedPdf";
 
 export type GuiaRow = {
   id: string;
@@ -83,8 +84,12 @@ const TablaResultadosGuia: React.FC<Props> = ({
     setIsHistorialOpen(true);
   };
 
-  const handleImprimirEtiqueta = (row: GuiaRow) => {
-    window.open(`/api/paquetes/pdf/${row.guia}`, "_blank");
+  const handleImprimirEtiqueta = async (row: GuiaRow) => {
+    try {
+      await openAuthenticatedPdf(`/api/paquetes/pdf/${row.guia}`, `${row.guia}.pdf`);
+    } catch (error: any) {
+      Swal.fire("Error", error.message || "No se pudo generar el rotulo", "error");
+    }
   };
 
   if (loading) return <div className="p-6 text-center">Cargando…</div>;

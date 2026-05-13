@@ -4,6 +4,7 @@ import UserDashboardLayout from "../../../layouts/UserDashboardLayout";
 import { useNavigate, useParams } from "react-router-dom";
 import iconHome from "../../../assets/home-svgrepo-com.svg";
 import Swal from "sweetalert2";
+import { openAuthenticatedPdf } from "../../../utils/openAuthenticatedPdf";
 
 export default function AgruparSolicitud() {
     const { id } = useParams();
@@ -16,6 +17,18 @@ export default function AgruparSolicitud() {
     const [cargando, setCargando] = useState(false);
     const quitarHawb = (hawb: string) => {
     setHawbsSeleccionados(prev => prev.filter(h => h !== hawb));
+    };
+
+    const agregarHawb = (hawb: string) => {
+    const hawbLimpio = hawb.trim();
+
+    if (
+        hawbsSolicitud.includes(hawbLimpio) &&
+        !hawbsSeleccionados.includes(hawbLimpio)
+    ) {
+        setHawbsSeleccionados((prev) => [...prev, hawbLimpio]);
+        setInputHawb("");
+    }
     };
 
 
@@ -64,9 +77,10 @@ const ejecutarAgrupacion = async () => {
         { hawbs: hawbsSeleccionados }
         );
 
-        const urlEtiqueta = `/api/solicitudes/etiqueta/${data.hawb_agrupado}`;
-
-        window.open(urlEtiqueta, "_blank");
+        await openAuthenticatedPdf(
+        `/api/solicitudes/etiqueta/${data.hawb_agrupado}`,
+        `${data.hawb_agrupado}.pdf`
+        );
 
         setModalAbierto(false);
 
@@ -222,15 +236,40 @@ const ejecutarAgrupacion = async () => {
                                 {h}
                             </span>
 
+                            <div className="flex items-center gap-2">
                             {seleccionado ? (
                                 <span className="rounded-full border border-green-200 bg-green-100 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-green-700">
                                 Agregado
                                 </span>
                             ) : (
+                                <>
                                 <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
                                 Disponible
                                 </span>
+                                <button
+                                    type="button"
+                                    onClick={() => agregarHawb(h)}
+                                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-900/15 bg-white text-red-950 shadow-sm transition hover:-translate-y-0.5 hover:border-red-900 hover:bg-red-950 hover:text-white focus:outline-none focus:ring-4 focus:ring-red-900/15 cursor-pointer"
+                                    title="Agregar HAWB"
+                                    aria-label={`Agregar HAWB ${h}`}
+                                >
+                                    <svg
+                                    viewBox="0 0 24 24"
+                                    aria-hidden="true"
+                                    className="h-4 w-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2.4"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    >
+                                    <path d="M5 12h14" />
+                                    <path d="m13 6 6 6-6 6" />
+                                    </svg>
+                                </button>
+                                </>
                             )}
+                            </div>
                             </li>
                         );
                         })}
@@ -259,14 +298,7 @@ const ejecutarAgrupacion = async () => {
                         onChange={(e) => {
                         const value = e.target.value.trim();
                         setInputHawb(value);
-
-                        if (
-                            hawbsSolicitud.includes(value) &&
-                            !hawbsSeleccionados.includes(value)
-                        ) {
-                            setHawbsSeleccionados((prev) => [...prev, value]);
-                            setInputHawb("");
-                        }
+                        agregarHawb(value);
                         }}
                         className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm outline-none transition-all duration-200 placeholder:text-gray-400 hover:border-gray-400 focus:border-red-950 focus:ring-4 focus:ring-red-950/10"
                         placeholder="Ingrese HAWB exacto"

@@ -131,7 +131,9 @@ export default function TablaResultadosTracking({ resultados, onEditar }: TablaR
               <tr>
                 <td colSpan={6} className="text-center py-12 text-gray-400">
                   <div className="flex flex-col items-center gap-2">
-                    <span className="text-3xl">📋</span>
+                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-2xl font-black text-red-950">
+                      !
+                    </div>
                     <span className="font-medium">Sin registros disponibles</span>
                   </div>
                 </td>
