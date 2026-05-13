@@ -22,6 +22,7 @@ import paisesRoutes from "./routes/catalogos/paises.routes.js";
 import regionesRoutes from "./routes/catalogos/regiones.routes.js";
 import ciudadesRoutes from "./routes/catalogos/ciudades.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
+import { poolPromise } from "./config/db.js";
 
 const app = express();
 
@@ -52,6 +53,21 @@ app.use("/uploads", express.static("uploads"));
 
 app.get('/', (req, res) => {
   res.send('Servidor backend funcionando 🎉');
+});
+
+app.get("/health", (req, res) => {
+  res.json({ ok: true, service: "wolfbox-api" });
+});
+
+app.get("/health/db", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    await pool.request().query("SELECT 1 AS ok");
+    res.json({ ok: true, db: "connected" });
+  } catch (error) {
+    console.error("Health DB failed:", error);
+    res.status(503).json({ ok: false, db: "unavailable" });
+  }
 });
 
 app.use('/api/auth', authRoutes);
