@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import UserDashboardLayout from "../../../layouts/UserDashboardLayout"
 import { useNavigate } from "react-router-dom";
 import iconHome from "../../../assets/home-svgrepo-com.svg";
@@ -20,20 +20,42 @@ interface PuntoControl {
   orden: number;
 }
 
+interface BusquedaAgrupacionGuardada {
+  fechaInicio: string;
+  fechaFin: string;
+  oficina: number | "";
+  puntoControl: number | "";
+  page: number;
+}
 
+const STORAGE_BUSQUEDA_AGRUPACION = "wolfbox:agrupar-paquetes:busqueda";
+
+const obtenerBusquedaGuardada = (): BusquedaAgrupacionGuardada | null => {
+  try {
+    const data = sessionStorage.getItem(STORAGE_BUSQUEDA_AGRUPACION);
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+};
 
 export default function AgruparPaquetes(){
     const navigate = useNavigate();
+    const busquedaGuardadaRef = useRef<BusquedaAgrupacionGuardada | null>(
+      obtenerBusquedaGuardada()
+    );
+    const busquedaRestauradaRef = useRef(false);
+    const busquedaGuardada = busquedaGuardadaRef.current;
 
-    const [fechaInicio, setFechaInicio] = useState("");
-    const [fechaFin, setFechaFin] = useState("");
+    const [fechaInicio, setFechaInicio] = useState(busquedaGuardada?.fechaInicio || "");
+    const [fechaFin, setFechaFin] = useState(busquedaGuardada?.fechaFin || "");
     const [oficinas, setOficinas] = useState<Oficina[]>([]);
-    const [oficina, setOficina] = useState<number | "">("");
-    const [puntoControl, setPuntoControl] = useState<number | "">("");    
+    const [oficina, setOficina] = useState<number | "">(busquedaGuardada?.oficina || "");
+    const [puntoControl, setPuntoControl] = useState<number | "">(busquedaGuardada?.puntoControl || "");    
     const [puntosControl, setPuntosControl] = useState<PuntoControl[]>([]);
     const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
     const [loading, setLoading] = useState(false);
-    const [page, setPage] = useState(1);
+    const [page, setPage] = useState(busquedaGuardada?.page || 1);
     const [totalPages, setTotalPages] = useState(1);
 
     useEffect(() => {
@@ -50,7 +72,16 @@ export default function AgruparPaquetes(){
         );
 
         setPuntosControl(data);
-        setPuntoControl("");
+        setPuntoControl((actual) => {
+            const existeActual = actual && data.some((pc: PuntoControl) => pc.id === actual);
+            const puntoGuardado = busquedaGuardadaRef.current?.puntoControl;
+            const existeGuardado = puntoGuardado && data.some((pc: PuntoControl) => pc.id === puntoGuardado);
+
+            if (existeActual) return actual;
+            if (existeGuardado) return puntoGuardado;
+
+            return "";
+        });
         } catch (error) {
         console.error("❌ Error cargando puntos de control:", error);
         }
@@ -76,7 +107,7 @@ export default function AgruparPaquetes(){
     cargarOficinas();
     }, []);
 
-    const buscarSolicitudes = async (pagina = 1) => {
+    const buscarSolicitudes = useCallback(async (pagina = 1) => {
     if (!puntoControl) {
         return Swal.fire(
         "Campo obligatorio",
@@ -105,13 +136,40 @@ export default function AgruparPaquetes(){
         setSolicitudes(data.data);
         setTotalPages(data.totalPages);
         setPage(pagina);
+        sessionStorage.setItem(
+            STORAGE_BUSQUEDA_AGRUPACION,
+            JSON.stringify({
+            fechaInicio,
+            fechaFin,
+            oficina,
+            puntoControl,
+            page: pagina,
+            })
+        );
     } catch (error) {
         console.error("❌ Error buscando solicitudes:", error);
         Swal.fire("Error", "No se pudieron cargar las solicitudes", "error");
     } finally {
         setLoading(false);
     }
-    };
+    }, [fechaFin, fechaInicio, oficina, puntoControl]);
+
+    useEffect(() => {
+    const busqueda = busquedaGuardadaRef.current;
+
+    if (
+        busquedaRestauradaRef.current ||
+        !busqueda ||
+        !oficina ||
+        !puntoControl ||
+        puntosControl.length === 0
+    ) {
+        return;
+    }
+
+    busquedaRestauradaRef.current = true;
+    buscarSolicitudes(busqueda.page || 1);
+    }, [buscarSolicitudes, oficina, puntoControl, puntosControl.length]);
 
     return(
     <UserDashboardLayout scrollable>
@@ -191,9 +249,10 @@ export default function AgruparPaquetes(){
             </label>
                 <select
                 value={oficina}
-                onChange={(e) =>
-                    setOficina(e.target.value === "" ? "" : Number(e.target.value))
-                }
+                onChange={(e) => {
+                    busquedaGuardadaRef.current = null;
+                    setOficina(e.target.value === "" ? "" : Number(e.target.value));
+                }}
                 className="mt-2 w-full cursor-pointer rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm outline-none transition-all duration-200 hover:border-gray-400 focus:border-red-950 focus:ring-4 focus:ring-red-950/10"
                 >
                 <option value="">Seleccione una oficina</option>
@@ -213,9 +272,10 @@ export default function AgruparPaquetes(){
                 <select
                 value={puntoControl}
                 disabled={!oficina}
-                onChange={(e) =>
-                    setPuntoControl(e.target.value === "" ? "" : Number(e.target.value))
-                }
+                onChange={(e) => {
+                    busquedaGuardadaRef.current = null;
+                    setPuntoControl(e.target.value === "" ? "" : Number(e.target.value));
+                }}
                 className={`mt-2 w-full rounded-xl border px-4 py-2.5 text-sm font-semibold shadow-sm outline-none transition-all duration-200 ${
                     !oficina
                     ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
