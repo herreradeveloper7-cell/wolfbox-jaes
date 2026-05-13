@@ -5,6 +5,7 @@ import path from "path";
 import PDFDocument from "pdfkit";
 import bwipjs from "bwip-js";
 import { fileURLToPath } from "url";
+import { drawLogoJaesCargo } from "../utils/pdf.helpers.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -1534,13 +1535,7 @@ export const generarEtiquetaHawbPadre = async (req, res) => {
 
     doc.roundedRect(8, 8, 284, 584, 12).stroke("#222222");
 
-    const logoPath = "D:\\wolfBox_jaes\\frontend-wolfbox\\src\\assets\\logoJaesCargo.png";
-
-    try {
-      doc.image(logoPath, 18, 16, { width: 85 });
-    } catch (err) {
-      console.log("No se pudo cargar el logo:", err.message);
-    }
+    drawLogoJaesCargo(doc, 18, 16, 85);
 
     doc
       .font("Helvetica-Bold")

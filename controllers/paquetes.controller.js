@@ -11,6 +11,7 @@ import {
   optionalIntOrZero,
   sqlStringOrNull,
 } from "../utils/paquetes.helpers.js";
+import { drawLogoJaesCargo } from "../utils/pdf.helpers.js";
 
 const generarHAWBUnico = async (pool) => {
   let hawb;
@@ -1149,7 +1150,6 @@ export const generarPDFEtiqueta = async (req, res) => {
 
     const paquete = result.recordset[0];
 
-    const logoPath = "D:\\wolfBox_jaes\\frontend-wolfbox\\src\\assets\\logoJaesCargo.png";
     const fechaFormateada = new Date(paquete.fecha_registro).toLocaleDateString("es-CO");
 
     const barcodeBuffer = await bwipjs.toBuffer({
@@ -1177,11 +1177,7 @@ export const generarPDFEtiqueta = async (req, res) => {
 
     doc.roundedRect(8, 8, 284, 584, 12).stroke("#222222");
 
-    try {
-      doc.image(logoPath, 18, 16, { width: 85 });
-    } catch (err) {
-      console.log("No se pudo cargar el logo:", err.message);
-    }
+    drawLogoJaesCargo(doc, 18, 16, 85);
 
     doc
       .font("Helvetica-Bold")
