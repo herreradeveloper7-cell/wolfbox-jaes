@@ -3,6 +3,7 @@ import iconEdit from "../../assets/pencil-edit-button-svgrepo-com.svg";
 import iconCancel from "../../assets/cancel-svgrepo-com (1).svg";
 import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
+import { openAuthenticatedPdf } from "../../utils/openAuthenticatedPdf";
 
 
 export interface Paquete {
@@ -58,8 +59,12 @@ export default function TablaPaquetesDigitados({
   );
 
 
-  const imprimirEtiqueta = (paquete: Paquete) => {
-    window.open(`/api/paquetes/pdf/${paquete.hawb}`, "_blank");
+  const imprimirEtiqueta = async (paquete: Paquete) => {
+    try {
+      await openAuthenticatedPdf(`/api/paquetes/pdf/${paquete.hawb}`, `${paquete.hawb}.pdf`);
+    } catch (error: any) {
+      Swal.fire("Error", error.message || "No se pudo generar el rotulo", "error");
+    }
   };
 
   const anularGuia = async (paquete: Paquete) => {
