@@ -186,7 +186,7 @@ export default function DashboardUsuarios() {
                       {card.title}
                     </p>
                     <div className="mt-4 flex items-end gap-2">
-                      <span className="text-4xl font-black leading-none text-slate-950">
+                      <span className="text-4xl font-black leading-none text-gray-700">
                         {loading ? "--" : card.value.toLocaleString("es-CO")}
                       </span>
                     </div>
