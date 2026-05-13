@@ -12,7 +12,8 @@ test("buildSolicitudesAgrupablesQueries exige que todos los paquetes esten listo
 
   assert.match(dataQuery, /HAVING COUNT\(paquete_id\) >= 2/);
   assert.match(dataQuery, /SUM\([\s\S]*\) = COUNT\(paquete_id\)/);
-  assert.match(dataQuery, /punto_control_id IN \(SELECT id FROM PuntoControlSeleccionado\)/);
+  assert.match(dataQuery, /LEFT JOIN PuntoControlSeleccionado pcs/);
+  assert.match(dataQuery, /punto_control_valido = 1/);
   assert.match(dataQuery, /LEFT JOIN UltimoEstado/);
   assert.match(totalQuery, /FROM SolicitudesCandidatas/);
   assert.equal(dataInputs.find((input) => input.name === "offset").value, 15);

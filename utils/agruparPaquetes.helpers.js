@@ -35,7 +35,11 @@ const buildBaseCte = ({ fechaInicio, fechaFin } = {}) => {
         p.id AS paquete_id,
         p.hawb,
         ec.nombre AS estado_actual,
-        ec.punto_control_id
+        ec.punto_control_id,
+        CASE
+          WHEN pcs.id IS NOT NULL THEN 1
+          ELSE 0
+        END AS punto_control_valido
       FROM solicitudes s
       INNER JOIN paquetes p
         ON p.solicitud_id = s.id
@@ -45,6 +49,8 @@ const buildBaseCte = ({ fechaInicio, fechaFin } = {}) => {
         ON ue.hawb = p.hawb
       LEFT JOIN estados_catalogo ec
         ON ec.id = ue.estado_id
+      LEFT JOIN PuntoControlSeleccionado pcs
+        ON pcs.id = ec.punto_control_id
       WHERE ISNULL(p.agrupado_bit, 0) = 0
         AND p.hawb_padre IS NULL
         AND ISNULL(p.hawb, '') NOT LIKE '%G'
@@ -75,7 +81,7 @@ const buildBaseCte = ({ fechaInicio, fechaFin } = {}) => {
         AND SUM(
           CASE
             WHEN LTRIM(RTRIM(estado_actual)) COLLATE Latin1_General_CI_AI = N'${ESTADO_LISTO_AGRUPAR}'
-             AND punto_control_id IN (SELECT id FROM PuntoControlSeleccionado)
+             AND punto_control_valido = 1
             THEN 1
             ELSE 0
           END
