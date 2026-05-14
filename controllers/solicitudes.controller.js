@@ -68,6 +68,31 @@ const calcularFleteServicio = (servicio, pesoTotal) => {
   };
 };
 
+export const normalizarHawbsAgrupacion = (hawbs) => {
+  if (!Array.isArray(hawbs)) return [];
+
+  return [
+    ...new Set(
+      hawbs
+        .map((hawb) => String(hawb || "").trim())
+        .filter(Boolean)
+    ),
+  ];
+};
+
+export const buildHawbInClause = (hawbs) =>
+  hawbs.map((_, index) => `@hawb${index}`).join(",");
+
+export const bindHawbInputs = (request, hawbs) => {
+  hawbs.forEach((hawb, index) => {
+    request.input(`hawb${index}`, sql.NVarChar(50), hawb);
+  });
+
+  return request;
+};
+
+export const buildTrackingPadreAgrupado = (hawbPadre) => hawbPadre;
+
 export const crearSolicitud = async (req, res) => {
   let transaction;
   let transactionStarted = false;
@@ -1271,6 +1296,7 @@ export const agruparSolicitud = async (req, res) => {
 
   const { id } = req.params;
   const { hawbs } = req.body;
+  const hawbsNormalizados = normalizarHawbsAgrupacion(hawbs);
   let transaction;
   let transactionStarted = false;
 
@@ -1281,7 +1307,7 @@ export const agruparSolicitud = async (req, res) => {
     });
   }
 
-  if (!Array.isArray(hawbs) || hawbs.length < 2) {
+  if (hawbsNormalizados.length < 2) {
     return res.status(400).json({
       ok: false,
       mensaje: "Debe seleccionar al menos 2 paquetes para agrupar"
@@ -1297,8 +1323,14 @@ export const agruparSolicitud = async (req, res) => {
     const request = () => new sql.Request(transaction);
 
     // 🔹 Obtener paquetes hijos
-    const paquetes = await request()
-      .input("solicitud_id", sql.Int, id)
+    const hawbInClause = buildHawbInClause(hawbsNormalizados);
+
+    const paquetesRequest = bindHawbInputs(
+      request().input("solicitud_id", sql.Int, id),
+      hawbsNormalizados
+    );
+
+    const paquetes = await paquetesRequest
       .query(`
         SELECT 
           id,
@@ -1314,10 +1346,10 @@ export const agruparSolicitud = async (req, res) => {
         FROM paquetes
         WHERE solicitud_id = @solicitud_id
           AND ISNULL(agrupado_bit,0) = 0
-          AND hawb IN (${hawbs.map(h => `'${h}'`).join(",")})
+          AND hawb IN (${hawbInClause})
       `);
 
-    if (!paquetes.recordset.length) {
+    if (paquetes.recordset.length !== hawbsNormalizados.length) {
       await transaction.rollback();
       transactionStarted = false;
       return res.status(400).json({
@@ -1335,7 +1367,7 @@ export const agruparSolicitud = async (req, res) => {
     const pesoTotal = hijos.reduce((s,p)=>s+Number(p.peso||0),0);
     const aseguradoTotal = hijos.reduce((s,p)=>s+Number(p.asegurado||0),0);
 
-    const tracking = hijos.map(p=>p.tracking).filter(Boolean).join(", ");
+    const tracking = buildTrackingPadreAgrupado(hawbPadre);
     const contenido = hijos.map(p=>p.contenido).filter(Boolean).join(", ");
 
     const servicio = hijos[0].servicio_id;
@@ -1345,7 +1377,7 @@ export const agruparSolicitud = async (req, res) => {
 
     const padre = await request()
       .input("hawb", sql.NVarChar(50), hawbPadre)
-      .input("tracking", sql.NVarChar(sql.MAX), tracking)
+      .input("tracking", sql.NVarChar(50), tracking)
       .input("contenido", sql.NVarChar(sql.MAX), contenido)
       .input("peso", sql.Decimal(10,2), pesoTotal)
       .input("asegurado", sql.Decimal(10,2), aseguradoTotal)
@@ -1385,13 +1417,20 @@ export const agruparSolicitud = async (req, res) => {
       `);
 
     // 🔹 Marcar hijos
-    await request()
-      .input("padre", sql.NVarChar(50), hawbPadre)
+    const actualizarHijosRequest = bindHawbInputs(
+      request()
+        .input("padre", sql.NVarChar(50), hawbPadre)
+        .input("solicitud_id", sql.Int, id),
+      hawbsNormalizados
+    );
+
+    await actualizarHijosRequest
       .query(`
         UPDATE paquetes
         SET agrupado_bit = 1,
             hawb_padre = @padre
-        WHERE hawb IN (${hawbs.map(h => `'${h}'`).join(",")})
+        WHERE solicitud_id = @solicitud_id
+          AND hawb IN (${hawbInClause})
       `);
 
     // 🔹 Obtener estado Agrupado
