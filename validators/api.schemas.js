@@ -299,11 +299,19 @@ export const despachoSchemas = {
   crear: z.object({
     nombre: optionalString,
     observaciones: optionalString,
+    oficina_id: optionalNumber,
+    oficina: optionalString,
+    transportadora_id: optionalNumber,
+    fecha: optionalString,
     responsable: optionalString,
   }).passthrough(),
   editar: z.object({
     nombre: optionalString,
     observaciones: optionalString,
+    oficina_id: optionalNumber,
+    oficina: optionalString,
+    transportadora_id: optionalNumber,
+    fecha: optionalString,
   }).passthrough(),
   estado: z.object({
     estado: z.enum(["abierto", "cerrado"]),

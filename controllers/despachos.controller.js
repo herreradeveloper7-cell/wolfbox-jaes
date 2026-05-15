@@ -24,6 +24,11 @@ const ensureDespachosSchema = async (pool) => {
         codigo NVARCHAR(40) NOT NULL,
         nombre NVARCHAR(120) NULL,
         observaciones NVARCHAR(500) NULL,
+        oficina_id INT NULL,
+        oficina NVARCHAR(120) NULL,
+        transportadora_id INT NULL,
+        transportadora_nombre NVARCHAR(150) NULL,
+        fecha_operativa NVARCHAR(30) NULL,
         estado NVARCHAR(20) NOT NULL CONSTRAINT DF_despachos_estado DEFAULT 'abierto',
         creado_por NVARCHAR(120) NULL,
         fecha_creacion DATETIME2 NOT NULL CONSTRAINT DF_despachos_fecha DEFAULT SYSUTCDATETIME(),
@@ -31,6 +36,21 @@ const ensureDespachosSchema = async (pool) => {
         actualizado_en DATETIME2 NULL
       );
     END
+
+    IF COL_LENGTH('dbo.despachos', 'oficina') IS NULL
+      ALTER TABLE dbo.despachos ADD oficina NVARCHAR(120) NULL;
+
+    IF COL_LENGTH('dbo.despachos', 'oficina_id') IS NULL
+      ALTER TABLE dbo.despachos ADD oficina_id INT NULL;
+
+    IF COL_LENGTH('dbo.despachos', 'transportadora_id') IS NULL
+      ALTER TABLE dbo.despachos ADD transportadora_id INT NULL;
+
+    IF COL_LENGTH('dbo.despachos', 'transportadora_nombre') IS NULL
+      ALTER TABLE dbo.despachos ADD transportadora_nombre NVARCHAR(150) NULL;
+
+    IF COL_LENGTH('dbo.despachos', 'fecha_operativa') IS NULL
+      ALTER TABLE dbo.despachos ADD fecha_operativa NVARCHAR(30) NULL;
 
     IF OBJECT_ID('dbo.despacho_paquetes', 'U') IS NULL
     BEGIN
@@ -63,7 +83,16 @@ const obtenerDespachoAbierto = async (request, id) => {
   const despacho = await request()
     .input("id", sql.Int, id)
     .query(`
-      SELECT id, codigo, nombre, observaciones, estado
+      SELECT
+        id,
+        codigo,
+        nombre,
+        observaciones,
+        oficina_id,
+        oficina,
+        transportadora_id,
+        transportadora_nombre,
+        estado
       FROM despachos
       WHERE id = @id
     `);
@@ -87,6 +116,26 @@ const obtenerDespachoAbierto = async (request, id) => {
   }
 
   return { ok: true, despacho: data };
+};
+
+const obtenerTransportadora = async (request, transportadoraId, oficinaId) => {
+  const result = await request()
+    .input("transportadora_id", sql.Int, Number(transportadoraId))
+    .input("oficina_id", sql.Int, Number(oficinaId))
+    .query(`
+      SELECT TOP 1
+        t.id,
+        t.nombre,
+        t.oficina_id,
+        o.nombre AS oficina
+      FROM transportadoras t
+      INNER JOIN oficinas o ON o.id = t.oficina_id
+      WHERE t.id = @transportadora_id
+        AND t.oficina_id = @oficina_id
+        AND ISNULL(t.activo, 1) = 1
+    `);
+
+  return result.recordset[0] || null;
 };
 
 const registrarEstadoOperativo = async ({
@@ -143,6 +192,11 @@ export const listarDespachos = async (req, res) => {
         d.codigo,
         d.nombre,
         d.observaciones,
+        d.oficina_id,
+        d.oficina,
+        d.transportadora_id,
+        d.transportadora_nombre,
+        d.fecha_operativa,
         d.estado,
         d.creado_por,
         CONVERT(varchar, d.fecha_creacion, 120) AS fecha_creacion,
@@ -153,7 +207,8 @@ export const listarDespachos = async (req, res) => {
       LEFT JOIN despacho_paquetes dp ON dp.despacho_id = d.id
       LEFT JOIN paquetes p ON p.id = dp.paquete_id
       GROUP BY
-        d.id, d.codigo, d.nombre, d.observaciones, d.estado, d.creado_por,
+        d.id, d.codigo, d.nombre, d.observaciones, d.oficina_id, d.oficina,
+        d.transportadora_id, d.transportadora_nombre, d.fecha_operativa, d.estado, d.creado_por,
         d.fecha_creacion, d.fecha_cierre
       ORDER BY d.fecha_creacion DESC
     `);
@@ -167,23 +222,69 @@ export const listarDespachos = async (req, res) => {
 
 export const crearDespacho = async (req, res) => {
   try {
-    const { nombre, observaciones } = req.body;
+    const {
+      nombre,
+      observaciones,
+      oficina_id,
+      oficina,
+      transportadora_id,
+      fecha,
+    } = req.body;
     const responsable = getResponsable(req);
     const pool = await poolPromise;
     await ensureDespachosSchema(pool);
 
     const codigo = `DESP-${Date.now()}`;
+    if (!Number(oficina_id) || !Number(transportadora_id)) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: "Oficina y transportadora son requeridas.",
+      });
+    }
+
+    const transportadora = await obtenerTransportadora(
+      () => pool.request(),
+      transportadora_id,
+      oficina_id
+    );
+
+    if (!transportadora) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: "Transportadora no valida para la oficina seleccionada.",
+      });
+    }
 
     const result = await pool
       .request()
       .input("codigo", sql.NVarChar, codigo)
       .input("nombre", sql.NVarChar, nombre || codigo)
       .input("observaciones", sql.NVarChar, observaciones || null)
+      .input("oficina_id", sql.Int, Number(oficina_id))
+      .input("oficina", sql.NVarChar, transportadora.oficina || oficina || null)
+      .input("transportadora_id", sql.Int, transportadora.id)
+      .input("transportadora_nombre", sql.NVarChar, transportadora.nombre)
+      .input("fecha_operativa", sql.NVarChar, fecha || null)
       .input("creado_por", sql.NVarChar, responsable)
       .query(`
-        INSERT INTO despachos (codigo, nombre, observaciones, creado_por)
-        OUTPUT INSERTED.id, INSERTED.codigo, INSERTED.nombre, INSERTED.estado
-        VALUES (@codigo, @nombre, @observaciones, @creado_por)
+        INSERT INTO despachos (
+          codigo, nombre, observaciones, oficina_id, oficina,
+          transportadora_id, transportadora_nombre, fecha_operativa, creado_por
+        )
+        OUTPUT
+          INSERTED.id,
+          INSERTED.codigo,
+          INSERTED.nombre,
+          INSERTED.oficina_id,
+          INSERTED.oficina,
+          INSERTED.transportadora_id,
+          INSERTED.transportadora_nombre,
+          INSERTED.fecha_operativa,
+          INSERTED.estado
+        VALUES (
+          @codigo, @nombre, @observaciones, @oficina_id, @oficina,
+          @transportadora_id, @transportadora_nombre, @fecha_operativa, @creado_por
+        )
       `);
 
     res.status(201).json({
@@ -212,6 +313,11 @@ export const obtenerDetalleDespacho = async (req, res) => {
           codigo,
           nombre,
           observaciones,
+          oficina_id,
+          oficina,
+          transportadora_id,
+          transportadora_nombre,
+          fecha_operativa,
           estado,
           creado_por,
           CONVERT(varchar, fecha_creacion, 120) AS fecha_creacion,
@@ -277,7 +383,14 @@ export const editarDespacho = async (req, res) => {
 
   try {
     const { id } = req.params;
-    const { nombre, observaciones } = req.body;
+    const {
+      nombre,
+      observaciones,
+      oficina_id,
+      oficina,
+      transportadora_id,
+      fecha,
+    } = req.body;
     const pool = await poolPromise;
     await ensureDespachosSchema(pool);
 
@@ -293,14 +406,48 @@ export const editarDespacho = async (req, res) => {
       return res.status(validacion.status).json({ ok: false, mensaje: validacion.mensaje });
     }
 
+    if (!Number(oficina_id) || !Number(transportadora_id)) {
+      await transaction.rollback();
+      transactionStarted = false;
+      return res.status(400).json({
+        ok: false,
+        mensaje: "Oficina y transportadora son requeridas.",
+      });
+    }
+
+    const transportadora = await obtenerTransportadora(
+      request,
+      transportadora_id,
+      oficina_id
+    );
+
+    if (!transportadora) {
+      await transaction.rollback();
+      transactionStarted = false;
+      return res.status(400).json({
+        ok: false,
+        mensaje: "Transportadora no valida para la oficina seleccionada.",
+      });
+    }
+
     await request()
       .input("id", sql.Int, id)
       .input("nombre", sql.NVarChar, nombre || null)
       .input("observaciones", sql.NVarChar, observaciones || null)
+      .input("oficina_id", sql.Int, Number(oficina_id))
+      .input("oficina", sql.NVarChar, transportadora.oficina || oficina || null)
+      .input("transportadora_id", sql.Int, transportadora.id)
+      .input("transportadora_nombre", sql.NVarChar, transportadora.nombre)
+      .input("fecha_operativa", sql.NVarChar, fecha || null)
       .query(`
         UPDATE despachos
         SET nombre = @nombre,
             observaciones = @observaciones,
+            oficina_id = @oficina_id,
+            oficina = @oficina,
+            transportadora_id = @transportadora_id,
+            transportadora_nombre = @transportadora_nombre,
+            fecha_operativa = @fecha_operativa,
             actualizado_en = SYSUTCDATETIME()
         WHERE id = @id
       `);
@@ -418,6 +565,15 @@ export const agregarHawbADespacho = async (req, res) => {
       return res.status(validacion.status).json({ ok: false, mensaje: validacion.mensaje });
     }
 
+    if (!validacion.despacho.transportadora_id || !validacion.despacho.transportadora_nombre) {
+      await transaction.rollback();
+      transactionStarted = false;
+      return res.status(400).json({
+        ok: false,
+        mensaje: "El despacho no tiene una transportadora asignada.",
+      });
+    }
+
     const paquete = await request()
       .input("hawb", sql.NVarChar, hawb)
       .query(`
@@ -498,8 +654,8 @@ export const agregarHawbADespacho = async (req, res) => {
     await registrarEstadoOperativo({
       request,
       hawb: data.hawb,
-      estadoNombre: "Planilla de despacho",
-      observaciones: `Agregado al despacho ${validacion.despacho.codigo}`,
+      estadoNombre: "Entregada a transportadora",
+      observaciones: `Transportadora asignada: ${validacion.despacho.transportadora_nombre}`,
       responsable,
     });
 
