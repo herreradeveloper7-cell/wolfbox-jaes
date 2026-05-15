@@ -42,6 +42,35 @@ const opcionesEstadoFinal: Record<string, string[]> = {
   ],
 };
 
+const normalizarTexto = (valor?: string | null) =>
+  String(valor || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const buscarOpcionPorTexto = (opciones: string[], valor?: string | null) => {
+  const normalizado = normalizarTexto(valor);
+  return opciones.find((opcion) => normalizarTexto(opcion) === normalizado);
+};
+
+const obtenerPuntoControlInicial = (tracking?: TrackingEstadoEditable) => {
+  if (!tracking) return "";
+
+  const puntoControlDirecto = buscarOpcionPorTexto(
+    Object.keys(opcionesEstadoFinal),
+    tracking.punto_control
+  );
+
+  if (puntoControlDirecto) return puntoControlDirecto;
+
+  return (
+    Object.keys(opcionesEstadoFinal).find((key) =>
+      buscarOpcionPorTexto(opcionesEstadoFinal[key], tracking.estado)
+    ) || ""
+  );
+};
+
 const ModalEditarTracking: React.FC<Props> = ({
   isOpen,
   onClose,
@@ -54,18 +83,21 @@ const ModalEditarTracking: React.FC<Props> = ({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!trackingActual) return;
+    if (!isOpen || !trackingActual) return;
 
     setObservaciones(trackingActual.observaciones || "");
-    setEstadoFinal(trackingActual.estado);
 
-    for (const key in opcionesEstadoFinal) {
-      if (opcionesEstadoFinal[key].includes(trackingActual.estado)) {
-        setPuntoControl(key);
-        break;
-      }
-    }
-  }, [trackingActual]);
+    const puntoControlInicial = obtenerPuntoControlInicial(trackingActual);
+    setPuntoControl(puntoControlInicial);
+
+    const estadoInicial =
+      buscarOpcionPorTexto(
+        opcionesEstadoFinal[puntoControlInicial] || [],
+        trackingActual.estado
+      ) || trackingActual.estado || "";
+
+    setEstadoFinal(estadoInicial);
+  }, [isOpen, trackingActual]);
 
   if (!isOpen) return null;
 
@@ -193,6 +225,10 @@ const ModalEditarTracking: React.FC<Props> = ({
                 }`}
               >
                 <option value="">Seleccionar</option>
+                {estadoFinal &&
+                  !buscarOpcionPorTexto(opcionesEstadoFinal[puntoControl] || [], estadoFinal) && (
+                    <option value={estadoFinal}>{estadoFinal}</option>
+                  )}
                 {opcionesEstadoFinal[puntoControl]?.map((op, i) => (
                   <option key={i} value={op}>
                     {op}

@@ -233,10 +233,22 @@ export default function SolicitarDespachos() {
     }
   };
 
+  const paquetesSeleccionados = paquetesCliente.filter((p) =>
+    seleccionados.includes(p.id)
+  );
+  const pesoSeleccionado = paquetesSeleccionados.reduce(
+    (total, p) => total + Number(p.peso || 0),
+    0
+  );
+  const clienteCodigo =
+    clienteSeleccionado?.codigo_referencia ||
+    clienteSeleccionado?.codigo ||
+    clienteSeleccionado?.codigo_casillero ||
+    "";
 
   return (
     <UserDashboardLayout scrollable>
-      <div className="text-gray-800 px-6 lg:px-10 pb-10 animate-fade-in">
+      <div className="min-w-0 max-w-full overflow-x-hidden text-gray-800 px-6 lg:px-10 pb-10 animate-fade-in">
         <h1 className="text-3xl font-bold mb-2 text-red-900">
           Solicitar Despachos
         </h1>
@@ -252,10 +264,25 @@ export default function SolicitarDespachos() {
           &gt; Solicitar despachos
         </p>
 
-        <div className="relative mb-6">
+        <div className="relative mb-8 overflow-visible rounded-2xl border border-gray-200/80 bg-white/95 p-5 shadow-[0_22px_55px_rgba(17,24,39,0.10)] sm:p-6">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-60 w-60 rounded-full bg-red-950/5" />
+          <div className="relative mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-950">
+                Centro de despacho
+              </p>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
+                Buscar cliente
+              </h2>
+            </div>
+            <p className="text-xs font-semibold text-gray-500">
+              Ingresa minimo 3 caracteres para consultar casilleros.
+            </p>
+          </div>
+          <div className="relative">
           <svg
             xmlns="http://www.w3.org/2000/svg"
-              className="absolute left-3 top-2.5 h-5 w-5 text-gray-400"
+              className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-red-900/60"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -270,21 +297,18 @@ export default function SolicitarDespachos() {
 
             <input
               type="text"
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 shadow-sm 
-                        focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
-                        transition-all duration-200 ease-in-out text-gray-800 
-                        placeholder-gray-400"
+              className="relative w-full rounded-2xl border border-gray-200 bg-slate-50/80 py-3 pl-12 pr-4 text-sm font-semibold text-gray-800 shadow-inner outline-none transition-all duration-200 placeholder:text-gray-400 hover:border-gray-300 focus:border-red-950 focus:bg-white focus:ring-4 focus:ring-red-950/10"
               placeholder="Buscar cliente por nombre o código de casillero..."
               value={search}
               onChange={(e) => buscarCliente(e.target.value)}
             />
 
             {clientes.length > 0 && (
-              <div className="absolute mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+              <div className="absolute z-30 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-slate-400/30">
                 {clientes.map((c) => (
                   <p
                     key={c.codigo_referencia}
-                    className="p-3 cursor-pointer text-sm text-gray-700 hover:bg-gray-100 transition-all"
+                    className="flex items-center justify-between gap-4 border-b border-gray-100 px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-red-50/70 transition-all last:border-b-0"
                     onClick={() => seleccionarCliente(c)}
                   >
                     <span className="font-semibold text-gray-800">{c.nombre}</span>{" "}
@@ -293,28 +317,77 @@ export default function SolicitarDespachos() {
                 ))}
               </div>
             )}
+          </div>
         </div>
 
         {clienteSeleccionado && (
           <>
-            <h3 className="mt-6 font-bold text-gray-700 text-lg">
+            <section className="relative mb-5 overflow-hidden rounded-2xl border border-gray-200/80 bg-white/95 shadow-[0_22px_55px_rgba(17,24,39,0.10)]">
+              <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-red-950 via-red-700 to-gray-300" />
+              <div className="relative grid gap-4 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-950">
+                    Cliente seleccionado
+                  </p>
+                  <h3 className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
+                    {clienteSeleccionado.nombre}
+                  </h3>
+                  <p className="mt-1 font-mono text-sm font-semibold text-red-950">
+                    {clienteCodigo}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 sm:min-w-[360px]">
+                  <div className="rounded-xl border border-gray-200 bg-slate-50/80 p-3 text-center">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-500">Disponibles</p>
+                    <p className="mt-1 text-lg font-black text-gray-800">{paquetesCliente.length}</p>
+                  </div>
+                  <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-center">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-green-700">Seleccionados</p>
+                    <p className="mt-1 text-lg font-black text-green-800">{seleccionados.length}</p>
+                  </div>
+                  <div className="rounded-xl border border-red-900/10 bg-red-50 p-3 text-center">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-red-950">Peso</p>
+                    <p className="mt-1 text-lg font-black text-red-950">{pesoSeleccionado.toFixed(2)}</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <h3 className="sr-only">
               Paquetes Disponibles —{" "}
               <span className="text-red-800">{clienteSeleccionado.nombre}</span>
             </h3>
 
             {loadingPaquetes ? (
-              <div className="mt-10 flex justify-center items-center">
+              <div className="mt-8 flex justify-center items-center rounded-2xl border border-gray-200 bg-white/90 p-10 shadow-sm">
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-red-900 border-t-transparent"></div>
               </div>
             ) : paquetesCliente.length === 0 ? (
-              <p className="mt-4 text-gray-500 italic text-sm">
-                Este cliente no tiene paquetes disponibles para solicitar.
-              </p>
+              <div className="mt-4 rounded-2xl border border-dashed border-gray-300 bg-white/90 p-8 text-center shadow-sm">
+                <p className="text-sm font-semibold text-gray-500">
+                  Este cliente no tiene paquetes disponibles para solicitar.
+                </p>
+              </div>
             ) : (
               <>
-                <div className="mt-4 overflow-x-auto rounded-xl shadow-md border border-gray-200 bg-white">
-                  <table className="min-w-full border-collapse">
-                    <thead className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 text-sm uppercase font-semibold tracking-wide">
+                <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white/95 shadow-[0_22px_55px_rgba(17,24,39,0.10)]">
+                  <div className="flex flex-col gap-3 border-b border-gray-200 bg-gradient-to-r from-white via-red-50/30 to-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-red-950">
+                        Inventario disponible
+                      </p>
+                      <h3 className="mt-1 text-lg font-semibold text-gray-800">
+                        Paquetes listos para solicitud
+                      </h3>
+                    </div>
+                    <span className="rounded-full border border-red-900/10 bg-red-50 px-3 py-1 text-xs font-bold text-red-950">
+                      {paquetesCliente.length} registros
+                    </span>
+                  </div>
+
+                  <div className="w-full max-w-full overflow-x-auto">
+                  <table className="min-w-[1050px] w-full border-collapse">
+                    <thead className="bg-gradient-to-r from-gray-100 to-gray-50 text-gray-600 text-xs uppercase font-black tracking-[0.16em]">
                       <tr>
                         <th className="py-3 px-4 text-center">Seleccionar</th>
                         <th className="py-3 px-4 text-left">HAWB</th>
@@ -327,13 +400,13 @@ export default function SolicitarDespachos() {
                         <th className="py-3 px-4 text-center">Estado</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-gray-100">
                       {paquetesCliente.map((p) => (
                         <tr
                           key={p.id}
-                          className={`text-sm border-b border-gray-100 transition-all duration-200 hover:bg-gray-50 ${
+                          className={`text-sm transition-all duration-200 hover:bg-red-50/50 ${
                             seleccionados.includes(p.id)
-                              ? "bg-blue-50 hover:bg-blue-100"
+                              ? "bg-green-50/80 hover:bg-green-50"
                               : ""
                           }`}
                         >
@@ -379,31 +452,41 @@ export default function SolicitarDespachos() {
                   </table>
                 </div>
 
-                <div className="flex justify-end mt-6">
+                <div className="flex flex-col gap-3 border-t border-gray-200 bg-gradient-to-r from-white via-gray-50 to-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm font-semibold text-gray-500">
+                    {seleccionados.length > 0
+                      ? `${seleccionados.length} paquete(s) seleccionado(s) para crear solicitud.`
+                      : "Selecciona los paquetes que haran parte del despacho."}
+                  </p>
                   <button
                     onClick={crearSolicitud}
-                    className="bg-green-700 hover:bg-green-800 text-white px-6 py-2.5 rounded-lg font-semibold shadow 
-                      transition-all duration-200 ease-in-out hover:shadow-lg focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
+                    disabled={seleccionados.length === 0}
+                    className={`rounded-xl px-6 py-2.5 text-sm font-black text-white shadow-lg transition-all duration-200 ${
+                      seleccionados.length === 0
+                        ? "cursor-not-allowed bg-gray-300 text-gray-500 shadow-none"
+                        : "cursor-pointer bg-gradient-to-r from-red-950 to-red-900 shadow-red-950/20 hover:-translate-y-0.5 hover:from-red-900 hover:to-red-800 hover:shadow-xl"
+                    }`}
                   >
                     Crear Solicitud
                   </button>
+                </div>
                 </div>
               </>
             )}
           </>
         )}
 
-      </div>
+        {clienteSeleccionado && solicitudes.length > 0 && (
+          <SolicitudesRealizadasTabla
+          solicitudes={solicitudes}
+          onImprimir={handleImprimirSolicitud}
+          onEliminar={eliminarSolicitud}
+          onVerDetalle={(s) => setModalDetalle(s)}
+          onEditar={(s) => setSolicitudEditar(s)}
+          />
+        )}
 
-      {clienteSeleccionado && solicitudes.length > 0 && (
-        <SolicitudesRealizadasTabla
-        solicitudes={solicitudes}
-        onImprimir={handleImprimirSolicitud}
-        onEliminar={eliminarSolicitud}
-        onVerDetalle={(s) => setModalDetalle(s)}
-        onEditar={(s) => setSolicitudEditar(s)}   
-        />
-      )}
+      </div>
 
       {mostrarModal && (
         <ModalCrearSolicitud

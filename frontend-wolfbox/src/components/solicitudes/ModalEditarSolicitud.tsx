@@ -254,11 +254,13 @@ export default function ModalEditarSolicitud({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] text-sm">
+            <table className="w-full min-w-[980px] text-sm">
               <thead className="bg-gradient-to-r from-gray-100 to-gray-50">
                 <tr className="text-[10px] uppercase tracking-[0.15em] text-gray-600">
                   <th className="px-4 py-3 text-left font-black">HAWB</th>
                   <th className="px-4 py-3 text-left font-black">Tracking</th>
+                  <th className="px-4 py-3 text-left font-black">Tienda</th>
+                  <th className="px-4 py-3 text-left font-black">Contenido</th>
                   <th className="px-4 py-3 text-center font-black">Peso</th>
                   <th className="px-4 py-3 text-center font-black">Valor asegurado</th>
                   <th className="px-4 py-3 text-center font-black">Acción</th>
@@ -283,6 +285,16 @@ export default function ModalEditarSolicitud({
                         value={p.tracking}
                         disabled
                       />
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      <span className="block max-w-[150px] break-words font-semibold">
+                        {p.tienda || "â€”"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      <span className="block max-w-[260px] break-words leading-5">
+                        {p.contenido || "â€”"}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <input
