@@ -19,6 +19,19 @@ const emptyResumen: ResumenDashboard = {
   clientesConPaquetesDigitados: 0,
 };
 
+const flujoEstadosPaquete = [
+  "Digitado",
+  "Consolidado",
+  "Manifestado",
+  "Aerolinea Miami",
+  "Aeropuerto Destino",
+  "Pendiente de Aduanas",
+  "Facturado Pendiente de Pago",
+  "Desbloqueado",
+  "Entregada a transportadora",
+  "Entregada a destinatario",
+];
+
 const parseJsonResponse = async (res: Response) => {
   const contentType = res.headers.get("content-type") || "";
 
@@ -230,6 +243,70 @@ export default function DashboardUsuarios() {
               </div>
             </div>
           </div>
+
+                    <section className="mt-6 overflow-hidden rounded-[1.35rem] border border-white/70 bg-white/95 shadow-xl shadow-slate-400/20">
+            <div className="relative border-b border-slate-200 bg-gradient-to-r from-white via-red-50/40 to-white px-6 py-5">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-950 via-red-700 to-slate-300" />
+              <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-red-950/5" />
+
+              <div className="relative flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.28em] text-red-900">
+                    Ruta de estados
+                  </p>
+                  <h2 className="mt-2 text-xl font-black text-gray-700">
+                    Linea de tiempo operativa del paquete
+                  </h2>
+                </div>
+                <p className="max-w-xl text-sm font-semibold leading-5 text-slate-500">
+                  Secuencia esperada desde digitacion hasta entrega final al destinatario.
+                </p>
+              </div>
+            </div>
+
+            <div className="relative bg-gradient-to-br from-white via-slate-50 to-white p-6">
+              <div className="pointer-events-none absolute left-10 right-10 top-[4.9rem] hidden h-px bg-gradient-to-r from-red-950/10 via-red-900/45 to-emerald-800/20 xl:block" />
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                {flujoEstadosPaquete.map((estado, index) => {
+                  const esFinal = index === flujoEstadosPaquete.length - 1;
+                  const accent = esFinal
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                    : index === 0
+                    ? "border-red-900/15 bg-red-50 text-red-950"
+                    : "border-slate-200 bg-white text-gray-600";
+
+                  return (
+                    <article
+                      key={estado}
+                      className={`group relative min-h-[112px] overflow-hidden rounded-2xl border p-4 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl ${accent}`}
+                    >
+                      <div className="absolute -right-10 -top-10 h-24 w-24 rounded-full bg-current opacity-[0.04]" />
+                      <div className="relative flex items-start gap-3">
+                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-mono text-sm font-black shadow-sm ${
+                          esFinal
+                            ? "bg-emerald-800 text-white"
+                            : index === 0
+                            ? "bg-red-950 text-white"
+                            : "bg-slate-900 text-white"
+                        }`}>
+                          {String(index + 1).padStart(2, "0")}
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.18em] opacity-55">
+                            Estado
+                          </p>
+                          <h3 className="mt-1 text-sm font-black leading-5">
+                            {estado}
+                          </h3>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
         </section>
       </div>
     </UserDashboardLayout>

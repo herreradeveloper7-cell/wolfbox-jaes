@@ -230,25 +230,25 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
     
     
 
-  const inputBase = "w-full rounded-2xl border border-gray-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-slate-800 shadow-inner outline-none transition-all duration-300 placeholder:text-slate-400 hover:border-gray-300 focus:border-red-900 focus:bg-white focus:ring-4 focus:ring-red-900/10 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400";
-  const labelBase = "mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-slate-500";
-  const errorBase = "mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700";
+  const inputBase = "w-full rounded-xl border border-gray-200 bg-slate-50/80 px-3.5 py-2.5 text-sm font-semibold text-slate-800 shadow-inner outline-none transition-all duration-300 placeholder:text-slate-400 hover:border-gray-300 focus:border-red-900 focus:bg-white focus:ring-4 focus:ring-red-900/10 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400";
+  const labelBase = "mb-1.5 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500";
+  const errorBase = "mt-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700";
     
     return(
-    <form onSubmit={handleSubmit} className="relative mt-6 overflow-hidden rounded-3xl border border-gray-200 bg-white p-5 shadow-xl shadow-slate-200/60 sm:p-6">
+    <form onSubmit={handleSubmit} className="relative mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-xl shadow-slate-200/60 sm:p-5">
       <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-red-900 via-gray-300 to-red-900" />
 
-      <div className="mb-6 border-b border-gray-100 pb-5">
+      <div className="mb-4 border-b border-gray-100 pb-4">
         <span className="inline-flex rounded-full border border-red-900/10 bg-red-900/5 px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-red-900">
           Cuenta empresarial
         </span>
-        <h3 className="mt-3 text-xl font-black text-slate-800">Datos de registro</h3>
+        <h3 className="mt-2 text-lg font-black text-slate-800">Datos de registro</h3>
         <p className="mt-1 text-sm font-medium text-slate-500">
           Completa la informacion legal, representante, contacto y credenciales de acceso.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="md:col-span-2">
           <div className="flex items-center gap-3">
             <span className="h-2 w-2 rounded-full bg-red-900" />
@@ -294,7 +294,7 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
         required />
       </div>
   
-      <div className="md:col-span-2 pt-2">
+      <div className="md:col-span-2 pt-1">
         <div className="flex items-center gap-3">
           <span className="h-2 w-2 rounded-full bg-red-900" />
           <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Representante</p>
@@ -340,7 +340,7 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
         className={inputBase} />
       </div>
 
-      <div className="md:col-span-2 pt-2">
+      <div className="md:col-span-2 pt-1">
         <div className="flex items-center gap-3">
           <span className="h-2 w-2 rounded-full bg-red-900" />
           <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Credenciales</p>
@@ -401,7 +401,7 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
         )}
       </div>
 
-      <div className="md:col-span-2 pt-2">
+      <div className="md:col-span-2 pt-1">
         <div className="flex items-center gap-3">
           <span className="h-2 w-2 rounded-full bg-red-900" />
           <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Ubicacion y contacto</p>
@@ -494,7 +494,7 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
         />
       </div>
 
-      <div className="md:col-span-2 grid grid-cols-1 gap-5 sm:grid-cols-[150px_1fr]">
+      <div className="md:col-span-2 grid grid-cols-1 gap-4 sm:grid-cols-[140px_1fr]">
           <div>
           <label className={labelBase}>Indicativo</label>
           <select 
@@ -544,7 +544,7 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
           </select>
       </div>
   
-      <div className="md:col-span-2 flex items-start gap-3 rounded-2xl border border-gray-200 bg-slate-50/80 p-4">
+      <div className="md:col-span-2 flex items-start gap-3 rounded-xl border border-gray-200 bg-slate-50/80 p-3">
         <input
           type="checkbox"
           id="terms"
@@ -555,7 +555,7 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
           }}
           className="mt-0.5 h-5 w-5 shrink-0 accent-green-700"
         />
-        <label htmlFor="terms" className="text-sm font-semibold leading-6 text-slate-600">
+        <label htmlFor="terms" className="text-sm font-semibold leading-5 text-slate-600">
           Acepto los <a href="#" className="text-blue-600 underline">términos y condiciones</a>.
         </label>
       </div>
@@ -564,7 +564,7 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
         <button
           type="button"
           onClick={() => navigate("/")}
-          className="rounded-2xl border border-gray-300 bg-white px-6 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
+          className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
         >
           Cancelar
         </button>
@@ -573,7 +573,7 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
           disabled={
             !termsAccepted || !errores.emailCoincide || !errores.contrasenaCoincide || !errores.fechaNacimientoValida
           }
-          className={`rounded-2xl px-7 py-3 text-sm font-black text-white shadow-lg transition-all ${
+          className={`rounded-xl px-6 py-2.5 text-sm font-black text-white shadow-lg transition-all ${
             !termsAccepted || !errores.emailCoincide || !errores.contrasenaCoincide || !errores.fechaNacimientoValida
               ? 'bg-gray-400 cursor-default shadow-none'
               : 'bg-gradient-to-r from-red-950 to-red-900 shadow-red-950/20 hover:-translate-y-0.5 hover:from-red-900 hover:to-red-800 hover:shadow-xl cursor-pointer'
