@@ -120,7 +120,7 @@ const ModalHistorialGuia: React.FC<Props> = ({ hawb, onClose }) => {
               </span>
             </div>
 
-            <h2 className="text-3xl font-black tracking-tight text-gray-950">
+            <h2 className="text-3xl font-black tracking-tight text-gray-600">
               Trazabilidad de la guía
             </h2>
 
@@ -147,7 +147,7 @@ const ModalHistorialGuia: React.FC<Props> = ({ hawb, onClose }) => {
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-3xl font-black text-red-950">
                 !
               </div>
-              <p className="text-xl font-black text-gray-900">
+              <p className="text-xl font-black text-gray-600">
                 No hay historial para esta guía.
               </p>
               <p className="mt-2 max-w-md text-sm font-semibold text-gray-500">

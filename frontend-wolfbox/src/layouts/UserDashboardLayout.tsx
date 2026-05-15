@@ -56,7 +56,7 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
   return (
-    <div className="flex h-screen relative bg-gray-200">
+    <div className="flex h-screen relative overflow-hidden bg-gray-200">
 
         <aside
           className={`bg-red-950 text-white transition-all duration-300 flex flex-col
@@ -384,9 +384,9 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
         <img src={iconToggleMostrar} alt="Mostrar/ocultar slide" className="w-5 h-5" />
       </button>
 
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="min-w-0 flex-1 flex flex-col overflow-hidden">
 
-        <header className="flex justify-between items-center px-6 py-4 bg-white shadow-md z-10">
+        <header className="min-w-0 flex justify-between items-center px-6 py-4 bg-white shadow-md z-10">
         <div
           onClick={() => navigate("/dashboardUsuario")}
           className="w-auto mx-auto cursor-pointer hover:scale-105 transition-transform duration-200"
@@ -411,7 +411,7 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
           </div>
         </header>
 
-        <div className={`flex-1 ${scrollable ? "overflow-y-auto" : "overflow-hidden"} p-6`}>
+        <div className={`min-w-0 flex-1 overflow-x-hidden ${scrollable ? "overflow-y-auto" : "overflow-hidden"} p-6`}>
           {children}
         </div>
 
