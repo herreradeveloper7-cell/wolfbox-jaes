@@ -294,3 +294,22 @@ export const solicitudSchemas = {
     hawbs: z.array(requiredString("HAWB")).min(2, "Debe seleccionar al menos 2 paquetes"),
   }).passthrough(),
 };
+
+export const despachoSchemas = {
+  crear: z.object({
+    nombre: optionalString,
+    observaciones: optionalString,
+    responsable: optionalString,
+  }).passthrough(),
+  editar: z.object({
+    nombre: optionalString,
+    observaciones: optionalString,
+  }).passthrough(),
+  estado: z.object({
+    estado: z.enum(["abierto", "cerrado"]),
+  }).passthrough(),
+  hawb: z.object({
+    hawb: requiredString("HAWB"),
+    responsable: optionalString,
+  }).passthrough(),
+};

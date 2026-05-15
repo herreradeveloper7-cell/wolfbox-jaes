@@ -819,7 +819,7 @@ export default function DigitacionPaquetes() {
 
     return (
     <UserDashboardLayout scrollable>
-        <div className="text-gray-800 px-4 sm:px-6 lg:px-10 animate-fade-in">
+        <div className="min-w-0 max-w-full overflow-x-hidden text-gray-800 px-0 sm:px-6 lg:px-10 animate-fade-in">
             <h1 className="text-3xl font-bold mb-2 text-red-900">Digitación de paquetes</h1>
             <p className="text-sm text-gray-500 mb-6 flex items-center gap-1">
             <img src={iconHome} alt="Inicio" className="w-4 h-4" />
@@ -832,11 +832,11 @@ export default function DigitacionPaquetes() {
             &gt; Digitación de paquetes
             </p>
             
-            <div className="relative bg-white/95 border border-gray-200 shadow-xl rounded-2xl p-6 mb-10 overflow-hidden">
+            <div className="relative bg-white/95 border border-gray-200 shadow-xl rounded-2xl p-4 sm:p-6 mb-10 overflow-hidden">
 
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-900 via-gray-300 to-red-900"></div>
 
-              <div className="flex items-center justify-between mb-6 border-b border-gray-200 pb-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6 border-b border-gray-200 pb-4">
                 
                 <div>
                   <h2 className="text-xl font-bold text-gray-600 tracking-wide">
@@ -855,19 +855,19 @@ export default function DigitacionPaquetes() {
                 </div>
               </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="flex flex-col gap-4 bg-gray-50/80 border border-gray-200 rounded-2xl p-5 shadow-sm">
-                      <div className="flex items-center">
-                        <label className="w-24 text-sm font-semibold text-gray-600 tracking-tighter">
+                    <div className="flex min-w-0 flex-col gap-4 bg-gray-50/80 border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-sm">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <label className="w-full sm:w-24 text-sm font-semibold text-gray-600 tracking-tighter">
                           Fecha / Hora
                         </label>
 
-                        <div className="flex gap-2">
+                        <div className="grid w-full grid-cols-2 gap-2 sm:flex">
                           <input
                             type="date"
                             value={fechaActual}
                             onChange={(e) => setFechaActual(e.target.value)}
                             disabled
-                            className="w-[150px] px-3 py-2 rounded-xl text-sm border border-gray-200 
+                            className="w-full sm:w-[150px] px-3 py-2 rounded-xl text-sm border border-gray-200 
                             bg-gray-100 text-gray-500 shadow-inner cursor-not-allowed"
                           />
 
@@ -876,14 +876,14 @@ export default function DigitacionPaquetes() {
                             value={horaActual}
                             onChange={(e) => setHoraActual(e.target.value)}
                             disabled
-                            className="w-[120px] px-3 py-2 rounded-xl text-sm border border-gray-200 
+                            className="w-full sm:w-[120px] px-3 py-2 rounded-xl text-sm border border-gray-200 
                             bg-gray-100 text-gray-500 shadow-inner cursor-not-allowed"
                           />
                         </div>
                       </div>
 
-                        <div className="flex items-center gap-3">
-                            <label className="w-24 text-sm font-medium">Usuario</label>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                            <label className="w-full sm:w-24 text-sm font-medium">Usuario</label>
                                 <input
                                 type="text"
                                 value={user?.nombre || ""}
@@ -892,8 +892,8 @@ export default function DigitacionPaquetes() {
                             />
                         </div>
 
-                        <div className="flex items-center gap-3">
-                            <label className="w-24 text-sm font-medium text-green-700">Oficina *</label>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                            <label className="w-full sm:w-24 text-sm font-medium text-green-700">Oficina *</label>
                             <select className={`w-full px-3 py-2 rounded-xl text-sm bg-white shadow-sm transition cursor-pointer
                               border ${
                                   erroresCampos.oficina
@@ -905,14 +905,14 @@ export default function DigitacionPaquetes() {
                             </select>
                         </div>
 
-                      <div className="flex items-center gap-3">
-                        <label className="w-22 text-xs font-semibold text-gray-600 tracking-wide invisible">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                        <label className="hidden sm:block sm:w-22 text-xs font-semibold text-gray-600 tracking-wide invisible">
                           Caja
                         </label>
 
                           <button
                             onClick={handleAgregarCajas}
-                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-900 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] transition cursor-pointer"
+                            className="flex w-full sm:w-auto items-center justify-center gap-2 px-3 py-2 rounded-xl bg-red-900 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] transition cursor-pointer"
                           >
                             <span className="text-lg leading-none">+</span>
                             Caja(s)
@@ -921,7 +921,7 @@ export default function DigitacionPaquetes() {
                           <select
                             value={cantidadCajas}
                             onChange={(e) => setCantidadCajas(parseInt(e.target.value))}
-                            className="flex-1 px-3 py-2 rounded-xl text-sm bg-white border border-gray-300 shadow-sm 
+                            className="w-full sm:flex-1 px-3 py-2 rounded-xl text-sm bg-white border border-gray-300 shadow-sm 
                             focus:outline-none focus:ring-2 focus:ring-red-900/20 focus:border-red-900 hover:border-gray-400 transition cursor-pointer"
                           >
                             {[...Array(20)].map((_, i) => (
@@ -935,9 +935,9 @@ export default function DigitacionPaquetes() {
                     </div>
 
 
-                    <div className="flex flex-col gap-4 bg-gray-50/80 border border-gray-200 rounded-2xl p-5 shadow-sm">
-                    <div className="flex items-center gap-3">
-                        <label className="w-48 text-sm font-medium text-green-700">Servicio *</label>
+                    <div className="flex min-w-0 flex-col gap-4 bg-gray-50/80 border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-sm">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                        <label className="w-full sm:w-48 text-sm font-medium text-green-700">Servicio *</label>
                           <select
                           className={`w-full px-3 py-2 rounded-xl text-sm bg-white shadow-sm transition cursor-pointer
                           border ${
@@ -969,9 +969,9 @@ export default function DigitacionPaquetes() {
                           </select>
                     </div>
 
-                    <div className="flex items-start gap-3 relative w-full">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3 relative w-full">
 
-                      <label className="w-48 text-sm font-medium text-green-700 leading-tight">
+                      <label className="w-full sm:w-48 text-sm font-medium text-green-700 leading-tight">
                         Nombre cliente / <br />
                         Codigo(casillero) *
                       </label>
@@ -1033,8 +1033,8 @@ export default function DigitacionPaquetes() {
 
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <label className="w-48 text-sm font-medium text-gray-700 leading-tight">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                      <label className="w-full sm:w-48 text-sm font-medium text-gray-700 leading-tight">
                         Estado inicial
                       </label>
 
@@ -1049,15 +1049,15 @@ export default function DigitacionPaquetes() {
                     </div>
 
 
-                    <div className="flex flex-col gap-4 bg-gray-50/80 border border-gray-200 rounded-2xl p-5 shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <label className="w-24 text-sm font-medium  tracking-wide text-right">
+                    <div className="flex min-w-0 flex-col gap-4 bg-gray-50/80 border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-sm">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                        <label className="w-full sm:w-24 text-sm font-medium tracking-wide sm:text-right">
                           Tienda *
                         </label>
 
                         <input
                           type="text"
-                          className={`w-[190px] px-3 py-2 rounded-xl text-sm bg-white shadow-sm transition border ${
+                          className={`w-full sm:w-[190px] px-3 py-2 rounded-xl text-sm bg-white shadow-sm transition border ${
                             erroresCampos.tienda
                               ? "border-red-500 focus:ring-2 focus:ring-red-500/30"
                               : "border-gray-300 focus:ring-2 focus:ring-red-900/20 focus:border-red-900 hover:border-gray-400"
@@ -1072,20 +1072,20 @@ export default function DigitacionPaquetes() {
                         />
 
                         {erroresCampos.tienda && (
-                          <span className="ml-[124px] text-xs text-red-500">
+                          <span className="sm:ml-[124px] text-xs text-red-500">
                             Debes ingresar la tienda
                           </span>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-3">
-                        <label className="w-24 text-sm font-medium  tracking-wide text-right">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                        <label className="w-full sm:w-24 text-sm font-medium tracking-wide sm:text-right">
                           Destinatario *
                         </label>
 
                         <select
                           disabled={cargandoDestinatarios}
-                          className={`w-[190px] px-3 py-2 rounded-xl text-sm bg-white shadow-sm transition cursor-pointer border ${
+                          className={`w-full sm:w-[190px] px-3 py-2 rounded-xl text-sm bg-white shadow-sm transition cursor-pointer border ${
                             erroresCampos.destinatario
                               ? "border-red-500 focus:ring-2 focus:ring-red-500/30"
                               : "border-gray-300 focus:ring-2 focus:ring-red-900/20 focus:border-red-900 hover:border-gray-400"
@@ -1116,12 +1116,12 @@ export default function DigitacionPaquetes() {
                           ))}
                         </select>
                         {cargandoDestinatarios && (
-                          <span className="ml-2 text-xs text-gray-500">
+                          <span className="sm:ml-2 text-xs text-gray-500">
                             Cargando...
                           </span>
                         )}
                         {erroresCampos.destinatario && (
-                          <span className="ml-[124px] text-xs text-red-500">
+                          <span className="sm:ml-[124px] text-xs text-red-500">
                             Debes seleccionar un destinatario
                           </span>
                         )}
@@ -1129,8 +1129,8 @@ export default function DigitacionPaquetes() {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto bg-white/95 border border-gray-200 shadow-xl rounded-2xl p-5 mt-6">
-                    <table className="min-w-full table-auto text-sm border-separate border-spacing-y-2">
+                <div className="w-full max-w-full overflow-x-auto bg-white/95 border border-gray-200 shadow-xl rounded-2xl p-3 sm:p-5 mt-6">
+                    <table className="min-w-[1120px] w-full table-auto text-sm border-separate border-spacing-y-2">
                         <thead className="bg-gray-100 text-gray-700">
                         <tr className="bg-gray-50 hover:bg-gray-100 transition">
                             <th className={thTabla}>#</th>

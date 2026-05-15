@@ -26,6 +26,9 @@ import VerClientes from './pages/usuario/VerClientes';
 import ConsultarGuiaHome from './pages/consultarGuiaHome';
 import PasswordResetPage from './pages/passwordReset';
 import SessionExpiredOverlay from './components/SessionExpiredOverlay';
+import CrearDespachos from './pages/usuario/CrearDespachos';
+import ArmarDespachos from './pages/usuario/ArmarDespachos';
+
 
 
 
@@ -56,6 +59,8 @@ function App() {
         <Route path="/conciliacion-pagos" element={<ConciliacionPago />} />
         <Route path="/config-tarifas" element={<ConfigTarifas />} />
         <Route path="/agrupar-paquetes" element={<AgruparPaquetes />} />
+        <Route path="/crear-despachos" element={<CrearDespachos />} />
+        <Route path="/armar-despachos" element={<ArmarDespachos />} />
         <Route
           path="/dashboardUsuario/agrupar-solicitud/:id"
           element={<AgruparSolicitud />}
