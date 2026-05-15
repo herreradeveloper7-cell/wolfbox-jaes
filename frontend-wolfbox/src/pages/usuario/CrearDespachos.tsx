@@ -4,12 +4,30 @@ import Swal from "sweetalert2";
 import UserDashboardLayout from "../../layouts/UserDashboardLayout";
 import iconHome from "../../assets/home-svgrepo-com.svg";
 import { useNavigate } from "react-router-dom";
+import ModalEditarDespacho from "../../components/despachos/ModalEditarDespacho";
+import {
+  Ban,
+  CheckCircle2,
+  FilePlus2,
+  Pencil,
+  Power,
+  PowerOff,
+  RefreshCcw,
+  Save,
+  Trash2,
+  X,
+} from "lucide-react";
 
 type Despacho = {
   id: number;
   codigo: string;
   nombre?: string | null;
   observaciones?: string | null;
+  oficina_id?: number | null;
+  oficina?: string | null;
+  transportadora_id?: number | null;
+  transportadora_nombre?: string | null;
+  fecha_operativa?: string | null;
   estado: "abierto" | "cerrado" | string;
   creado_por?: string | null;
   fecha_creacion?: string | null;
@@ -18,53 +36,36 @@ type Despacho = {
   peso_total?: number;
 };
 
-type PaqueteDespacho = {
-  despacho_paquete_id: number;
-  paquete_id: number;
-  hawb: string;
-  tracking?: string | null;
-  contenido?: string | null;
-  tienda?: string | null;
-  peso?: number | string | null;
-  solicitud_id?: number | null;
-  estado_actual?: string | null;
-  cliente?: string | null;
-  codigo_referencia?: string | null;
-  fecha_agregado?: string | null;
-  agregado_por?: string | null;
+type Oficina = {
+  id: number;
+  nombre: string;
 };
 
-type CatalogoEstado = {
+type Transportadora = {
+  id: number;
   oficina_id: number;
-  oficina: string;
-  punto_control_id: number;
-  punto_control: string;
-  estado_id: number;
-  estado: string;
+  nombre: string;
 };
+
+const KG_POR_LIBRA = 0.45359237;
 
 export default function CrearDespachos() {
   const navigate = useNavigate();
   const [despachos, setDespachos] = useState<Despacho[]>([]);
-  const [despachoSeleccionado, setDespachoSeleccionado] =
-    useState<Despacho | null>(null);
-  const [paquetes, setPaquetes] = useState<PaqueteDespacho[]>([]);
   const [nombre, setNombre] = useState("");
   const [observaciones, setObservaciones] = useState("");
+  const [oficinaId, setOficinaId] = useState("");
   const [oficina, setOficina] = useState("");
-  const [puntoControl, setPuntoControl] = useState("");
-  const [estadoGuia, setEstadoGuia] = useState("");
+  const [transportadoraId, setTransportadoraId] = useState("");
   const [activo, setActivo] = useState(true);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
-  const [catalogoEstados, setCatalogoEstados] = useState<CatalogoEstado[]>([]);
-  const [oficinasCatalogo, setOficinasCatalogo] = useState<CatalogoEstado[]>([]);
-  const [puntosControl, setPuntosControl] = useState<CatalogoEstado[]>([]);
-  const [estadosCatalogo, setEstadosCatalogo] = useState<CatalogoEstado[]>([]);
-  const [hawb, setHawb] = useState("");
+  const [despachoEditar, setDespachoEditar] = useState<Despacho | null>(null);
+  const [oficinasCatalogo, setOficinasCatalogo] = useState<Oficina[]>([]);
+  const [transportadoras, setTransportadoras] = useState<Transportadora[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingCatalogos, setLoadingCatalogos] = useState(false);
+  const [loadingTransportadoras, setLoadingTransportadoras] = useState(false);
   const [guardando, setGuardando] = useState(false);
-  const [agregandoHawb, setAgregandoHawb] = useState(false);
 
   const usuario = useMemo(() => {
     try {
@@ -74,8 +75,7 @@ export default function CrearDespachos() {
     }
   }, []);
 
-  const despachoCerrado =
-    despachoSeleccionado?.estado?.toLowerCase() === "cerrado";
+  const usuarioActual = usuario?.nombre || usuario?.email || "Usuario del sistema";
 
   const fechaDespacho = useMemo(() => {
     const fecha = new Date();
@@ -107,17 +107,7 @@ export default function CrearDespachos() {
     setLoading(true);
     try {
       const { data } = await axios.get("/api/despachos");
-      const lista = Array.isArray(data.despachos) ? data.despachos : [];
-      setDespachos(lista);
-
-      if (despachoSeleccionado) {
-        const actualizado = lista.find(
-          (d: Despacho) => d.id === despachoSeleccionado.id
-        );
-        if (actualizado) {
-          setDespachoSeleccionado(actualizado);
-        }
-      }
+      setDespachos(Array.isArray(data.despachos) ? data.despachos : []);
     } catch (error) {
       console.error("Error cargando despachos:", error);
       Swal.fire("Error", "No se pudieron cargar los despachos", "error");
@@ -126,31 +116,11 @@ export default function CrearDespachos() {
     }
   };
 
-  const cargarDetalle = async (despacho: Despacho) => {
-    try {
-      const { data } = await axios.get(`/api/despachos/${despacho.id}`);
-      setDespachoSeleccionado(data.despacho);
-      setPaquetes(Array.isArray(data.paquetes) ? data.paquetes : []);
-    } catch (error) {
-      console.error("Error cargando detalle:", error);
-      Swal.fire("Error", "No se pudo cargar el detalle del despacho", "error");
-    }
-  };
-
   const cargarCatalogos = async () => {
     setLoadingCatalogos(true);
     try {
-      const { data } = await axios.get("/api/paquetes/catalogo-estados");
-      const lista = Array.isArray(data) ? data : [];
-      setCatalogoEstados(lista);
-
-      const oficinasUnicas = [
-        ...new Map(
-          lista.map((item: CatalogoEstado) => [item.oficina_id, item])
-        ).values(),
-      ] as CatalogoEstado[];
-
-      setOficinasCatalogo(oficinasUnicas);
+      const { data } = await axios.get("/api/oficinas");
+      setOficinasCatalogo(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error cargando catalogos de despacho:", error);
       Swal.fire("Error", "No se pudieron cargar los catalogos", "error");
@@ -162,42 +132,54 @@ export default function CrearDespachos() {
   useEffect(() => {
     cargarDespachos();
     cargarCatalogos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const seleccionarOficina = (oficinaSeleccionada: string) => {
-    setOficina(oficinaSeleccionada);
-    setPuntoControl("");
-    setEstadoGuia("");
-    setEstadosCatalogo([]);
-
-    const puntos = catalogoEstados.filter(
-      (item) => item.oficina === oficinaSeleccionada
-    );
-
-    const puntosUnicos = [
-      ...new Map(
-        puntos.map((item: CatalogoEstado) => [item.punto_control_id, item])
-      ).values(),
-    ] as CatalogoEstado[];
-
-    setPuntosControl(puntosUnicos);
+  const limpiarFormulario = () => {
+    setNombre("");
+    setObservaciones("");
+    setOficinaId("");
+    setOficina("");
+    setTransportadoraId("");
+    setTransportadoras([]);
+    setActivo(true);
   };
 
-  const seleccionarPuntoControl = (puntoSeleccionado: string) => {
-    setPuntoControl(puntoSeleccionado);
-    setEstadoGuia("");
+  const cargarTransportadoras = async (nextOficinaId: string) => {
+    if (!nextOficinaId) {
+      setTransportadoras([]);
+      return;
+    }
 
-    const estados = catalogoEstados.filter(
-      (item) =>
-        item.oficina === oficina && item.punto_control === puntoSeleccionado
+    setLoadingTransportadoras(true);
+    try {
+      const { data } = await axios.get(
+        `/api/transportadoras?oficina_id=${nextOficinaId}`
+      );
+      setTransportadoras(
+        Array.isArray(data.transportadoras) ? data.transportadoras : []
+      );
+    } catch (error) {
+      console.error("Error cargando transportadoras:", error);
+      setTransportadoras([]);
+      Swal.fire("Error", "No se pudieron cargar las transportadoras", "error");
+    } finally {
+      setLoadingTransportadoras(false);
+    }
+  };
+
+  const seleccionarOficina = (nextOficinaId: string) => {
+    const oficinaSeleccionada = oficinasCatalogo.find(
+      (item) => String(item.id) === nextOficinaId
     );
 
-    setEstadosCatalogo(estados);
+    setOficinaId(nextOficinaId);
+    setOficina(oficinaSeleccionada?.nombre || "");
+    setTransportadoraId("");
+    cargarTransportadoras(nextOficinaId);
   };
 
   const crearDespacho = async () => {
-    if (!nombre.trim() || !oficina || !puntoControl || !estadoGuia) {
+    if (!nombre.trim() || !oficinaId || !transportadoraId) {
       Swal.fire("Aviso", "Completa los campos requeridos del despacho", "warning");
       return;
     }
@@ -207,11 +189,11 @@ export default function CrearDespachos() {
       const { data } = await axios.post("/api/despachos", {
         nombre: nombre.trim(),
         observaciones,
+        oficina_id: Number(oficinaId),
         oficina,
-        punto_control: puntoControl,
-        estado_guia: estadoGuia,
+        transportadora_id: Number(transportadoraId),
         fecha: fechaDespacho,
-        responsable: usuario?.nombre,
+        responsable: usuarioActual,
       });
 
       if (!activo && data.despacho?.id) {
@@ -220,24 +202,9 @@ export default function CrearDespachos() {
         });
       }
 
-      setNombre("");
-      setObservaciones("");
-      setOficina("");
-      setPuntoControl("");
-      setEstadoGuia("");
-      setPuntosControl([]);
-      setEstadosCatalogo([]);
-      setActivo(true);
+      limpiarFormulario();
       setMostrarFormulario(false);
       await cargarDespachos();
-
-      if (data.despacho) {
-        await cargarDetalle({
-          ...data.despacho,
-          estado: activo ? data.despacho.estado : "cerrado",
-        });
-      }
-
       Swal.fire("Listo", "Despacho creado correctamente", "success");
     } catch (error: any) {
       Swal.fire(
@@ -250,63 +217,29 @@ export default function CrearDespachos() {
     }
   };
 
-  const editarDespacho = async () => {
-    if (!despachoSeleccionado || despachoCerrado) return;
+  const abrirModalEditar = (despacho: Despacho) => {
+    const cerrado = despacho.estado?.toLowerCase() === "cerrado";
 
-    const resultado = await Swal.fire({
-      title: "Editar despacho",
-      html: `
-        <input id="nombre-despacho" class="swal2-input" placeholder="Nombre" value="${despachoSeleccionado.nombre || ""}">
-        <textarea id="obs-despacho" class="swal2-textarea" placeholder="Observaciones">${despachoSeleccionado.observaciones || ""}</textarea>
-      `,
-      focusConfirm: false,
-      showCancelButton: true,
-      confirmButtonText: "Guardar",
-      cancelButtonText: "Cancelar",
-      confirmButtonColor: "#5B000D",
-      preConfirm: () => {
-        const nombreInput = document.getElementById(
-          "nombre-despacho"
-        ) as HTMLInputElement | null;
-        const obsInput = document.getElementById(
-          "obs-despacho"
-        ) as HTMLTextAreaElement | null;
-
-        return {
-          nombre: nombreInput?.value || "",
-          observaciones: obsInput?.value || "",
-        };
-      },
-    });
-
-    if (!resultado.isConfirmed) return;
-
-    try {
-      await axios.put(`/api/despachos/${despachoSeleccionado.id}`, resultado.value);
-      await cargarDespachos();
-      await cargarDetalle(despachoSeleccionado);
-      Swal.fire("Listo", "Despacho actualizado correctamente", "success");
-    } catch (error: any) {
-      Swal.fire(
-        "Error",
-        error.response?.data?.mensaje || "No se pudo editar el despacho",
-        "error"
-      );
+    if (cerrado) {
+      Swal.fire("Aviso", "No puedes editar un despacho cerrado", "warning");
+      return;
     }
+
+    setDespachoEditar(despacho);
   };
 
-  const cambiarEstadoDespacho = async () => {
-    if (!despachoSeleccionado) return;
+  const cambiarEstadoDespacho = async (despacho: Despacho) => {
+    const cerrado = despacho.estado?.toLowerCase() === "cerrado";
+    const nuevoEstado = cerrado ? "abierto" : "cerrado";
 
-    const nuevoEstado = despachoCerrado ? "abierto" : "cerrado";
     const confirmacion = await Swal.fire({
-      title: despachoCerrado ? "Abrir despacho" : "Cerrar despacho",
-      text: despachoCerrado
-        ? "El despacho volvera a permitir modificaciones."
+      title: cerrado ? "Abrir despacho" : "Cerrar despacho",
+      text: cerrado
+        ? "El despacho volvera a quedar activo."
         : "Al cerrarlo no se podra editar, eliminar ni agregar HAWB.",
       icon: "question",
       showCancelButton: true,
-      confirmButtonText: despachoCerrado ? "Abrir" : "Cerrar",
+      confirmButtonText: cerrado ? "Abrir" : "Cerrar",
       cancelButtonText: "Cancelar",
       confirmButtonColor: "#5B000D",
     });
@@ -314,11 +247,10 @@ export default function CrearDespachos() {
     if (!confirmacion.isConfirmed) return;
 
     try {
-      await axios.patch(`/api/despachos/${despachoSeleccionado.id}/estado`, {
+      await axios.patch(`/api/despachos/${despacho.id}/estado`, {
         estado: nuevoEstado,
       });
       await cargarDespachos();
-      await cargarDetalle(despachoSeleccionado);
       Swal.fire("Listo", `Despacho ${nuevoEstado} correctamente`, "success");
     } catch (error: any) {
       Swal.fire(
@@ -329,12 +261,17 @@ export default function CrearDespachos() {
     }
   };
 
-  const eliminarDespacho = async () => {
-    if (!despachoSeleccionado || despachoCerrado) return;
+  const eliminarDespacho = async (despacho: Despacho) => {
+    const cerrado = despacho.estado?.toLowerCase() === "cerrado";
+
+    if (cerrado) {
+      Swal.fire("Aviso", "No puedes eliminar un despacho cerrado", "warning");
+      return;
+    }
 
     const confirmacion = await Swal.fire({
       title: "Eliminar despacho",
-      text: `Se eliminara ${despachoSeleccionado.codigo}. Esta accion no afecta las solicitudes.`,
+      text: `Se eliminara ${despacho.codigo}. Esta accion no afecta las solicitudes.`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Eliminar",
@@ -345,9 +282,7 @@ export default function CrearDespachos() {
     if (!confirmacion.isConfirmed) return;
 
     try {
-      await axios.delete(`/api/despachos/${despachoSeleccionado.id}`);
-      setDespachoSeleccionado(null);
-      setPaquetes([]);
+      await axios.delete(`/api/despachos/${despacho.id}`);
       await cargarDespachos();
       Swal.fire("Listo", "Despacho eliminado correctamente", "success");
     } catch (error: any) {
@@ -359,68 +294,9 @@ export default function CrearDespachos() {
     }
   };
 
-  const agregarHawb = async () => {
-    if (!despachoSeleccionado || despachoCerrado || !hawb.trim()) return;
-
-    setAgregandoHawb(true);
-    try {
-      await axios.post(`/api/despachos/${despachoSeleccionado.id}/hawbs`, {
-        hawb: hawb.trim(),
-        responsable: usuario?.nombre,
-      });
-
-      setHawb("");
-      await cargarDetalle(despachoSeleccionado);
-      await cargarDespachos();
-      Swal.fire("Listo", "HAWB agregado al despacho", "success");
-    } catch (error: any) {
-      Swal.fire(
-        "No se pudo agregar",
-        error.response?.data?.mensaje || "Valida el HAWB ingresado",
-        "warning"
-      );
-    } finally {
-      setAgregandoHawb(false);
-    }
-  };
-
-  const quitarHawb = async (hawbSeleccionado: string) => {
-    if (!despachoSeleccionado || despachoCerrado) return;
-
-    const confirmacion = await Swal.fire({
-      title: "Retirar HAWB",
-      text: `Deseas retirar ${hawbSeleccionado} de este despacho?`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Retirar",
-      cancelButtonText: "Cancelar",
-      confirmButtonColor: "#991b1b",
-    });
-
-    if (!confirmacion.isConfirmed) return;
-
-    try {
-      await axios.delete(
-        `/api/despachos/${despachoSeleccionado.id}/hawbs/${encodeURIComponent(
-          hawbSeleccionado
-        )}`,
-        { data: { responsable: usuario?.nombre } }
-      );
-      await cargarDetalle(despachoSeleccionado);
-      await cargarDespachos();
-      Swal.fire("Listo", "HAWB retirado del despacho", "success");
-    } catch (error: any) {
-      Swal.fire(
-        "Error",
-        error.response?.data?.mensaje || "No se pudo retirar el HAWB",
-        "error"
-      );
-    }
-  };
-
   return (
     <UserDashboardLayout scrollable>
-      <div className="min-w-0 max-w-full overflow-x-hidden text-gray-800 px-6 lg:px-10 pb-10 animate-fade-in">
+      <div className="min-w-0 max-w-full overflow-x-hidden text-gray-600 px-6 lg:px-10 pb-10 animate-fade-in">
         <h1 className="text-3xl font-bold mb-2 text-red-900">Crear Despachos</h1>
 
         <p className="text-sm text-gray-500 mb-6 flex items-center gap-1">
@@ -447,7 +323,7 @@ export default function CrearDespachos() {
                 Crear nuevo despacho operativo
               </h2>
               <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-gray-500">
-                Registra el despacho y luego agrega los HAWB desbloqueados desde el panel de detalle.
+                Administra los despachos creados desde una tabla centralizada.
               </p>
             </div>
 
@@ -472,7 +348,7 @@ export default function CrearDespachos() {
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-gray-500">
                   HAWB
                 </p>
-                <p className="mt-1 text-2xl font-black text-gray-800">
+                <p className="mt-1 text-2xl font-black text-gray-600">
                   {resumen.hawbs}
                 </p>
               </div>
@@ -482,9 +358,19 @@ export default function CrearDespachos() {
           <div className="relative mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               onClick={() => setMostrarFormulario((prev) => !prev)}
-              className="rounded-2xl bg-gradient-to-r from-red-950 to-red-900 px-6 py-3 text-sm font-black text-white shadow-lg shadow-red-950/20 transition hover:-translate-y-0.5 hover:from-red-900 hover:to-red-800"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-950 to-red-900 px-6 py-3 text-sm font-black text-white shadow-lg shadow-red-950/20 transition hover:-translate-y-0.5 hover:from-red-900 hover:to-red-800"
             >
-              {mostrarFormulario ? "Ocultar formulario" : "Crear despacho"}
+              {mostrarFormulario ? (
+                <>
+                  <X className="h-4 w-4" />
+                  Ocultar formulario
+                </>
+              ) : (
+                <>
+                  <FilePlus2 className="h-4 w-4" />
+                  Crear despacho
+                </>
+              )}
             </button>
           </div>
 
@@ -498,7 +384,7 @@ export default function CrearDespachos() {
                     <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-950">
                       Nueva planilla
                     </p>
-                    <h3 className="mt-1 text-lg font-black text-gray-800">
+                    <h3 className="mt-1 text-lg font-bold text-gray-600">
                       Datos operativos del despacho
                     </h3>
                   </div>
@@ -537,7 +423,7 @@ export default function CrearDespachos() {
                     Usuario *
                   </label>
                   <input
-                    value={usuario?.nombre || usuario?.email || "Usuario del sistema"}
+                    value={usuarioActual}
                     readOnly
                     className="w-full rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-black text-gray-700 outline-none"
                   />
@@ -548,7 +434,7 @@ export default function CrearDespachos() {
                     Oficina *
                   </label>
                   <select
-                    value={oficina}
+                    value={oficinaId}
                     onChange={(e) => seleccionarOficina(e.target.value)}
                     disabled={loadingCatalogos}
                     className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800 outline-none transition hover:border-gray-300 focus:border-red-950 focus:ring-4 focus:ring-red-950/10 disabled:bg-gray-100 disabled:text-gray-400"
@@ -557,8 +443,8 @@ export default function CrearDespachos() {
                       {loadingCatalogos ? "Cargando..." : "Seleccionar oficina"}
                     </option>
                     {oficinasCatalogo.map((item) => (
-                      <option key={item.oficina_id} value={item.oficina}>
-                        {item.oficina}
+                      <option key={item.id} value={item.id}>
+                        {item.nombre}
                       </option>
                     ))}
                   </select>
@@ -566,41 +452,24 @@ export default function CrearDespachos() {
 
                 <div>
                   <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-gray-500">
-                    Punto de control *
+                    Transportadora *
                   </label>
                   <select
-                    value={puntoControl}
-                    onChange={(e) => seleccionarPuntoControl(e.target.value)}
-                    disabled={!oficina}
+                    value={transportadoraId}
+                    onChange={(e) => setTransportadoraId(e.target.value)}
+                    disabled={!oficinaId || loadingTransportadoras}
                     className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800 outline-none transition hover:border-gray-300 focus:border-red-950 focus:ring-4 focus:ring-red-950/10 disabled:bg-gray-100 disabled:text-gray-400"
                   >
                     <option value="">
-                      {oficina ? "Seleccionar punto de control" : "Selecciona una oficina"}
+                      {loadingTransportadoras
+                        ? "Cargando..."
+                        : oficinaId
+                          ? "Seleccionar transportadora"
+                          : "Selecciona una oficina"}
                     </option>
-                    {puntosControl.map((item) => (
-                      <option key={item.punto_control_id} value={item.punto_control}>
-                        {item.punto_control}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-gray-500">
-                    Estado de guia *
-                  </label>
-                  <select
-                    value={estadoGuia}
-                    onChange={(e) => setEstadoGuia(e.target.value)}
-                    disabled={!puntoControl}
-                    className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800 outline-none transition hover:border-gray-300 focus:border-red-950 focus:ring-4 focus:ring-red-950/10 disabled:bg-gray-100 disabled:text-gray-400"
-                  >
-                    <option value="">
-                      {puntoControl ? "Seleccionar estado" : "Selecciona un punto"}
-                    </option>
-                    {estadosCatalogo.map((item) => (
-                      <option key={item.estado_id} value={item.estado}>
-                        {item.estado}
+                    {transportadoras.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.nombre}
                       </option>
                     ))}
                   </select>
@@ -649,24 +518,19 @@ export default function CrearDespachos() {
                   type="button"
                   onClick={() => {
                     setMostrarFormulario(false);
-                    setNombre("");
-                    setObservaciones("");
-                    setOficina("");
-                    setPuntoControl("");
-                    setEstadoGuia("");
-                    setPuntosControl([]);
-                    setEstadosCatalogo([]);
-                    setActivo(true);
+                    limpiarFormulario();
                   }}
-                  className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-black text-gray-600 shadow-sm transition hover:border-gray-300"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-black text-gray-600 shadow-sm transition hover:border-gray-300"
                 >
+                  <X className="h-4 w-4" />
                   Cancelar
                 </button>
                 <button
                   onClick={crearDespacho}
                   disabled={guardando}
-                  className="rounded-xl bg-gradient-to-r from-red-950 to-red-900 px-6 py-2.5 text-sm font-black text-white shadow-lg shadow-red-950/20 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-950 to-red-900 px-6 py-2.5 text-sm font-black text-white shadow-lg shadow-red-950/20 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
                 >
+                  <Save className="h-4 w-4" />
                   {guardando ? "Guardando..." : "Guardar"}
                 </button>
               </div>
@@ -674,269 +538,163 @@ export default function CrearDespachos() {
           )}
         </section>
 
-        <div className="grid min-w-0 gap-6 xl:grid-cols-[0.85fr_1.15fr]">
-          <section className="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white/95 shadow-[0_22px_55px_rgba(17,24,39,0.10)]">
-            <div className="flex items-center justify-between border-b border-gray-200 bg-gradient-to-r from-white via-red-50/30 to-white px-5 py-4">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-red-950">
-                  Despachos
-                </p>
-                <h3 className="mt-1 text-lg font-semibold text-gray-800">
-                  Planillas creadas
-                </h3>
-              </div>
-              <button
-                onClick={cargarDespachos}
-                className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-black text-gray-700 shadow-sm transition hover:border-red-900/30 hover:text-red-950"
-              >
-                Actualizar
-              </button>
+        <section className="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white/95 shadow-[0_22px_55px_rgba(17,24,39,0.10)]">
+          <div className="flex flex-col gap-3 border-b border-gray-200 bg-gradient-to-r from-white via-red-50/30 to-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-red-950">
+                Despachos
+              </p>
+              <h3 className="mt-1 text-lg font-semibold text-gray-800">
+                Planillas creadas
+              </h3>
             </div>
+            <button
+              onClick={cargarDespachos}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-black text-gray-700 shadow-sm transition hover:border-red-900/30 hover:text-red-950"
+            >
+              <RefreshCcw className="h-4 w-4" />
+              Actualizar
+            </button>
+          </div>
 
-            <div className="max-h-[620px] overflow-y-auto p-4">
-              {loading ? (
-                <div className="flex justify-center py-12">
-                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-red-900 border-t-transparent" />
-                </div>
-              ) : despachos.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-gray-300 bg-slate-50 p-8 text-center">
-                  <p className="text-sm font-semibold text-gray-500">
-                    Aun no hay despachos creados.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {despachos.map((despacho) => {
-                    const activo = despachoSeleccionado?.id === despacho.id;
+          <div className="w-full max-w-full overflow-x-auto">
+            <table className="min-w-[1180px] w-full border-collapse">
+              <thead className="bg-gradient-to-r from-gray-100 to-gray-50 text-xs font-black uppercase tracking-[0.14em] text-gray-600">
+                <tr>
+                  <th className="px-4 py-4 text-left">Opciones</th>
+                  <th className="px-4 py-4 text-center">ID</th>
+                  <th className="px-4 py-4 text-left">Fecha</th>
+                  <th className="px-4 py-4 text-left">Descripcion</th>
+                  <th className="px-4 py-4 text-left">Usuario</th>
+                  <th className="px-4 py-4 text-left">Transportadora</th>
+                  <th className="px-4 py-4 text-center">HAWB</th>
+                  <th className="px-4 py-4 text-center">Peso (lbs)</th>
+                  <th className="px-4 py-4 text-center">Peso (kgs)</th>
+                  <th className="px-4 py-4 text-center">Activo</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-12 text-center">
+                      <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-red-900 border-t-transparent" />
+                    </td>
+                  </tr>
+                ) : despachos.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-12 text-center">
+                      <p className="font-semibold text-gray-500">
+                        Aun no hay despachos creados.
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  despachos.map((despacho) => {
                     const cerrado = despacho.estado?.toLowerCase() === "cerrado";
+                    const pesoLb = Number(despacho.peso_total || 0);
+                    const pesoKg = pesoLb * KG_POR_LIBRA;
 
                     return (
-                      <button
+                      <tr
                         key={despacho.id}
-                        onClick={() => cargarDetalle(despacho)}
-                        className={`w-full rounded-2xl border p-4 text-left transition-all duration-200 ${
-                          activo
-                            ? "border-red-900/30 bg-red-50/70 shadow-lg shadow-red-950/10"
-                            : "border-gray-200 bg-white hover:-translate-y-0.5 hover:border-red-900/20 hover:shadow-md"
-                        }`}
+                        className="text-sm transition hover:bg-red-50/40"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="font-mono text-sm font-black text-red-950">
-                              {despacho.codigo}
-                            </p>
-                            <p className="mt-1 truncate text-sm font-bold text-gray-800">
-                              {despacho.nombre || "Despacho sin nombre"}
-                            </p>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => abrirModalEditar(despacho)}
+                              disabled={cerrado}
+                              title="Editar despacho"
+                              className="flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-400 text-sm font-black text-white shadow-sm transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-gray-300"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => cambiarEstadoDespacho(despacho)}
+                              title={cerrado ? "Abrir despacho" : "Cerrar despacho"}
+                              className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black text-white shadow-sm transition ${
+                                cerrado ? "bg-green-600 hover:bg-green-700" : "bg-slate-600 hover:bg-slate-700"
+                              }`}
+                            >
+                              {cerrado ? (
+                                <Power className="h-4 w-4" />
+                              ) : (
+                                <PowerOff className="h-4 w-4" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => eliminarDespacho(despacho)}
+                              disabled={cerrado}
+                              title="Eliminar despacho"
+                              className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-900 text-sm font-black text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </div>
-                          <span
-                            className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${
+                        </td>
+                        <td className="px-4 py-3 text-center font-mono font-black text-red-950">
+                          {despacho.id}
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-gray-600">
+                          {despacho.fecha_creacion || "-"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-black text-gray-600">
+                            {despacho.nombre || despacho.codigo}
+                          </p>
+                          <p className="mt-1 line-clamp-1 text-xs font-semibold text-gray-400">
+                            {despacho.observaciones || despacho.codigo}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-gray-600">
+                          {despacho.creado_por || "-"}
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-gray-600">
+                          {despacho.transportadora_nombre || "-"}
+                        </td>
+                        <td className="px-4 py-3 text-center font-black text-gray-700">
+                          {despacho.cantidad_hawbs || 0}
+                        </td>
+                        <td className="px-4 py-3 text-center font-bold text-gray-700">
+                          {pesoLb.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 text-center font-bold text-gray-700">
+                          {pesoKg.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() => cambiarEstadoDespacho(despacho)}
+                            className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full border-2 transition ${
                               cerrado
-                                ? "bg-gray-200 text-gray-700"
-                                : "bg-green-100 text-green-800"
+                                ? "border-red-500 bg-white text-red-500"
+                                : "border-green-600 bg-green-500 text-white shadow-[0_0_0_4px_rgba(34,197,94,0.12)]"
                             }`}
+                            title={cerrado ? "Inactivo" : "Activo"}
                           >
-                            {despacho.estado}
-                          </span>
-                        </div>
-
-                        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                          <div className="rounded-xl bg-slate-50 p-2">
-                            <p className="text-[10px] font-black uppercase text-gray-400">
-                              HAWB
-                            </p>
-                            <p className="text-sm font-black text-gray-800">
-                              {despacho.cantidad_hawbs || 0}
-                            </p>
-                          </div>
-                          <div className="rounded-xl bg-slate-50 p-2">
-                            <p className="text-[10px] font-black uppercase text-gray-400">
-                              Peso
-                            </p>
-                            <p className="text-sm font-black text-gray-800">
-                              {Number(despacho.peso_total || 0).toFixed(2)}
-                            </p>
-                          </div>
-                          <div className="rounded-xl bg-slate-50 p-2">
-                            <p className="text-[10px] font-black uppercase text-gray-400">
-                              Fecha
-                            </p>
-                            <p className="truncate text-xs font-bold text-gray-700">
-                              {despacho.fecha_creacion || "-"}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section className="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white/95 shadow-[0_22px_55px_rgba(17,24,39,0.10)]">
-            {despachoSeleccionado ? (
-              <>
-                <div className="relative overflow-hidden bg-gradient-to-r from-red-950 via-red-900 to-slate-950 px-5 py-5 text-white">
-                  <div className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full border border-white/10" />
-                  <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-100/80">
-                        Detalle del despacho
-                      </p>
-                      <h3 className="mt-1 font-mono text-2xl font-black">
-                        {despachoSeleccionado.codigo}
-                      </h3>
-                      <p className="mt-1 text-sm font-semibold text-red-50/80">
-                        {despachoSeleccionado.nombre || "Despacho sin nombre"}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={editarDespacho}
-                        disabled={despachoCerrado}
-                        className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs font-black text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={cambiarEstadoDespacho}
-                        className="rounded-xl bg-white px-4 py-2 text-xs font-black text-red-950 transition hover:bg-red-50"
-                      >
-                        {despachoCerrado ? "Abrir" : "Cerrar"}
-                      </button>
-                      <button
-                        onClick={eliminarDespacho}
-                        disabled={despachoCerrado}
-                        className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs font-black text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-b border-gray-200 bg-gradient-to-r from-white via-gray-50 to-white p-5">
-                  <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
-                    <div>
-                      <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
-                        Agregar HAWB al despacho
-                      </label>
-                      <input
-                        value={hawb}
-                        onChange={(e) => setHawb(e.target.value.toUpperCase())}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") agregarHawb();
-                        }}
-                        disabled={despachoCerrado}
-                        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm font-black text-gray-800 outline-none transition placeholder:font-sans placeholder:font-semibold focus:border-red-950 focus:ring-4 focus:ring-red-950/10 disabled:bg-gray-100"
-                        placeholder={
-                          despachoCerrado
-                            ? "Despacho cerrado"
-                            : "Ingrese HAWB desbloqueado"
-                        }
-                      />
-                    </div>
-                    <button
-                      onClick={agregarHawb}
-                      disabled={despachoCerrado || agregandoHawb || !hawb.trim()}
-                      className="self-end rounded-2xl bg-gradient-to-r from-red-950 to-red-900 px-6 py-3 text-sm font-black text-white shadow-lg shadow-red-950/20 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
-                    >
-                      {agregandoHawb ? "Agregando..." : "Agregar HAWB"}
-                    </button>
-                  </div>
-
-                  {despachoCerrado && (
-                    <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-950">
-                      Este despacho esta cerrado. Para modificarlo debes abrirlo primero.
-                    </div>
-                  )}
-                </div>
-
-                <div className="w-full max-w-full overflow-x-auto">
-                  <table className="min-w-[980px] w-full border-collapse">
-                    <thead className="bg-gray-50 text-xs font-black uppercase tracking-[0.14em] text-gray-600">
-                      <tr>
-                        <th className="px-4 py-3 text-left">HAWB</th>
-                        <th className="px-4 py-3 text-left">Tracking</th>
-                        <th className="px-4 py-3 text-left">Cliente</th>
-                        <th className="px-4 py-3 text-left">Contenido</th>
-                        <th className="px-4 py-3 text-center">Peso</th>
-                        <th className="px-4 py-3 text-center">Estado</th>
-                        <th className="px-4 py-3 text-center">Opciones</th>
+                            {cerrado ? (
+                              <Ban className="h-4 w-4" />
+                            ) : (
+                              <CheckCircle2 className="h-4 w-4" />
+                            )}
+                          </button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {paquetes.length > 0 ? (
-                        paquetes.map((paquete) => (
-                          <tr key={paquete.despacho_paquete_id} className="text-sm hover:bg-red-50/40">
-                            <td className="px-4 py-3 font-mono font-black text-red-950">
-                              {paquete.hawb}
-                            </td>
-                            <td className="px-4 py-3 font-medium text-gray-700">
-                              {paquete.tracking || "-"}
-                            </td>
-                            <td className="px-4 py-3 text-gray-700">
-                              <p className="font-semibold">{paquete.cliente || "-"}</p>
-                              <p className="font-mono text-xs text-gray-400">
-                                {paquete.codigo_referencia || ""}
-                              </p>
-                            </td>
-                            <td className="px-4 py-3 text-gray-700">
-                              <p className="line-clamp-2 max-w-[240px]">
-                                {paquete.contenido || "-"}
-                              </p>
-                            </td>
-                            <td className="px-4 py-3 text-center font-bold text-gray-700">
-                              {Number(paquete.peso || 0).toFixed(2)}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-black text-green-800">
-                                {paquete.estado_actual || "-"}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <button
-                                onClick={() => quitarHawb(paquete.hawb)}
-                                disabled={despachoCerrado}
-                                className="rounded-xl bg-red-600 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-                              >
-                                Retirar
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={7} className="px-4 py-10 text-center">
-                            <p className="font-semibold text-gray-500">
-                              Este despacho aun no tiene HAWB agregados.
-                            </p>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            ) : (
-              <div className="flex min-h-[420px] items-center justify-center p-8 text-center">
-                <div>
-                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-2xl font-black text-red-950">
-                    +
-                  </div>
-                  <p className="text-lg font-black text-gray-800">
-                    Selecciona o crea un despacho
-                  </p>
-                  <p className="mt-2 max-w-md text-sm font-semibold text-gray-500">
-                    Desde aqui podras agregar HAWB, cerrar la planilla y controlar el armado operativo.
-                  </p>
-                </div>
-              </div>
-            )}
-          </section>
-        </div>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {despachoEditar && (
+          <ModalEditarDespacho
+            despacho={despachoEditar}
+            oficinasCatalogo={oficinasCatalogo}
+            onClose={() => setDespachoEditar(null)}
+            onUpdated={cargarDespachos}
+          />
+        )}
       </div>
     </UserDashboardLayout>
   );

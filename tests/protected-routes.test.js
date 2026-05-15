@@ -23,6 +23,7 @@ test("rutas criticas declaran autenticacion antes de endpoints protegidos", () =
   const trm = readRoute("../routes/trm.routes.js");
   const dashboard = readRoute("../routes/dashboard.routes.js");
   const despachos = readRoute("../routes/despachos.routes.js");
+  const transportadoras = readRoute("../routes/transportadoras.routes.js");
 
   assertProtectedAfterRouterUse(paquetes, 'router.post("/registrar"');
   assertProtectedAfterRouterUse(paquetes, 'router.put("/anular/:hawb"');
@@ -35,6 +36,7 @@ test("rutas criticas declaran autenticacion antes de endpoints protegidos", () =
   assertProtectedAfterRouterUse(dashboard, 'router.get("/usuario"');
   assertProtectedAfterRouterUse(despachos, 'router.post("/"');
   assertProtectedAfterRouterUse(despachos, 'router.post("/:id/hawbs"');
+  assertProtectedAfterRouterUse(transportadoras, 'router.get("/"');
 });
 
 test("rutas administrativas criticas declaran restricciones por rol", () => {
@@ -44,6 +46,7 @@ test("rutas administrativas criticas declaran restricciones por rol", () => {
   const solicitudes = readRoute("../routes/solicitudes.routes.js");
   const dashboard = readRoute("../routes/dashboard.routes.js");
   const despachos = readRoute("../routes/despachos.routes.js");
+  const transportadoras = readRoute("../routes/transportadoras.routes.js");
 
   assert.match(conciliacion, /router\.use\(autenticarToken,\s*soloOperacion\)/);
   assert.match(trm, /const soloAdmin = autorizarRoles\("admin"\)/);
@@ -51,4 +54,5 @@ test("rutas administrativas criticas declaran restricciones por rol", () => {
   assert.match(solicitudes, /const soloOperacion = autorizarRoles\("admin",\s*"usuario"\)/);
   assert.match(dashboard, /autorizarRoles\("admin",\s*"usuario"\)/);
   assert.match(despachos, /const soloOperacion = autorizarRoles\("admin",\s*"usuario"\)/);
+  assert.match(transportadoras, /const soloOperacion = autorizarRoles\("admin",\s*"usuario"\)/);
 });
