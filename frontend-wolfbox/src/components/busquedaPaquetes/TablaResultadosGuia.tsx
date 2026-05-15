@@ -135,9 +135,9 @@ const TablaResultadosGuia: React.FC<Props> = ({
               {rows.map((r) => (
                 <tr key={r.id} className="bg-white shadow-sm hover:shadow-md transition-all duration-200 rounded-xl">
 
-                  <td className="px-4 py-4 align-top">
+                  <td className="px-4 py-4 align-middle">
                     {r.estado !== "Anulado" ? (
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleAnular(r.guia)}
                           title="Anular guía"
