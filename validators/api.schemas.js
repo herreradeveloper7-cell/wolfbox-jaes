@@ -229,6 +229,13 @@ export const paqueteSchemas = {
     fechaDesde: optionalString,
     fechaHasta: optionalString,
   }).passthrough(),
+  reporteEstadoGuia: z.object({
+    fechaDesde: optionalString,
+    fechaHasta: optionalString,
+    oficina_id: optionalNumber,
+    punto_control_id: optionalNumber,
+    estado_id: optionalNumber,
+  }).passthrough(),
   anular: z.object({
     responsable: optionalString,
   }).passthrough(),
@@ -253,6 +260,11 @@ const paqueteSolicitud = z.object({
 }).passthrough();
 
 export const solicitudSchemas = {
+  reporte: z.object({
+    fechaDesde: optionalString,
+    fechaHasta: optionalString,
+    desbloqueo: z.enum(["todas", "desbloqueadas", "sin_desbloquear"]).optional().default("todas"),
+  }).passthrough(),
   crear: z.object({
     cliente_id: requiredNumber("Cliente").int().positive("Cliente invalido"),
     usuario_id: requiredNumber("Usuario").int().positive("Usuario invalido"),

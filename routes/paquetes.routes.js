@@ -19,7 +19,8 @@ import {
   crearEstadoTracking,
   editarEstadoHistorial,
   obtenerCatalogoEstados,
-  generarPDFEtiqueta
+  generarPDFEtiqueta,
+  reporteEstadoGuia
 } from "../controllers/paquetes.controller.js";
 
 const router = express.Router();
@@ -39,6 +40,7 @@ router.put("/editar/:id", soloOperacion, validar({ params: idParam(), body: paqu
 router.put("/editar-basico/:id", soloOperacion, validar({ params: idParam(), body: paqueteSchemas.editarBasico }), editarCamposBasicos);
 
 router.post("/buscar", soloOperacion, validar({ body: paqueteSchemas.buscar }), buscarPaquetesFiltrados);
+router.get("/reporte-estado-guia", soloOperacion, validar({ query: paqueteSchemas.reporteEstadoGuia }), reporteEstadoGuia);
 router.get("/reporte", soloOperacion, generarReporteCSV);
 
 router.post("/tracking/estado", soloOperacion, validar({ body: paqueteSchemas.estadoTracking }), crearEstadoTracking);   
