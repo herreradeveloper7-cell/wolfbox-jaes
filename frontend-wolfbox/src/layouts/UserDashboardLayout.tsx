@@ -79,7 +79,6 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
 
   return (
     <div className="flex h-screen relative overflow-hidden bg-gray-200">
-    <div className="flex h-screen relative overflow-hidden bg-gray-200">
 
         <aside
           className={`fixed inset-y-0 left-0 z-50 bg-red-950 text-white transition-all duration-300 flex flex-col md:relative md:z-0
