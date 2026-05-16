@@ -64,6 +64,11 @@ export const usuarioSchemas = {
 };
 
 export const clienteSchemas = {
+  reporteCasilleros: z.object({
+    fechaDesde: optionalString,
+    fechaHasta: optionalString,
+    tipo_cliente: z.enum(["todos", "personal", "empresarial"]).optional().default("todos"),
+  }).passthrough(),
   validar: z.object({
     email,
     numeroIdentificacion: requiredString("Numero de identificacion"),

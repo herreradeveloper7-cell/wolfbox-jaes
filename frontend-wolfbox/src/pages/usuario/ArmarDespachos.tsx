@@ -178,7 +178,6 @@ export default function ArmarDespachos() {
 
     setDetalle(null);
     cargarDespachos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const buscarDespachos = (event?: React.FormEvent<HTMLFormElement>) => {

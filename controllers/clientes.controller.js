@@ -339,6 +339,75 @@ export const buscarCliente = async (req, res) => {
   }
 };
 
+export const reporteClientesCasilleros = async (req, res) => {
+  try {
+    const { fechaDesde, fechaHasta, tipo_cliente = "todos" } = req.query;
+    const pool = await poolPromise;
+    const request = pool.request();
+    const where = [];
+
+    if (fechaDesde) {
+      where.push("CONVERT(date, fecha_creacion) >= @fechaDesde");
+      request.input("fechaDesde", sql.Date, fechaDesde);
+    }
+
+    if (fechaHasta) {
+      where.push("CONVERT(date, fecha_creacion) <= @fechaHasta");
+      request.input("fechaHasta", sql.Date, fechaHasta);
+    }
+
+    if (tipo_cliente && tipo_cliente !== "todos") {
+      where.push("LOWER(tipo_cliente) = LOWER(@tipo_cliente)");
+      request.input("tipo_cliente", sql.VarChar(50), tipo_cliente);
+    }
+
+    const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+    const result = await request.query(`
+      SELECT
+        id,
+        codigo_referencia,
+        tipo_cliente,
+        ISNULL(
+          NULLIF(
+            LTRIM(RTRIM(CONCAT(
+              ISNULL(primer_nombre, ''), ' ',
+              ISNULL(segundo_nombre, ''), ' ',
+              ISNULL(primer_apellido, ''), ' ',
+              ISNULL(segundo_apellido, '')
+            ))),
+            ''
+          ),
+          ISNULL(NULLIF(LTRIM(RTRIM(nombre_empresa)), ''), 'Sin nombre')
+        ) AS nombre,
+        nombre_empresa,
+        tipo_identificacion,
+        numero_identificacion,
+        correo,
+        pais,
+        region,
+        ciudad,
+        direccion,
+        indicativo,
+        celular,
+        telefono_fijo,
+        genero,
+        CONVERT(varchar, fecha_creacion, 120) AS fecha_creacion
+      FROM clientes
+      ${whereClause}
+      ORDER BY fecha_creacion DESC
+    `);
+
+    return res.json({ ok: true, clientes: result.recordset });
+  } catch (error) {
+    console.error("Error generando reporte de clientes casilleros:", error);
+    return res.status(500).json({
+      ok: false,
+      mensaje: "Error generando reporte de clientes casilleros.",
+    });
+  }
+};
+
 export const buscarClienteDestinatarios = async (req, res) => {
   try {
     const { texto } = req.params;
