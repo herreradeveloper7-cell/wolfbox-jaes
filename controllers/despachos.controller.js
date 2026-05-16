@@ -417,19 +417,41 @@ export const obtenerDetalleDespacho = async (req, res) => {
           ec.nombre AS estado_actual,
           c.codigo_referencia,
           CASE
-            WHEN LOWER(ISNULL(c.tipo_cliente, '')) = 'personal' THEN
-              RTRIM(
-                ISNULL(c.primer_nombre, '') + ' ' +
-                ISNULL(c.segundo_nombre + ' ', '') +
-                ISNULL(c.primer_apellido, '') + ' ' +
-                ISNULL(c.segundo_apellido, '')
+            WHEN LOWER(ISNULL(c.tipo_cliente, '')) = 'empresarial' THEN
+              ISNULL(NULLIF(LTRIM(RTRIM(c.nombre_empresa)), ''), 'Sin nombre')
+            ELSE
+              ISNULL(
+                NULLIF(
+                  LTRIM(RTRIM(
+                    ISNULL(c.primer_nombre, '') + ' ' +
+                    ISNULL(c.segundo_nombre + ' ', '') +
+                    ISNULL(c.primer_apellido, '') + ' ' +
+                    ISNULL(c.segundo_apellido, '')
+                  )),
+                  ''
+                ),
+                ISNULL(NULLIF(LTRIM(RTRIM(c.nombre_empresa)), ''), 'Sin nombre')
               )
-            ELSE ISNULL(c.nombre_empresa, 'Sin nombre')
           END AS cliente
         FROM despacho_paquetes dp
         INNER JOIN paquetes p ON p.id = dp.paquete_id
         LEFT JOIN estados_catalogo ec ON ec.id = p.estado_id
-        LEFT JOIN clientes c ON c.id = p.cliente_id
+        OUTER APPLY (
+          SELECT TOP 1
+            cliente.id,
+            cliente.codigo_referencia,
+            cliente.tipo_cliente,
+            cliente.primer_nombre,
+            cliente.segundo_nombre,
+            cliente.primer_apellido,
+            cliente.segundo_apellido,
+            cliente.nombre_empresa
+          FROM clientes cliente
+          WHERE cliente.id = p.cliente_id
+             OR cliente.codigo_referencia = p.codigo_referencia
+          ORDER BY
+            CASE WHEN cliente.id = p.cliente_id THEN 0 ELSE 1 END
+        ) c
         WHERE dp.despacho_id = @id
         ORDER BY dp.fecha_agregado DESC
       `);
