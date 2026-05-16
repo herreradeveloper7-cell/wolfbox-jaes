@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import * as XLSX from "xlsx";
 import UserDashboardLayout from "../../layouts/UserDashboardLayout";
 import iconHome from "../../assets/home-svgrepo-com.svg";
 import { useNavigate } from "react-router-dom";
@@ -8,6 +11,8 @@ import ModalEditarDespacho from "../../components/despachos/ModalEditarDespacho"
 import {
   Ban,
   CheckCircle2,
+  FileSpreadsheet,
+  FileText,
   FilePlus2,
   Pencil,
   Power,
@@ -47,7 +52,31 @@ type Transportadora = {
   nombre: string;
 };
 
+type PaqueteDespacho = {
+  despacho_paquete_id: number;
+  paquete_id: number;
+  hawb: string;
+  tracking?: string | null;
+  contenido?: string | null;
+  tienda?: string | null;
+  peso?: number | string | null;
+  solicitud_id?: number | null;
+  estado_actual?: string | null;
+  codigo_referencia?: string | null;
+  cliente?: string | null;
+  fecha_agregado?: string | null;
+  agregado_por?: string | null;
+};
+
+type DetalleDespacho = {
+  despacho: Despacho;
+  paquetes: PaqueteDespacho[];
+};
+
 const KG_POR_LIBRA = 0.45359237;
+
+const limpiarNombreArchivo = (valor: string) =>
+  valor.replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, "_");
 
 export default function CrearDespachos() {
   const navigate = useNavigate();
@@ -289,6 +318,195 @@ export default function CrearDespachos() {
       Swal.fire(
         "Error",
         error.response?.data?.mensaje || "No se pudo eliminar el despacho",
+        "error"
+      );
+    }
+  };
+
+  const cargarDetalleDespacho = async (despacho: Despacho) => {
+    const { data } = await axios.get(`/api/despachos/${despacho.id}`);
+
+    return {
+      despacho: data.despacho,
+      paquetes: Array.isArray(data.paquetes) ? data.paquetes : [],
+    } as DetalleDespacho;
+  };
+
+  const descargarExcelDespacho = async (despacho: Despacho) => {
+    const cerrado = despacho.estado?.toLowerCase() === "cerrado";
+    if (!cerrado) return;
+
+    try {
+      const detalle = await cargarDetalleDespacho(despacho);
+      const totalPesoLb = detalle.paquetes.reduce(
+        (total, paquete) => total + Number(paquete.peso || 0),
+        0
+      );
+      const resumenRows = [
+        ["Campo", "Valor"],
+        ["Codigo", detalle.despacho.codigo || "-"],
+        ["Descripcion", detalle.despacho.nombre || "-"],
+        ["Transportadora", detalle.despacho.transportadora_nombre || "-"],
+        ["Oficina", detalle.despacho.oficina || "-"],
+        ["Estado", detalle.despacho.estado || "-"],
+        ["Creado por", detalle.despacho.creado_por || "-"],
+        ["Fecha creacion", detalle.despacho.fecha_creacion || "-"],
+        ["Fecha cierre", detalle.despacho.fecha_cierre || "-"],
+        ["Total HAWB", detalle.paquetes.length],
+        ["Peso total lbs", Number(totalPesoLb.toFixed(2))],
+        ["Peso total kgs", Number((totalPesoLb * KG_POR_LIBRA).toFixed(2))],
+        ["Observaciones", detalle.despacho.observaciones || "-"],
+      ];
+      const hawbRows = detalle.paquetes.map((paquete) => {
+        const pesoLb = Number(paquete.peso || 0);
+
+        return {
+          HAWB: paquete.hawb || "-",
+          Tracking: paquete.tracking || "-",
+          Cliente: paquete.cliente || "-",
+          Casillero: paquete.codigo_referencia || "-",
+          Contenido: paquete.contenido || "-",
+          Tienda: paquete.tienda || "-",
+          "Peso lbs": Number(pesoLb.toFixed(2)),
+          "Peso kgs": Number((pesoLb * KG_POR_LIBRA).toFixed(2)),
+          Estado: paquete.estado_actual || "-",
+          "Fecha agregado": paquete.fecha_agregado || "-",
+          "Agregado por": paquete.agregado_por || "-",
+        };
+      });
+      const workbook = XLSX.utils.book_new();
+      const resumenSheet = XLSX.utils.aoa_to_sheet(resumenRows);
+      const hawbSheet = XLSX.utils.json_to_sheet(hawbRows);
+
+      resumenSheet["!cols"] = [{ wch: 22 }, { wch: 48 }];
+      hawbSheet["!cols"] = [
+        { wch: 18 },
+        { wch: 28 },
+        { wch: 32 },
+        { wch: 16 },
+        { wch: 45 },
+        { wch: 24 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 28 },
+        { wch: 20 },
+        { wch: 24 },
+      ];
+
+      XLSX.utils.book_append_sheet(workbook, resumenSheet, "Resumen");
+      XLSX.utils.book_append_sheet(workbook, hawbSheet, "HAWB");
+      XLSX.writeFile(
+        workbook,
+        `Despacho_${limpiarNombreArchivo(detalle.despacho.codigo)}.xlsx`
+      );
+    } catch (error: any) {
+      Swal.fire(
+        "Error",
+        error.response?.data?.mensaje || "No se pudo generar el Excel",
+        "error"
+      );
+    }
+  };
+
+  const descargarManifiestoPdf = async (despacho: Despacho) => {
+    const cerrado = despacho.estado?.toLowerCase() === "cerrado";
+    if (!cerrado) return;
+
+    try {
+      const detalle = await cargarDetalleDespacho(despacho);
+      const doc = new jsPDF("l", "mm", "a4");
+      const pesoLb = detalle.paquetes.reduce(
+        (total, paquete) => total + Number(paquete.peso || 0),
+        0
+      );
+
+      doc.setFillColor(91, 0, 13);
+      doc.rect(0, 0, 297, 26, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.text("MANIFIESTO DE ENTREGA A TRANSPORTADORA", 14, 11);
+      doc.setFontSize(10);
+      doc.text(`Despacho: ${detalle.despacho.codigo}`, 14, 19);
+
+      doc.setTextColor(31, 41, 55);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("Descripcion:", 14, 35);
+      doc.text("Transportadora:", 14, 42);
+      doc.text("Oficina:", 14, 49);
+      doc.text("Fecha cierre:", 160, 35);
+      doc.text("Total HAWB:", 160, 42);
+      doc.text("Peso total:", 160, 49);
+
+      doc.setFont("helvetica", "normal");
+      doc.text(detalle.despacho.nombre || "-", 40, 35);
+      doc.text(detalle.despacho.transportadora_nombre || "-", 43, 42);
+      doc.text(detalle.despacho.oficina || "-", 30, 49);
+      doc.text(detalle.despacho.fecha_cierre || detalle.despacho.fecha_creacion || "-", 188, 35);
+      doc.text(String(detalle.paquetes.length), 184, 42);
+      doc.text(`${pesoLb.toFixed(2)} lbs / ${(pesoLb * KG_POR_LIBRA).toFixed(2)} kgs`, 184, 49);
+
+      (doc as any).autoTable({
+        startY: 58,
+        head: [[
+          "HAWB",
+          "Tracking",
+          "Cliente",
+          "Casillero",
+          "Contenido",
+          "Tienda",
+          "Peso lbs",
+          "Estado",
+        ]],
+        body: detalle.paquetes.map((paquete) => [
+          paquete.hawb || "-",
+          paquete.tracking || "-",
+          paquete.cliente || "-",
+          paquete.codigo_referencia || "-",
+          paquete.contenido || "-",
+          paquete.tienda || "-",
+          Number(paquete.peso || 0).toFixed(2),
+          paquete.estado_actual || "-",
+        ]),
+        theme: "grid",
+        headStyles: {
+          fillColor: [91, 0, 13],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+          overflow: "linebreak",
+        },
+        columnStyles: {
+          0: { cellWidth: 28 },
+          1: { cellWidth: 36 },
+          2: { cellWidth: 38 },
+          3: { cellWidth: 24 },
+          4: { cellWidth: 52 },
+          5: { cellWidth: 30 },
+          6: { cellWidth: 20, halign: "right" },
+          7: { cellWidth: 42 },
+        },
+      });
+
+      const finalY = (doc as any).lastAutoTable?.finalY || 170;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text("Entrega transportadora", 24, finalY + 22);
+      doc.text("Responsable WolfBox", 115, finalY + 22);
+      doc.text("Fecha y hora", 210, finalY + 22);
+      doc.line(18, finalY + 17, 82, finalY + 17);
+      doc.line(108, finalY + 17, 172, finalY + 17);
+      doc.line(202, finalY + 17, 266, finalY + 17);
+
+      doc.save(`Manifiesto_${limpiarNombreArchivo(detalle.despacho.codigo)}.pdf`);
+    } catch (error: any) {
+      Swal.fire(
+        "Error",
+        error.response?.data?.mensaje || "No se pudo generar el manifiesto",
         "error"
       );
     }
@@ -629,6 +847,22 @@ export default function CrearDespachos() {
                               className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-900 text-sm font-black text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300"
                             >
                               <Trash2 className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => descargarExcelDespacho(despacho)}
+                              disabled={!cerrado}
+                              title={cerrado ? "Descargar Excel" : "Disponible al cerrar el despacho"}
+                              className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                            >
+                              <FileSpreadsheet className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => descargarManifiestoPdf(despacho)}
+                              disabled={!cerrado}
+                              title={cerrado ? "Descargar manifiesto PDF" : "Disponible al cerrar el despacho"}
+                              className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                            >
+                              <FileText className="h-4 w-4" />
                             </button>
                           </div>
                         </td>

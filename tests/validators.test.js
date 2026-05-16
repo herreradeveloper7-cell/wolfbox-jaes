@@ -83,6 +83,23 @@ test("despachoSchemas valida estado y HAWB requerido", () => {
   assert.throws(() => despachoSchemas.hawb.parse({ hawb: "" }));
 });
 
+test("despachoSchemas.buscar normaliza filtros de busqueda", () => {
+  const data = despachoSchemas.buscar.parse({
+    q: "  DESP  ",
+    oficina_id: "2",
+    transportadora_id: "5",
+    estado: "abierto",
+    fechaDesde: "2026-05-01",
+    fechaHasta: "2026-05-15",
+  });
+
+  assert.equal(data.q, "DESP");
+  assert.equal(data.oficina_id, 2);
+  assert.equal(data.transportadora_id, 5);
+  assert.equal(data.estado, "abierto");
+  assert.throws(() => despachoSchemas.buscar.parse({ estado: "activo" }));
+});
+
 test("trmSchemas.guardar exige valor positivo", () => {
   const data = trmSchemas.guardar.parse({ valor: "3975.44" });
 

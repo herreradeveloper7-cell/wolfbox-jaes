@@ -296,6 +296,17 @@ export const solicitudSchemas = {
 };
 
 export const despachoSchemas = {
+  buscar: z.object({
+    q: optionalString,
+    id: optionalNumber,
+    codigo: optionalString,
+    nombre: optionalString,
+    oficina_id: optionalNumber,
+    transportadora_id: optionalNumber,
+    estado: z.enum(["abierto", "cerrado"]).optional(),
+    fechaDesde: optionalString,
+    fechaHasta: optionalString,
+  }).passthrough(),
   crear: z.object({
     nombre: optionalString,
     observaciones: optionalString,

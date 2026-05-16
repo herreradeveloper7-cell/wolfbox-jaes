@@ -183,10 +183,77 @@ const registrarEstadoOperativo = async ({
 
 export const listarDespachos = async (req, res) => {
   try {
+    const {
+      q,
+      id,
+      codigo,
+      nombre,
+      oficina_id,
+      transportadora_id,
+      estado,
+      fechaDesde,
+      fechaHasta,
+    } = req.query;
     const pool = await poolPromise;
     await ensureDespachosSchema(pool);
 
-    const result = await pool.request().query(`
+    const request = pool.request();
+    const where = [];
+
+    if (id) {
+      where.push("d.id = @id");
+      request.input("id", sql.Int, Number(id));
+    }
+
+    if (codigo) {
+      where.push("d.codigo LIKE @codigo");
+      request.input("codigo", sql.NVarChar, `%${codigo}%`);
+    }
+
+    if (nombre) {
+      where.push("d.nombre LIKE @nombre");
+      request.input("nombre", sql.NVarChar, `%${nombre}%`);
+    }
+
+    if (q) {
+      where.push(`(
+        d.codigo LIKE @q OR
+        d.nombre LIKE @q OR
+        d.oficina LIKE @q OR
+        d.transportadora_nombre LIKE @q OR
+        d.creado_por LIKE @q
+      )`);
+      request.input("q", sql.NVarChar, `%${q}%`);
+    }
+
+    if (oficina_id) {
+      where.push("d.oficina_id = @oficina_id");
+      request.input("oficina_id", sql.Int, Number(oficina_id));
+    }
+
+    if (transportadora_id) {
+      where.push("d.transportadora_id = @transportadora_id");
+      request.input("transportadora_id", sql.Int, Number(transportadora_id));
+    }
+
+    if (estado) {
+      where.push("LOWER(d.estado) = LOWER(@estado)");
+      request.input("estado", sql.NVarChar, estado);
+    }
+
+    if (fechaDesde) {
+      where.push("CONVERT(date, d.fecha_creacion) >= @fechaDesde");
+      request.input("fechaDesde", sql.Date, fechaDesde);
+    }
+
+    if (fechaHasta) {
+      where.push("CONVERT(date, d.fecha_creacion) <= @fechaHasta");
+      request.input("fechaHasta", sql.Date, fechaHasta);
+    }
+
+    const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+    const result = await request.query(`
       SELECT
         d.id,
         d.codigo,
@@ -206,6 +273,7 @@ export const listarDespachos = async (req, res) => {
       FROM despachos d
       LEFT JOIN despacho_paquetes dp ON dp.despacho_id = d.id
       LEFT JOIN paquetes p ON p.id = dp.paquete_id
+      ${whereClause}
       GROUP BY
         d.id, d.codigo, d.nombre, d.observaciones, d.oficina_id, d.oficina,
         d.transportadora_id, d.transportadora_nombre, d.fecha_operativa, d.estado, d.creado_por,
