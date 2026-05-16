@@ -450,6 +450,101 @@ export const generarReporteCSV = async (req, res) => {
   }
 };
 
+export const reporteEstadoGuia = async (req, res) => {
+  try {
+    const {
+      fechaDesde,
+      fechaHasta,
+      oficina_id,
+      punto_control_id,
+      estado_id,
+    } = req.query;
+    const pool = await poolPromise;
+    const request = pool.request();
+    const where = [];
+
+    if (fechaDesde) {
+      where.push("CONVERT(date, p.fecha_registro) >= @fechaDesde");
+      request.input("fechaDesde", sql.Date, fechaDesde);
+    }
+
+    if (fechaHasta) {
+      where.push("CONVERT(date, p.fecha_registro) <= @fechaHasta");
+      request.input("fechaHasta", sql.Date, fechaHasta);
+    }
+
+    if (oficina_id) {
+      where.push("o.id = @oficina_id");
+      request.input("oficina_id", sql.Int, Number(oficina_id));
+    }
+
+    if (punto_control_id) {
+      where.push("pc.id = @punto_control_id");
+      request.input("punto_control_id", sql.Int, Number(punto_control_id));
+    }
+
+    if (estado_id) {
+      where.push("e.id = @estado_id");
+      request.input("estado_id", sql.Int, Number(estado_id));
+    }
+
+    const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+    const result = await request.query(`
+      SELECT
+        p.id,
+        p.hawb,
+        p.tracking,
+        p.referencia,
+        p.tienda,
+        p.contenido,
+        p.peso,
+        p.codigo_referencia,
+        p.digitado_por,
+        CONVERT(varchar, p.fecha_registro, 120) AS fecha_registro,
+        e.nombre AS estado,
+        pc.nombre AS punto_control,
+        o.nombre AS oficina,
+        s.nombre AS servicio,
+        d.nombre AS destinatario,
+        CASE
+          WHEN LOWER(ISNULL(c.tipo_cliente, '')) = 'empresarial' THEN
+            ISNULL(NULLIF(LTRIM(RTRIM(c.nombre_empresa)), ''), 'Sin nombre')
+          ELSE
+            ISNULL(
+              NULLIF(
+                LTRIM(RTRIM(
+                  ISNULL(c.primer_nombre, '') + ' ' +
+                  ISNULL(c.segundo_nombre + ' ', '') +
+                  ISNULL(c.primer_apellido, '') + ' ' +
+                  ISNULL(c.segundo_apellido, '')
+                )),
+                ''
+              ),
+              ISNULL(NULLIF(LTRIM(RTRIM(c.nombre_empresa)), ''), 'Sin nombre')
+            )
+        END AS cliente
+      FROM paquetes p
+      LEFT JOIN estados_catalogo e ON e.id = p.estado_id
+      LEFT JOIN puntos_control pc ON pc.id = e.punto_control_id
+      LEFT JOIN oficinas o ON o.id = pc.oficina_id
+      LEFT JOIN clientes c ON c.id = p.cliente_id OR c.codigo_referencia = p.codigo_referencia
+      LEFT JOIN servicios s ON s.id = p.servicio_id
+      LEFT JOIN destinatarios d ON d.id = p.destinatario_id
+      ${whereClause}
+      ORDER BY p.fecha_registro DESC
+    `);
+
+    return res.json({ ok: true, paquetes: result.recordset });
+  } catch (error) {
+    console.error("Error generando reporte de estado guia:", error);
+    return res.status(500).json({
+      ok: false,
+      mensaje: "Error generando reporte de estado guia.",
+    });
+  }
+};
+
 export const validarTracking = async (req, res) => {
   const { valor } = req.params;
   const pool = await poolPromise;

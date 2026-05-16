@@ -167,7 +167,7 @@ export default function ReporteClientesCasilleros() {
                 Exportar clientes de casilleros
               </h2>
               <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-gray-500">
-                Filtra por fecha de creación y tipo de cliente para descargar un archivo Excel con la información registrada en la base de datos.
+                Filtra por fecha de creación y tipo de cliente para descargar un archivo Excel.
               </p>
             </div>
 
