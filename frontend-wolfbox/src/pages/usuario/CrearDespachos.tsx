@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import { autoTable } from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import UserDashboardLayout from "../../layouts/UserDashboardLayout";
 import iconHome from "../../assets/home-svgrepo-com.svg";
@@ -77,6 +77,12 @@ const KG_POR_LIBRA = 0.45359237;
 
 const limpiarNombreArchivo = (valor: string) =>
   valor.replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, "_");
+
+const obtenerMensajeError = (error: any, fallback: string) =>
+  error?.response?.data?.mensaje ||
+  error?.response?.data?.message ||
+  error?.message ||
+  fallback;
 
 export default function CrearDespachos() {
   const navigate = useNavigate();
@@ -400,9 +406,10 @@ export default function CrearDespachos() {
         `Despacho_${limpiarNombreArchivo(detalle.despacho.codigo)}.xlsx`
       );
     } catch (error: any) {
+      console.error("Error generando Excel de despacho:", error);
       Swal.fire(
         "Error",
-        error.response?.data?.mensaje || "No se pudo generar el Excel",
+        obtenerMensajeError(error, "No se pudo generar el Excel"),
         "error"
       );
     }
@@ -447,7 +454,7 @@ export default function CrearDespachos() {
       doc.text(String(detalle.paquetes.length), 184, 42);
       doc.text(`${pesoLb.toFixed(2)} lbs / ${(pesoLb * KG_POR_LIBRA).toFixed(2)} kgs`, 184, 49);
 
-      (doc as any).autoTable({
+      autoTable(doc, {
         startY: 58,
         head: [[
           "HAWB",
@@ -504,9 +511,10 @@ export default function CrearDespachos() {
 
       doc.save(`Manifiesto_${limpiarNombreArchivo(detalle.despacho.codigo)}.pdf`);
     } catch (error: any) {
+      console.error("Error generando manifiesto de despacho:", error);
       Swal.fire(
         "Error",
-        error.response?.data?.mensaje || "No se pudo generar el manifiesto",
+        obtenerMensajeError(error, "No se pudo generar el manifiesto"),
         "error"
       );
     }
