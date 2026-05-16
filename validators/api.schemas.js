@@ -64,6 +64,11 @@ export const usuarioSchemas = {
 };
 
 export const clienteSchemas = {
+  reporteCasilleros: z.object({
+    fechaDesde: optionalString,
+    fechaHasta: optionalString,
+    tipo_cliente: z.enum(["todos", "personal", "empresarial"]).optional().default("todos"),
+  }).passthrough(),
   validar: z.object({
     email,
     numeroIdentificacion: requiredString("Numero de identificacion"),
@@ -224,6 +229,13 @@ export const paqueteSchemas = {
     fechaDesde: optionalString,
     fechaHasta: optionalString,
   }).passthrough(),
+  reporteEstadoGuia: z.object({
+    fechaDesde: optionalString,
+    fechaHasta: optionalString,
+    oficina_id: optionalNumber,
+    punto_control_id: optionalNumber,
+    estado_id: optionalNumber,
+  }).passthrough(),
   anular: z.object({
     responsable: optionalString,
   }).passthrough(),
@@ -248,6 +260,11 @@ const paqueteSolicitud = z.object({
 }).passthrough();
 
 export const solicitudSchemas = {
+  reporte: z.object({
+    fechaDesde: optionalString,
+    fechaHasta: optionalString,
+    desbloqueo: z.enum(["todas", "desbloqueadas", "sin_desbloquear"]).optional().default("todas"),
+  }).passthrough(),
   crear: z.object({
     cliente_id: requiredNumber("Cliente").int().positive("Cliente invalido"),
     usuario_id: requiredNumber("Usuario").int().positive("Usuario invalido"),
@@ -292,5 +309,43 @@ export const solicitudSchemas = {
   ),
   agrupar: z.object({
     hawbs: z.array(requiredString("HAWB")).min(2, "Debe seleccionar al menos 2 paquetes"),
+  }).passthrough(),
+};
+
+export const despachoSchemas = {
+  buscar: z.object({
+    q: optionalString,
+    id: optionalNumber,
+    codigo: optionalString,
+    nombre: optionalString,
+    oficina_id: optionalNumber,
+    transportadora_id: optionalNumber,
+    estado: z.enum(["abierto", "cerrado"]).optional(),
+    fechaDesde: optionalString,
+    fechaHasta: optionalString,
+  }).passthrough(),
+  crear: z.object({
+    nombre: optionalString,
+    observaciones: optionalString,
+    oficina_id: optionalNumber,
+    oficina: optionalString,
+    transportadora_id: optionalNumber,
+    fecha: optionalString,
+    responsable: optionalString,
+  }).passthrough(),
+  editar: z.object({
+    nombre: optionalString,
+    observaciones: optionalString,
+    oficina_id: optionalNumber,
+    oficina: optionalString,
+    transportadora_id: optionalNumber,
+    fecha: optionalString,
+  }).passthrough(),
+  estado: z.object({
+    estado: z.enum(["abierto", "cerrado"]),
+  }).passthrough(),
+  hawb: z.object({
+    hawb: requiredString("HAWB"),
+    responsable: optionalString,
   }).passthrough(),
 };

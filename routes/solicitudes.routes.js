@@ -24,7 +24,8 @@
     obtenerComprobantePago,
     eliminarComprobantePago,
     agruparSolicitud,
-    generarEtiquetaHawbPadre
+    generarEtiquetaHawbPadre,
+    reporteSolicitudes
   } from "../controllers/solicitudes.controller.js";
 
   const router = express.Router();
@@ -55,6 +56,7 @@
   router.use(autenticarToken, soloOperacion);
 
   router.post("/crear", validar({ body: solicitudSchemas.crear }), crearSolicitud);
+  router.get("/reporte", validar({ query: solicitudSchemas.reporte }), reporteSolicitudes);
   router.get("/listar", obtenerSolicitudes);
   router.get("/detalle/:id", validar({ params: idParam() }), obtenerDetalleSolicitud);
 

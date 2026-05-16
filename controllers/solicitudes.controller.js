@@ -425,6 +425,102 @@ export const obtenerSolicitudes = async (req, res) => {
   }
 };
 
+export const reporteSolicitudes = async (req, res) => {
+  try {
+    const { fechaDesde, fechaHasta, desbloqueo = "todas" } = req.query;
+    const pool = await poolPromise;
+    const request = pool.request();
+    const where = [];
+
+    if (fechaDesde) {
+      where.push("CONVERT(date, s.fecha) >= @fechaDesde");
+      request.input("fechaDesde", sql.Date, fechaDesde);
+    }
+
+    if (fechaHasta) {
+      where.push("CONVERT(date, s.fecha) <= @fechaHasta");
+      request.input("fechaHasta", sql.Date, fechaHasta);
+    }
+
+    const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+    const havingClause =
+      desbloqueo === "desbloqueadas"
+        ? "HAVING MAX(CASE WHEN LOWER(ISNULL(ec.nombre, '')) = 'desbloqueado' THEN 1 ELSE 0 END) = 1"
+        : desbloqueo === "sin_desbloquear"
+          ? "HAVING MAX(CASE WHEN LOWER(ISNULL(ec.nombre, '')) = 'desbloqueado' THEN 1 ELSE 0 END) = 0"
+          : "";
+
+    const result = await request.query(`
+      SELECT
+        s.id,
+        CONVERT(varchar, s.fecha, 120) AS fecha,
+        s.estado AS estado_solicitud,
+        s.medio_pago,
+        s.observaciones,
+        s.valor_estimado_usd,
+        s.valor_moneda_local,
+        c.codigo_referencia AS codigo_casillero,
+        CASE
+          WHEN LOWER(ISNULL(c.tipo_cliente, '')) = 'empresarial' THEN
+            ISNULL(NULLIF(LTRIM(RTRIM(c.nombre_empresa)), ''), 'Sin nombre')
+          ELSE
+            ISNULL(
+              NULLIF(
+                LTRIM(RTRIM(
+                  ISNULL(c.primer_nombre, '') + ' ' +
+                  ISNULL(c.segundo_nombre + ' ', '') +
+                  ISNULL(c.primer_apellido, '') + ' ' +
+                  ISNULL(c.segundo_apellido, '')
+                )),
+                ''
+              ),
+              ISNULL(NULLIF(LTRIM(RTRIM(c.nombre_empresa)), ''), 'Sin nombre')
+            )
+        END AS cliente,
+        d.nombre AS destinatario,
+        srv.nombre AS servicio,
+        COUNT(p.id) AS cantidad_paquetes,
+        ISNULL(SUM(CAST(ISNULL(p.peso, 0) AS DECIMAL(10,2))), 0) AS peso_total,
+        STRING_AGG(CAST(p.hawb AS NVARCHAR(MAX)), CHAR(10)) AS hawbs,
+        MAX(CASE WHEN LOWER(ISNULL(ec.nombre, '')) = 'desbloqueado' THEN 1 ELSE 0 END) AS desbloqueada
+      FROM solicitudes s
+      INNER JOIN clientes c ON c.id = s.cliente_id
+      LEFT JOIN destinatarios d ON d.id = s.destinatario
+      LEFT JOIN servicios srv ON srv.id = s.servicio_id
+      LEFT JOIN paquetes p ON p.solicitud_id = s.id
+      LEFT JOIN estados_catalogo ec ON ec.id = p.estado_id
+      ${whereClause}
+      GROUP BY
+        s.id,
+        s.fecha,
+        s.estado,
+        s.medio_pago,
+        s.observaciones,
+        s.valor_estimado_usd,
+        s.valor_moneda_local,
+        c.codigo_referencia,
+        c.tipo_cliente,
+        c.nombre_empresa,
+        c.primer_nombre,
+        c.segundo_nombre,
+        c.primer_apellido,
+        c.segundo_apellido,
+        d.nombre,
+        srv.nombre
+      ${havingClause}
+      ORDER BY s.fecha DESC
+    `);
+
+    return res.json({ ok: true, solicitudes: result.recordset });
+  } catch (error) {
+    console.error("Error generando reporte de solicitudes:", error);
+    return res.status(500).json({
+      ok: false,
+      mensaje: "Error generando reporte de solicitudes.",
+    });
+  }
+};
+
 
 
 export const actualizarEstadoSolicitud = async (req, res) => {
