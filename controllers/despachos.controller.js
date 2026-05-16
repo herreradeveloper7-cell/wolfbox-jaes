@@ -616,6 +616,23 @@ export const eliminarDespacho = async (req, res) => {
       return res.status(validacion.status).json({ ok: false, mensaje: validacion.mensaje });
     }
 
+    const asociados = await request()
+      .input("id", sql.Int, id)
+      .query(`
+        SELECT COUNT(1) AS total
+        FROM despacho_paquetes
+        WHERE despacho_id = @id
+      `);
+
+    if (Number(asociados.recordset[0]?.total || 0) > 0) {
+      await transaction.rollback();
+      transactionStarted = false;
+      return res.status(400).json({
+        ok: false,
+        mensaje: "No puedes eliminar un despacho con HAWB asociados. Retira los HAWB antes de eliminarlo.",
+      });
+    }
+
     await request()
       .input("id", sql.Int, id)
       .query("DELETE FROM despachos WHERE id = @id");
