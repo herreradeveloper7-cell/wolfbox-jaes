@@ -61,6 +61,7 @@ function App() {
         <Route path="/agrupar-paquetes" element={<AgruparPaquetes />} />
         <Route path="/crear-despachos" element={<CrearDespachos />} />
         <Route path="/armar-despachos" element={<ArmarDespachos />} />
+        <Route path="/armar-despachos/:id" element={<ArmarDespachos />} />
         <Route
           path="/dashboardUsuario/agrupar-solicitud/:id"
           element={<AgruparSolicitud />}

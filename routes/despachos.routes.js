@@ -18,7 +18,7 @@ const soloOperacion = autorizarRoles("admin", "usuario");
 
 router.use(autenticarToken, soloOperacion);
 
-router.get("/", listarDespachos);
+router.get("/", validar({ query: despachoSchemas.buscar }), listarDespachos);
 router.post("/", validar({ body: despachoSchemas.crear }), crearDespacho);
 router.get("/:id", validar({ params: idParam() }), obtenerDetalleDespacho);
 router.put("/:id", validar({ params: idParam(), body: despachoSchemas.editar }), editarDespacho);
