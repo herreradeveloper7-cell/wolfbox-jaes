@@ -306,7 +306,7 @@ export default function CrearDespachos() {
 
     const confirmacion = await Swal.fire({
       title: "Eliminar despacho",
-      text: `Se eliminara ${despacho.codigo}. Esta accion no afecta las solicitudes.`,
+      text: `Se eliminara ${despacho.codigo}. Solo se permite si no tiene HAWB asociados.`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Eliminar",
