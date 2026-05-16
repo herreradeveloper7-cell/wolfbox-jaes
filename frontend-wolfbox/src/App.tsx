@@ -31,6 +31,7 @@ import ArmarDespachos from './pages/usuario/ArmarDespachos';
 import ReporteEstadoGuia from './pages/usuario/Reportes/ReporteEstadoGuia';
 import ReporteClientesCasilleros from './pages/usuario/Reportes/ReporteClientesCasilleros';
 import ReporteSolicitudes from './pages/usuario/Reportes/ReporteSolicitudes';
+import Transportadoras from './pages/usuario/configuracion/Transportadoras';
 
 
 
@@ -68,7 +69,7 @@ function App() {
         <Route path="/reporte-estado-guia" element={<ReporteEstadoGuia />} />
         <Route path="/reporte-clientes-casilleros" element={<ReporteClientesCasilleros />} />
         <Route path="/reporte-solicitudes" element={<ReporteSolicitudes />} />
-        
+        <Route path="/transportadoras" element={<Transportadoras />} />
         <Route
           path="/dashboardUsuario/agrupar-solicitud/:id"
           element={<AgruparSolicitud />}
