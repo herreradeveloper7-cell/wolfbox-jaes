@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ReactNode, useState, useEffect } from "react";
 import logo from "../assets/LogoJaesDashboard.svg";
 import iconCasillero from "../assets/lockers-storage-svgrepo-com.svg"; 
@@ -26,8 +26,11 @@ type Cliente = {
 
 export default function UserDashboardLayout({ children, scrollable = false }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [cliente, setCliente] = useState<Cliente | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window === "undefined" ? true : window.innerWidth >= 768
+  );
   const [casilleroOpen, setCasilleroOpen] = useState(false);
   const [perfilOpen, setPerfilOpen] = useState(false);
   const [operacionesOpen, setOperacionesOpen] = useState(false);
@@ -53,13 +56,33 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
     }
   }, [navigate]);
 
+  useEffect(() => {
+    const handleResize = () => {
+      setSidebarOpen(window.innerWidth >= 768);
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
+
+  const navegarORecargar = (path: string) => {
+    if (location.pathname.toLowerCase() === path.toLowerCase()) {
+      navigate(0);
+      return;
+    }
+
+    navigate(path);
+  };
 
   return (
     <div className="flex h-screen relative overflow-hidden bg-gray-200">
+    <div className="flex h-screen relative overflow-hidden bg-gray-200">
 
         <aside
-          className={`bg-red-950 text-white transition-all duration-300 flex flex-col
+          className={`fixed inset-y-0 left-0 z-50 bg-red-950 text-white transition-all duration-300 flex flex-col md:relative md:z-0
                       ${sidebarOpen ? "w-56" : "w-16"}
                       overflow-y-auto scrollbar-hide`}
         >
@@ -106,13 +129,13 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
               ${casilleroOpen && sidebarOpen ? "max-h-[350px] opacity-100" : "max-h-0 opacity-0"}
             `}
           >
-            <button onClick={() => navigate("/consultar-guia")} className="text-white text-left w-full px-6 py-2 cursor-pointer hover:bg-red-900 transition">Consultar Guía</button>
-            <button onClick={() => navigate("/digitacion-paquetes")} className="text-white text-left w-full px-6 py-2 cursor-pointer hover:bg-red-900 transition">Digitación de paquetes</button>
-            <button onClick={() => navigate("/solicitar-despachos")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Solicitar despachos</button>
-            <button onClick={() => navigate("/agrupar-paquetes")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Agrupar paquetes</button>
-            <button onClick={() => navigate("/conciliacion-pagos")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Conciliación de pago</button>
-            <button onClick={() => navigate("/Clientes")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Clientes</button>
-            <button onClick={() => navigate("/destinatarios-casilleros")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Destinatarios casilleros</button>
+            <button onClick={() => navegarORecargar("/consultar-guia")} className="text-white text-left w-full px-6 py-2 cursor-pointer hover:bg-red-900 transition">Consultar Guía</button>
+            <button onClick={() => navegarORecargar("/digitacion-paquetes")} className="text-white text-left w-full px-6 py-2 cursor-pointer hover:bg-red-900 transition">Digitación de paquetes</button>
+            <button onClick={() => navegarORecargar("/solicitar-despachos")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Solicitar despachos</button>
+            <button onClick={() => navegarORecargar("/agrupar-paquetes")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Agrupar paquetes</button>
+            <button onClick={() => navegarORecargar("/conciliacion-pagos")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Conciliación de pago</button>
+            <button onClick={() => navegarORecargar("/Clientes")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Clientes</button>
+            <button onClick={() => navegarORecargar("/destinatarios-casilleros")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Destinatarios casilleros</button>
           </div>
         </div>
 
@@ -153,8 +176,8 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
             )}
           </button>
           <div className={`transition-all duration-500 overflow-hidden bg-[#2d0101] w-full ${operacionesOpen && sidebarOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}>
-            <button className="text-white text-left w-full px-6 py-2 hover:bg-red-900">Crear Despacho</button>
-            <button className="text-white text-left w-full px-6 py-2 hover:bg-red-900">Armar Despacho</button>
+            <button onClick={() => navegarORecargar("/crear-despachos")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Crear Despacho</button>
+            <button onClick={() => navegarORecargar("/armar-despachos")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Armar Despacho</button>
           </div>
         </div>
 
@@ -195,8 +218,8 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
             )}
           </button>
           <div className={`transition-all duration-500 overflow-hidden bg-[#2d0101] w-full ${trackingOpen && sidebarOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}>
-            <button onClick={() => navigate("/crear-tracking")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Crear Tracking</button>
-            <button onClick={() => navigate("/consultar-tracking")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Consultar Tracking</button>
+            <button onClick={() => navegarORecargar("/crear-tracking")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Crear Tracking</button>
+            <button onClick={() => navegarORecargar("/consultar-tracking")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Consultar Tracking</button>
           </div>
         </div>
 
@@ -237,8 +260,9 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
           )}
         </button>
           <div className={`transition-all duration-500 overflow-hidden bg-[#2d0101] w-full ${reportesOpen && sidebarOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}>
-            <button className="text-white text-left w-full px-6 py-2 hover:bg-red-900">Estado HAWB</button>
-            <button className="text-white text-left w-full px-6 py-2 hover:bg-red-900">Clientes Casilleros</button>
+            <button onClick={() => navegarORecargar("/reporte-estado-guia")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Estado HAWB</button>
+            <button onClick={() => navegarORecargar("/reporte-clientes-casilleros")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Clientes Casilleros</button>
+            <button onClick={() => navegarORecargar("/reporte-solicitudes")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Solicitudes</button>
           </div>
         </div>
 
@@ -279,8 +303,8 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
             )}
           </button>
           <div className={`transition-all duration-500 overflow-hidden bg-[#2d0101] w-full ${seguridadOpen && sidebarOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}>
-            <button onClick={() => navigate("/crear-usuario")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Crear Usuario</button>
-            <button onClick={() => navigate("/consultar-usuario")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Consultar Usuario</button>
+            <button onClick={() => navegarORecargar("/crear-usuario")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Crear Usuario</button>
+            <button onClick={() => navegarORecargar("/consultar-usuario")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Consultar Usuario</button>
           </div>
         </div>
 
@@ -322,8 +346,9 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
           </button>
           
           <div className={`transition-all duration-500 overflow-hidden bg-[#2d0101] w-full ${configuracionOpen && sidebarOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}>
-            <button onClick={() => navigate("/config-trm")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">TRM</button>
-            <button onClick={() => navigate("/config-tarifas")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Tarifas</button>
+            <button onClick={() => navegarORecargar("/config-trm")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">TRM</button>
+            <button onClick={() => navegarORecargar("/config-tarifas")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Tarifas</button>
+            <button onClick={() => navegarORecargar("/transportadoras")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Transportadoras</button>
           </div>
         </div>
 
@@ -358,7 +383,7 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
           </button>
 
           <div className={`transition-all duration-500 overflow-hidden bg-[#2d0101] w-full ${perfilOpen && sidebarOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}>
-            <button onClick={() => navigate("/perfil")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Ver Perfil</button>
+            <button onClick={() => navegarORecargar("/perfil")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Ver Perfil</button>
             <button
               onClick={() => {
                 localStorage.removeItem("usuario");
@@ -375,9 +400,18 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
 
       </aside>
 
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Cerrar menu"
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-[2px] md:hidden"
+        />
+      )}
+
       <button
         onClick={toggleSidebar}
-        className={`absolute bottom-4 z-40 bg-red-950 text-white p-2 shadow-lg transition-all duration-300 cursor-pointer ${
+        className={`fixed bottom-4 z-[60] bg-red-950 text-white p-2 shadow-lg transition-all duration-300 cursor-pointer md:absolute md:z-40 ${
           sidebarOpen ? "left-[224px] rotate-0" : "left-[64px] rotate-180"
         }`}
       >
@@ -388,25 +422,25 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
 
         <header className="min-w-0 flex justify-between items-center px-6 py-4 bg-white shadow-md z-10">
         <div
-          onClick={() => navigate("/dashboardUsuario")}
+          onClick={() => navegarORecargar("/dashboardUsuario")}
           className="w-auto mx-auto cursor-pointer hover:scale-105 transition-transform duration-200"
         >
           <img
             src={logo}
             alt="Logo empresa"
-            className="h-28 sm:h-32 md:h-36 lg:h-25 xl:h-20 w-auto object-contain"
+            className="h-20 w-auto object-contain sm:h-24 md:h-28 lg:h-25 xl:h-20"
           />
         </div>
 
-          <div className="flex items-center gap-4 absolute right-6 top-4">
-            <span className="text-lg font-semibold">{cliente?.nombre}</span>
-            <div className="relative w-13 h-13">
+          <div className="absolute right-3 top-3 flex items-center gap-2 sm:right-5 sm:top-4 md:gap-4">
+            <span className="hidden max-w-[150px] truncate text-sm font-semibold sm:inline md:max-w-[220px] md:text-lg">{cliente?.nombre}</span>
+            <div className="relative h-10 w-10 sm:h-12 sm:w-12 md:h-13 md:w-13">
               <img
                 src={cliente?.genero?.toLowerCase() === "femenino" ? iconMujer : iconHombre}
                 alt="Avatar"
-                className="w-13 h-13 rounded-full"
+                className="h-full w-full rounded-full"
               />
-              <span className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></span>
+              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500 sm:h-4 sm:w-4"></span>
             </div>
           </div>
         </header>
@@ -415,7 +449,7 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
           {children}
         </div>
 
-        <footer className="text-sm text-right py-2 px-10 bg-white z-20">
+        <footer className="z-20 bg-white px-4 py-2 text-center text-xs sm:text-right sm:text-sm md:px-10">
           Copyright © Wolfbox Software 2025
         </footer>
 
@@ -423,3 +457,4 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
     </div>
   );
 }
+

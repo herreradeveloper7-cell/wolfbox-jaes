@@ -26,6 +26,13 @@ import VerClientes from './pages/usuario/VerClientes';
 import ConsultarGuiaHome from './pages/consultarGuiaHome';
 import PasswordResetPage from './pages/passwordReset';
 import SessionExpiredOverlay from './components/SessionExpiredOverlay';
+import CrearDespachos from './pages/usuario/CrearDespachos';
+import ArmarDespachos from './pages/usuario/ArmarDespachos';
+import ReporteEstadoGuia from './pages/usuario/Reportes/ReporteEstadoGuia';
+import ReporteClientesCasilleros from './pages/usuario/Reportes/ReporteClientesCasilleros';
+import ReporteSolicitudes from './pages/usuario/Reportes/ReporteSolicitudes';
+import Transportadoras from './pages/usuario/configuracion/Transportadoras';
+
 
 
 
@@ -56,6 +63,13 @@ function App() {
         <Route path="/conciliacion-pagos" element={<ConciliacionPago />} />
         <Route path="/config-tarifas" element={<ConfigTarifas />} />
         <Route path="/agrupar-paquetes" element={<AgruparPaquetes />} />
+        <Route path="/crear-despachos" element={<CrearDespachos />} />
+        <Route path="/armar-despachos" element={<ArmarDespachos />} />
+        <Route path="/armar-despachos/:id" element={<ArmarDespachos />} />
+        <Route path="/reporte-estado-guia" element={<ReporteEstadoGuia />} />
+        <Route path="/reporte-clientes-casilleros" element={<ReporteClientesCasilleros />} />
+        <Route path="/reporte-solicitudes" element={<ReporteSolicitudes />} />
+        <Route path="/transportadoras" element={<Transportadoras />} />
         <Route
           path="/dashboardUsuario/agrupar-solicitud/:id"
           element={<AgruparSolicitud />}

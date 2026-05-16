@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  despachoSchemas,
   paqueteSchemas,
   solicitudSchemas,
   trmSchemas,
@@ -68,6 +69,35 @@ test("solicitudSchemas.agrupar exige minimo dos HAWB", () => {
   );
 
   assert.throws(() => solicitudSchemas.agrupar.parse({ hawbs: ["COJA0001"] }));
+});
+
+test("despachoSchemas valida estado y HAWB requerido", () => {
+  assert.doesNotThrow(() =>
+    despachoSchemas.estado.parse({ estado: "cerrado" })
+  );
+  assert.doesNotThrow(() =>
+    despachoSchemas.hawb.parse({ hawb: "COJA0001" })
+  );
+
+  assert.throws(() => despachoSchemas.estado.parse({ estado: "bloqueado" }));
+  assert.throws(() => despachoSchemas.hawb.parse({ hawb: "" }));
+});
+
+test("despachoSchemas.buscar normaliza filtros de busqueda", () => {
+  const data = despachoSchemas.buscar.parse({
+    q: "  DESP  ",
+    oficina_id: "2",
+    transportadora_id: "5",
+    estado: "abierto",
+    fechaDesde: "2026-05-01",
+    fechaHasta: "2026-05-15",
+  });
+
+  assert.equal(data.q, "DESP");
+  assert.equal(data.oficina_id, 2);
+  assert.equal(data.transportadora_id, 5);
+  assert.equal(data.estado, "abierto");
+  assert.throws(() => despachoSchemas.buscar.parse({ estado: "activo" }));
 });
 
 test("trmSchemas.guardar exige valor positivo", () => {

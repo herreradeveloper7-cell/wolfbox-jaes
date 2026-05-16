@@ -10,6 +10,7 @@ import {
     buscarCliente,
     buscarClienteDestinatarios,
     actualizarClienteAdmin,
+    reporteClientesCasilleros,
 } from '../controllers/clientes.controller.js';
 
 
@@ -22,6 +23,7 @@ router.post('/login', validar({ body: clienteSchemas.login }), loginCliente);
 
 router.use(autenticarToken);
 
+router.get("/reporte-casilleros", soloOperacion, validar({ query: clienteSchemas.reporteCasilleros }), reporteClientesCasilleros);
 router.get("/buscar/:valor", soloOperacion, validar({ params: textParam("valor") }), buscarCliente);
 router.get("/buscar-destinatarios/:texto", soloOperacion, validar({ params: textParam("texto") }), buscarClienteDestinatarios);
 router.put(
