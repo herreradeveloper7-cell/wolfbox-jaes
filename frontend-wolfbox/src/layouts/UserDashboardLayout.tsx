@@ -259,9 +259,9 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
           )}
         </button>
           <div className={`transition-all duration-500 overflow-hidden bg-[#2d0101] w-full ${reportesOpen && sidebarOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}>
-            <button onClick={() => navegarORecargar("/reporte-estado-guia")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900">Estado HAWB</button>
-            <button onClick={() => navegarORecargar("/reporte-clientes-casilleros")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900">Clientes Casilleros</button>
-            <button onClick={() => navegarORecargar("/reporte-solicitudes")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900">Solicitudes</button>
+            <button onClick={() => navegarORecargar("/reporte-estado-guia")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Estado HAWB</button>
+            <button onClick={() => navegarORecargar("/reporte-clientes-casilleros")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Clientes Casilleros</button>
+            <button onClick={() => navegarORecargar("/reporte-solicitudes")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Solicitudes</button>
           </div>
         </div>
 
@@ -347,7 +347,7 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
           <div className={`transition-all duration-500 overflow-hidden bg-[#2d0101] w-full ${configuracionOpen && sidebarOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}>
             <button onClick={() => navegarORecargar("/config-trm")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">TRM</button>
             <button onClick={() => navegarORecargar("/config-tarifas")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Tarifas</button>
-            <button onClick={() => navegarORecargar("/config-tarifas")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Transportadoras</button>
+            <button onClick={() => navegarORecargar("/transportadoras")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Transportadoras</button>
           </div>
         </div>
 
