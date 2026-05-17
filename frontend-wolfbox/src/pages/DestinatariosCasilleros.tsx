@@ -193,7 +193,7 @@ export default function DestinatariosCasilleros() {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="md:col-span-3">
-                <label className="text-sm font-bold text-gray-700 tracking-wide px-1 mb-3 block">
+                <label className="text-sm font-bold text-gray-600 tracking-wide px-1 mb-3 block">
                   Cliente / Código de casillero
                 </label>
 
