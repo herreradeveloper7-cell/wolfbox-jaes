@@ -17,6 +17,8 @@ type SolicitudReporte = {
   observaciones?: string | null;
   valor_estimado_usd?: number | string | null;
   valor_moneda_local?: number | string | null;
+  flete_usd?: number | string | null;
+  seguro_usd?: number | string | null;
   codigo_casillero?: string | null;
   cliente?: string | null;
   destinatario?: string | null;
@@ -82,6 +84,8 @@ export default function ReporteSolicitudes() {
         "Medio pago": solicitud.medio_pago || "-",
         "Cantidad paquetes": Number(solicitud.cantidad_paquetes || 0),
         "Peso total": Number(Number(solicitud.peso_total || 0).toFixed(2)),
+        "Flete USD": Number(Number(solicitud.flete_usd || 0).toFixed(2)),
+        "Seguro USD": Number(Number(solicitud.seguro_usd || 0).toFixed(2)),
         "Valor USD": Number(Number(solicitud.valor_estimado_usd || 0).toFixed(2)),
         "Valor COP": Number(Number(solicitud.valor_moneda_local || 0).toFixed(2)),
         HAWB: solicitud.hawbs || "-",
@@ -112,6 +116,8 @@ export default function ReporteSolicitudes() {
         { wch: 24 },
         { wch: 18 },
         { wch: 18 },
+        { wch: 14 },
+        { wch: 14 },
         { wch: 14 },
         { wch: 14 },
         { wch: 16 },
