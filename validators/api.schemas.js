@@ -125,6 +125,10 @@ export const clienteSchemas = {
     celular: optionalString,
   }).passthrough(),
   actualizarAdmin: z.object({
+    primer_nombre: optionalString,
+    segundo_nombre: optionalString,
+    primer_apellido: optionalString,
+    segundo_apellido: optionalString,
     correo: email,
     tipo_cliente: z.enum(["personal", "empresarial"]).optional(),
     pais: optionalString,
