@@ -552,6 +552,15 @@ export const reporteSolicitudes = async (req, res) => {
 
       return {
         ...data,
+        trm_liquidacion:
+          Number(data.valor_estimado_usd || 0) > 0
+            ? Number(
+                (
+                  Number(data.valor_moneda_local || 0) /
+                  Number(data.valor_estimado_usd || 0)
+                ).toFixed(2)
+              )
+            : 0,
         flete_usd: calculoFlete.ok ? Number(calculoFlete.fleteUSD.toFixed(2)) : 0,
         seguro_usd: Number(seguroUSD.toFixed(2)),
       };
