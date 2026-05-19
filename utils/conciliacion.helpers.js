@@ -15,7 +15,11 @@ export const buildConciliacionQuery = ({ fechaInicio, fechaFin, cliente, solicit
       s.valor_estimado_usd AS totalUSD,
       s.valor_moneda_local AS totalCOP,
 
-      trm.valor AS trm,
+      CASE
+        WHEN ISNULL(s.valor_estimado_usd, 0) > 0
+          THEN CAST(s.valor_moneda_local AS DECIMAL(18, 4)) / CAST(s.valor_estimado_usd AS DECIMAL(18, 4))
+        ELSE 0
+      END AS trm,
 
       s.estado AS estado_paquete,
       s.comprobante
@@ -24,12 +28,6 @@ export const buildConciliacionQuery = ({ fechaInicio, fechaFin, cliente, solicit
 
   INNER JOIN clientes c 
       ON c.id = s.cliente_id
-
-  CROSS JOIN (
-      SELECT TOP 1 valor 
-      FROM trm 
-      ORDER BY fecha DESC
-  ) trm
 
   WHERE 1=1
     `;

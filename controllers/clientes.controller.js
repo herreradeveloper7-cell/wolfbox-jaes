@@ -334,7 +334,6 @@ export const buscarCliente = async (req, res) => {
 
     return res.json({ ok: true, clientes: result.recordset });
   } catch (error) {
-    console.error("❌ Error al buscar cliente:", error);
     return res.status(500).json({ ok: false, mensaje: error.message });
   }
 };
@@ -442,6 +441,10 @@ export const actualizarClienteAdmin = async (req, res) => {
     const { id } = req.params;
 
     const {
+      primer_nombre,
+      segundo_nombre,
+      primer_apellido,
+      segundo_apellido,
       correo,
       tipo_cliente,
       pais,
@@ -462,6 +465,10 @@ export const actualizarClienteAdmin = async (req, res) => {
     await pool
       .request()
       .input("id", sql.Int, id)
+      .input("primer_nombre", sql.VarChar(100), primer_nombre || null)
+      .input("segundo_nombre", sql.VarChar(100), segundo_nombre || null)
+      .input("primer_apellido", sql.VarChar(100), primer_apellido || null)
+      .input("segundo_apellido", sql.VarChar(100), segundo_apellido || null)
       .input("correo", sql.VarChar(150), correo)
       .input("tipo_cliente", sql.VarChar(50), tipo_cliente)
       .input("pais", sql.VarChar(100), pais)
@@ -478,6 +485,10 @@ export const actualizarClienteAdmin = async (req, res) => {
       .query(`
         UPDATE clientes
         SET
+          primer_nombre = @primer_nombre,
+          segundo_nombre = @segundo_nombre,
+          primer_apellido = @primer_apellido,
+          segundo_apellido = @segundo_apellido,
           correo = @correo,
           tipo_cliente = @tipo_cliente,
           pais = @pais,

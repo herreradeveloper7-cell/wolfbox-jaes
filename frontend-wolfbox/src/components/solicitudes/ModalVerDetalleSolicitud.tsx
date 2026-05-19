@@ -85,7 +85,6 @@ export default function ModalVerDetalleSolicitud({
   });
 
   const [cargando, setCargando] = useState(true);
-  const [trmActual, setTrmActual] = useState<number>(0);
 
   const [servicio, setServicio] = useState<any>(null);
   const [loadingServicio, setLoadingServicio] = useState(true);
@@ -111,17 +110,6 @@ export default function ModalVerDetalleSolicitud({
     };
 
     cargar();
-
-    const cargarTRM = async () => {
-      try {
-        const { data } = await axios.get(
-          "/api/trm/actual"
-        );
-        if (data?.valor) setTrmActual(Number(data.valor));
-      } catch {}
-    };
-
-    cargarTRM();
   }, [solicitud.id]);
 
   useEffect(() => {
@@ -200,6 +188,16 @@ export default function ModalVerDetalleSolicitud({
     detalle.solicitud?.totalCOP ??
     detalle.solicitud?.valor_moneda_local ??
     0
+  );
+
+  const trmAplicada = Number(
+    detalle.solicitud?.trm ??
+    (
+      Number(detalle.solicitud?.valor_estimado_usd || 0) > 0
+        ? Number(detalle.solicitud?.valor_moneda_local || 0) /
+          Number(detalle.solicitud?.valor_estimado_usd || 0)
+        : 0
+    )
   );
 
   const cantidadPaquetes = hawbPadre ? hawbHijos.length : detalle.paquetes.length;
@@ -511,7 +509,10 @@ export default function ModalVerDetalleSolicitud({
                       TRM aplicada
                     </p>
                     <p className="mt-1 font-mono font-semibold text-red-950 text-sm sm:text-lg">
-                      {trmActual.toLocaleString("es-CO")}
+                      {trmAplicada.toLocaleString("es-CO", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
                     </p>
                   </div>
                   <div className="text-2xl sm:text-3xl text-red-950/20">$</div>

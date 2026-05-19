@@ -479,8 +479,33 @@ export const reporteSolicitudes = async (req, res) => {
         END AS cliente,
         d.nombre AS destinatario,
         srv.nombre AS servicio,
+        srv.codigo AS servicio_codigo,
+        srv.tipo AS servicio_tipo,
+        srv.tarifa_fija_1lb,
+        srv.tarifa_fija_2a5,
+        srv.tarifa_fija_6a10,
+        srv.tarifa_por_libra_extra,
+        srv.tarifa_por_libra_cc,
+        srv.porcentaje_seguro,
+        srv.seguro_minimo_usd,
+        srv.aplica_minimo,
+        srv.peso_minimo,
+        srv.tarifa_minima_usd,
+        srv.aplica_peso_maximo,
+        srv.peso_maximo,
         COUNT(p.id) AS cantidad_paquetes,
-        ISNULL(SUM(CAST(ISNULL(p.peso, 0) AS DECIMAL(10,2))), 0) AS peso_total,
+        ISNULL(SUM(
+          CASE
+            WHEN p.hawb NOT LIKE '%G' THEN CAST(ISNULL(p.peso, 0) AS DECIMAL(10,2))
+            ELSE 0
+          END
+        ), 0) AS peso_total,
+        ISNULL(SUM(
+          CASE
+            WHEN p.hawb NOT LIKE '%G' THEN CAST(ISNULL(p.asegurado, 0) AS DECIMAL(10,2))
+            ELSE 0
+          END
+        ), 0) AS asegurado_total,
         STRING_AGG(CAST(p.hawb AS NVARCHAR(MAX)), CHAR(10)) AS hawbs,
         MAX(CASE WHEN LOWER(ISNULL(ec.nombre, '')) = 'desbloqueado' THEN 1 ELSE 0 END) AS desbloqueada
       FROM solicitudes s
@@ -506,12 +531,67 @@ export const reporteSolicitudes = async (req, res) => {
         c.primer_apellido,
         c.segundo_apellido,
         d.nombre,
-        srv.nombre
+        srv.nombre,
+        srv.codigo,
+        srv.tipo,
+        srv.tarifa_fija_1lb,
+        srv.tarifa_fija_2a5,
+        srv.tarifa_fija_6a10,
+        srv.tarifa_por_libra_extra,
+        srv.tarifa_por_libra_cc,
+        srv.porcentaje_seguro,
+        srv.seguro_minimo_usd,
+        srv.aplica_minimo,
+        srv.peso_minimo,
+        srv.tarifa_minima_usd,
+        srv.aplica_peso_maximo,
+        srv.peso_maximo
       ${havingClause}
       ORDER BY s.fecha DESC
     `);
 
-    return res.json({ ok: true, solicitudes: result.recordset });
+    const solicitudes = result.recordset.map((solicitud) => {
+      const calculoFlete = calcularFleteServicio(solicitud, Number(solicitud.peso_total || 0));
+      const porcentaje = Number(solicitud.porcentaje_seguro || 0) / 100;
+      const seguroMinimoUSD = Number(solicitud.seguro_minimo_usd || 0);
+      const seguroCalculadoUSD = Number(solicitud.asegurado_total || 0) * porcentaje;
+      const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
+
+      const {
+        servicio_codigo,
+        servicio_tipo,
+        tarifa_fija_1lb,
+        tarifa_fija_2a5,
+        tarifa_fija_6a10,
+        tarifa_por_libra_extra,
+        tarifa_por_libra_cc,
+        porcentaje_seguro,
+        seguro_minimo_usd,
+        aplica_minimo,
+        peso_minimo,
+        tarifa_minima_usd,
+        aplica_peso_maximo,
+        peso_maximo,
+        ...data
+      } = solicitud;
+
+      return {
+        ...data,
+        trm_liquidacion:
+          Number(data.valor_estimado_usd || 0) > 0
+            ? Number(
+                (
+                  Number(data.valor_moneda_local || 0) /
+                  Number(data.valor_estimado_usd || 0)
+                ).toFixed(2)
+              )
+            : 0,
+        flete_usd: calculoFlete.ok ? Number(calculoFlete.fleteUSD.toFixed(2)) : 0,
+        seguro_usd: Number(seguroUSD.toFixed(2)),
+      };
+    });
+
+    return res.json({ ok: true, solicitudes });
   } catch (error) {
     console.error("Error generando reporte de solicitudes:", error);
     return res.status(500).json({
@@ -747,16 +827,10 @@ export const obtenerDetalleSolicitud = async (req, res) => {
     const seguroCalculadoUSD = totalAsegurado * porcentaje;
     const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
 
-    const totalUSD = fleteUSD + seguroUSD;
-
-    const trmQuery = await pool.request().query(`
-      SELECT TOP 1 valor 
-      FROM trm 
-      ORDER BY fecha DESC
-    `);
-
-    const trm = Number(trmQuery.recordset[0]?.valor || 0);
-    const totalCOP = totalUSD * trm;
+    const totalUSDCalculado = fleteUSD + seguroUSD;
+    const totalUSD = Number(solicitudData.valor_estimado_usd || totalUSDCalculado || 0);
+    const totalCOP = Number(solicitudData.valor_moneda_local || 0);
+    const trm = totalUSD > 0 ? Number((totalCOP / totalUSD).toFixed(2)) : 0;
 
     const totalCargosUSD = cargos.recordset.reduce(
       (sum, c) => sum + Number(c.valor_usd || 0),
@@ -898,16 +972,10 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
     const seguroCalculadoUSD = totalAsegurado * porcentaje;
     const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
 
-    const totalUSD = fleteUSD + seguroUSD;
-
-    const trmQuery = await pool.request().query(`
-      SELECT TOP 1 valor 
-      FROM trm 
-      ORDER BY fecha DESC
-    `);
-
-    const trm = Number(trmQuery.recordset[0]?.valor || 0);
-    const totalCOP = totalUSD * trm;
+    const totalUSDCalculado = fleteUSD + seguroUSD;
+    const totalUSD = Number(solicitud.valor_estimado_usd || totalUSDCalculado || 0);
+    const totalCOP = Number(solicitud.valor_moneda_local || 0);
+    const trm = totalUSD > 0 ? Number((totalCOP / totalUSD).toFixed(2)) : 0;
 
     const totalCargosUSD = cargos.recordset.reduce(
       (sum, c) => sum + Number(c.valor_usd || 0),
