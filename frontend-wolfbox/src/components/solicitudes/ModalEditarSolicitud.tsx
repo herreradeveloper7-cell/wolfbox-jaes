@@ -28,6 +28,7 @@ export default function ModalEditarSolicitud({
 
       setDetalle(data.paquetes || []);
       setCargos(data.cargos || []);
+      setTrm(Number(data.solicitud?.trm || 0));
 
       setDestinatarioSeleccionado(data.solicitud?.destinatario ?? null);
 
@@ -57,9 +58,6 @@ export default function ModalEditarSolicitud({
         "/api/solicitudes/catalogo/cargos"
       );
       setCatalogoCargos(catalogo.data);
-
-      const trmData = await axios.get(`/api/trm/actual`);
-      setTrm(Number(trmData.data.valor));
     } catch (err) {
       console.error(err);
       Swal.fire("Error", "No se pudo obtener la información.", "error");
