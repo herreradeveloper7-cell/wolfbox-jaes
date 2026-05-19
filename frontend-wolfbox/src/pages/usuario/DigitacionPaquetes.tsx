@@ -26,6 +26,9 @@ export default function DigitacionPaquetes() {
     const [clienteInput, setClienteInput] = useState("");
     const [clientesSugeridos, setClientesSugeridos] = useState<any[]>([]);
     const [usuariosSugeridos, setUsuariosSugeridos] = useState<any[]>([]);
+    const [tiendasCatalogo, setTiendasCatalogo] = useState<string[]>([]);
+    const [tiendasSugeridas, setTiendasSugeridas] = useState<string[]>([]);
+    const [mostrarTiendasSugeridas, setMostrarTiendasSugeridas] = useState(false);
     const [clienteNoExiste, setClienteNoExiste] = useState(false);
     const [filtrosBusqueda, setFiltrosBusqueda] = useState({
       trackingHawb: "",
@@ -171,6 +174,8 @@ export default function DigitacionPaquetes() {
     const limpiarFormulario = () => {
       setClienteInput("");
       setClientesSugeridos([]);
+      setTiendasSugeridas([]);
+      setMostrarTiendasSugeridas(false);
       setClienteNoExiste(false);
       setTrackingExistente(false);
       setReferenciaExistente(false);
@@ -326,6 +331,7 @@ export default function DigitacionPaquetes() {
       }
     
       cargarPaquetes(); 
+      cargarTiendas();
 
       const ahora = new Date();
       const fecha = ahora.toISOString().slice(0, 10);
@@ -352,6 +358,40 @@ export default function DigitacionPaquetes() {
       } catch (error) {
         console.error("❌ Error cargando paquetes:", error);
       }
+    };
+
+    const cargarTiendas = async () => {
+      try {
+        const res = await fetch("/api/guias/tiendas");
+        const data = await res.json();
+
+        if (data.ok) {
+          const tiendas = (data.tiendas || [])
+            .map((item: any) => item.tienda?.trim())
+            .filter(Boolean);
+
+          setTiendasCatalogo(tiendas);
+        }
+      } catch (error) {
+        console.error("Error cargando tiendas:", error);
+      }
+    };
+
+    const buscarTiendasSugeridas = (texto: string) => {
+      const busqueda = texto.trim().toLowerCase();
+
+      if (busqueda.length < 2) {
+        setTiendasSugeridas([]);
+        setMostrarTiendasSugeridas(false);
+        return;
+      }
+
+      const sugerencias = tiendasCatalogo
+        .filter((tienda) => tienda.toLowerCase().includes(busqueda))
+        .slice(0, 8);
+
+      setTiendasSugeridas(sugerencias);
+      setMostrarTiendasSugeridas(sugerencias.length > 0);
     };
 
     const validarPesoContraServicio = (servicioId: any, peso: number) => {
@@ -982,6 +1022,7 @@ export default function DigitacionPaquetes() {
                           value={clienteInput}
                           onChange={(e) => {
                             setClienteInput(e.target.value);
+                            setPaqueteFila((prev: any) => ({ ...prev, destinatario_id: "" }));
                             setErroresCampos(prev => ({ ...prev, cliente: false }));
                           }}
                           className={`w-full px-3 py-2 rounded-xl text-sm bg-white shadow-sm transition
@@ -1007,6 +1048,7 @@ export default function DigitacionPaquetes() {
                                 key={index}
                                 onClick={() => {
                                   setClienteInput(`${cliente.codigo_referencia} - ${cliente.nombre}`);
+                                  setPaqueteFila((prev: any) => ({ ...prev, destinatario_id: "" }));
                                   setClientesSugeridos([]);
                                 }}
                                 className="px-4 py-2 cursor-pointer hover:bg-red-50 transition-all duration-150 hover:pl-5"
@@ -1055,27 +1097,64 @@ export default function DigitacionPaquetes() {
                           Tienda *
                         </label>
 
-                        <input
-                          type="text"
-                          className={`w-full sm:w-[190px] px-3 py-2 rounded-xl text-sm bg-white shadow-sm transition border ${
-                            erroresCampos.tienda
-                              ? "border-red-500 focus:ring-2 focus:ring-red-500/30"
-                              : "border-gray-300 focus:ring-2 focus:ring-red-900/20 focus:border-red-900 hover:border-gray-400"
-                          } focus:outline-none`}
-                          value={paqueteFila.tienda}
-                          onChange={(e) => {
-                            setPaqueteFila({ ...paqueteFila, tienda: e.target.value });
-                            setErroresCampos(prev => ({ ...prev, tienda: false }));
-                          }}
-                          placeholder="Tienda"
-                          key={modoEdicion ? 'edit-tienda' : 'create-tienda'}
-                        />
+                        <div className="relative w-full sm:w-[190px]">
+                          <input
+                            type="text"
+                            className={`w-full px-3 py-2 rounded-xl text-sm bg-white shadow-sm transition border ${
+                              erroresCampos.tienda
+                                ? "border-red-500 focus:ring-2 focus:ring-red-500/30"
+                                : "border-gray-300 focus:ring-2 focus:ring-red-900/20 focus:border-red-900 hover:border-gray-400"
+                            } focus:outline-none`}
+                            value={paqueteFila.tienda}
+                            onChange={(e) => {
+                              const valor = e.target.value;
+                              setPaqueteFila({ ...paqueteFila, tienda: valor });
+                              setErroresCampos(prev => ({ ...prev, tienda: false }));
+                              buscarTiendasSugeridas(valor);
+                            }}
+                            onFocus={() => buscarTiendasSugeridas(paqueteFila.tienda)}
+                            onBlur={() => {
+                              setTimeout(() => setMostrarTiendasSugeridas(false), 150);
+                            }}
+                            placeholder="Tienda"
+                            key={modoEdicion ? 'edit-tienda' : 'create-tienda'}
+                            autoComplete="off"
+                          />
 
-                        {erroresCampos.tienda && (
-                          <span className="sm:ml-[124px] text-xs text-red-500">
-                            Debes ingresar la tienda
-                          </span>
-                        )}
+                          {mostrarTiendasSugeridas && tiendasSugeridas.length > 0 && (
+                            <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[240px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+                              <div className="border-b border-gray-100 bg-gray-50 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-red-900">
+                                Tiendas sugeridas
+                              </div>
+
+                              {tiendasSugeridas.map((tienda) => (
+                                <button
+                                  type="button"
+                                  key={tienda}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    setPaqueteFila({ ...paqueteFila, tienda });
+                                    setErroresCampos(prev => ({ ...prev, tienda: false }));
+                                    setTiendasSugeridas([]);
+                                    setMostrarTiendasSugeridas(false);
+                                  }}
+                                  className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-sm font-semibold text-gray-800 transition-all duration-150 hover:bg-red-50 hover:pl-5 hover:text-red-900"
+                                >
+                                  <span className="truncate">{tienda}</span>
+                                  <span className="rounded-full bg-red-900/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-900">
+                                    BD
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {erroresCampos.tienda && (
+                            <span className="mt-1 block text-xs text-red-500">
+                              Debes ingresar la tienda
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
