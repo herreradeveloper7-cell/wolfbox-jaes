@@ -334,7 +334,6 @@ export const buscarCliente = async (req, res) => {
 
     return res.json({ ok: true, clientes: result.recordset });
   } catch (error) {
-    console.error("❌ Error al buscar cliente:", error);
     return res.status(500).json({ ok: false, mensaje: error.message });
   }
 };

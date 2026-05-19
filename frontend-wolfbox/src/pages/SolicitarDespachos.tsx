@@ -271,7 +271,7 @@ export default function SolicitarDespachos() {
               <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-950">
                 Centro de despacho
               </p>
-              <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
+              <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-600">
                 Buscar cliente
               </h2>
             </div>
