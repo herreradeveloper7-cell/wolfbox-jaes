@@ -802,16 +802,10 @@ export const obtenerDetalleSolicitud = async (req, res) => {
     const seguroCalculadoUSD = totalAsegurado * porcentaje;
     const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
 
-    const totalUSD = fleteUSD + seguroUSD;
-
-    const trmQuery = await pool.request().query(`
-      SELECT TOP 1 valor 
-      FROM trm 
-      ORDER BY fecha DESC
-    `);
-
-    const trm = Number(trmQuery.recordset[0]?.valor || 0);
-    const totalCOP = totalUSD * trm;
+    const totalUSDCalculado = fleteUSD + seguroUSD;
+    const totalUSD = Number(solicitudData.valor_estimado_usd || totalUSDCalculado || 0);
+    const totalCOP = Number(solicitudData.valor_moneda_local || 0);
+    const trm = totalUSD > 0 ? Number((totalCOP / totalUSD).toFixed(2)) : 0;
 
     const totalCargosUSD = cargos.recordset.reduce(
       (sum, c) => sum + Number(c.valor_usd || 0),
@@ -953,16 +947,10 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
     const seguroCalculadoUSD = totalAsegurado * porcentaje;
     const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
 
-    const totalUSD = fleteUSD + seguroUSD;
-
-    const trmQuery = await pool.request().query(`
-      SELECT TOP 1 valor 
-      FROM trm 
-      ORDER BY fecha DESC
-    `);
-
-    const trm = Number(trmQuery.recordset[0]?.valor || 0);
-    const totalCOP = totalUSD * trm;
+    const totalUSDCalculado = fleteUSD + seguroUSD;
+    const totalUSD = Number(solicitud.valor_estimado_usd || totalUSDCalculado || 0);
+    const totalCOP = Number(solicitud.valor_moneda_local || 0);
+    const trm = totalUSD > 0 ? Number((totalCOP / totalUSD).toFixed(2)) : 0;
 
     const totalCargosUSD = cargos.recordset.reduce(
       (sum, c) => sum + Number(c.valor_usd || 0),
