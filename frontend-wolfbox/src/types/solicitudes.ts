@@ -13,6 +13,8 @@ export interface Solicitud {
   hawbs_agrupados?: string | null;
   hawbs_normales?: string | null;
   guia_agrupada?: string | null;
+  comprobante_pago_url?: string | null;
+  comprobante?: string | null;
 
 }
 
