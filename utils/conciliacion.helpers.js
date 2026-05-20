@@ -22,7 +22,7 @@ export const buildConciliacionQuery = ({ fechaInicio, fechaFin, cliente, solicit
       END AS trm,
 
       s.estado AS estado_paquete,
-      s.comprobante
+      COALESCE(s.comprobante_pago_url, s.comprobante) AS comprobante
 
   FROM solicitudes s
 
