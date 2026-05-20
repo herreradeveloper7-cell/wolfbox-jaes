@@ -152,7 +152,7 @@ export default function ConciliacionPago() {
         Swal.fire({
         icon: "error",
         title: "Error",
-        text: "No se pudo subir el comprobante"
+        text: error instanceof Error ? error.message : "No se pudo subir el comprobante"
         });
     }
     };

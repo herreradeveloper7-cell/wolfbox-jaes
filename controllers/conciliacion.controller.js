@@ -1,5 +1,23 @@
 import { poolPromise, sql } from "../config/db.js";
 import { buildConciliacionQuery } from "../utils/conciliacion.helpers.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const eliminarArchivoComprobante = (rutaRelativa) => {
+  if (!rutaRelativa || !String(rutaRelativa).startsWith("/uploads/comprobantes/")) {
+    return;
+  }
+
+  const filePath = path.join(__dirname, "..", rutaRelativa);
+
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+};
 
 export const buscarConciliacion = async (req, res) => {
   try {
@@ -197,9 +215,31 @@ export const subirComprobante = async (req, res) => {
       });
     }
 
-    const rutaArchivo = `http://localhost:3000/uploads/comprobantes/${req.file.filename}`;
-
     const pool = await poolPromise;
+
+    const existente = await pool
+      .request()
+      .input("id", sql.Int, id)
+      .query(`
+        SELECT comprobante_pago_url, comprobante
+        FROM solicitudes
+        WHERE id = @id
+      `);
+
+    if (!existente.recordset.length) {
+      eliminarArchivoComprobante(`/uploads/comprobantes/${req.file.filename}`);
+      return res.status(404).json({ mensaje: "Solicitud no encontrada." });
+    }
+
+    const comprobanteActual =
+      existente.recordset[0].comprobante_pago_url || existente.recordset[0].comprobante;
+
+    if (comprobanteActual) {
+      const rutaAnterior = String(comprobanteActual).replace(/^https?:\/\/[^/]+/i, "");
+      eliminarArchivoComprobante(rutaAnterior);
+    }
+
+    const rutaArchivo = `/uploads/comprobantes/${req.file.filename}`;
     const request = pool.request();
 
     request.input("id", sql.Int, id);
@@ -207,7 +247,8 @@ export const subirComprobante = async (req, res) => {
 
     await request.query(`
       UPDATE solicitudes
-      SET comprobante = @comprobante
+      SET comprobante_pago_url = @comprobante,
+          comprobante = @comprobante
       WHERE id = @id
     `);
 
@@ -222,5 +263,49 @@ export const subirComprobante = async (req, res) => {
     res.status(500).json({
       mensaje: "Error al subir comprobante"
     });
+  }
+};
+
+export const descargarComprobante = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pool = await poolPromise;
+
+    const result = await pool
+      .request()
+      .input("id", sql.Int, id)
+      .query(`
+        SELECT comprobante_pago_url, comprobante
+        FROM solicitudes
+        WHERE id = @id
+      `);
+
+    if (!result.recordset.length) {
+      return res.status(404).json({ mensaje: "Solicitud no encontrada." });
+    }
+
+    const comprobante =
+      result.recordset[0].comprobante_pago_url || result.recordset[0].comprobante;
+
+    if (!comprobante) {
+      return res.status(404).json({ mensaje: "La solicitud no tiene comprobante cargado." });
+    }
+
+    const rutaRelativa = String(comprobante).replace(/^https?:\/\/[^/]+/i, "");
+
+    if (!rutaRelativa.startsWith("/uploads/comprobantes/")) {
+      return res.status(400).json({ mensaje: "Ruta de comprobante no valida." });
+    }
+
+    const filePath = path.join(__dirname, "..", rutaRelativa);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ mensaje: "No se encontro el archivo del comprobante." });
+    }
+
+    return res.download(filePath);
+  } catch (error) {
+    console.error("Error descargando comprobante:", error);
+    return res.status(500).json({ mensaje: "Error descargando comprobante." });
   }
 };

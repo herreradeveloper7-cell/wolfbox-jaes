@@ -53,6 +53,52 @@ export default function TablaConciliacionPagos({
     return new Date(fecha).toLocaleDateString("es-CO");
   };
 
+  const descargarComprobante = async (solicitudId: number) => {
+    try {
+      const response = await fetch(`/api/conciliacion/comprobante/${solicitudId}`);
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.mensaje || "No se pudo descargar el comprobante");
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get("content-disposition") || "";
+      const match = contentDisposition.match(/filename="?([^"]+)"?/i);
+      const fileName = match?.[1] || `comprobante-${solicitudId}`;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      Swal.fire("Error", error.message || "No se pudo descargar el comprobante", "error");
+    }
+  };
+
+  const seleccionarArchivo = (
+    solicitudId: number,
+    file?: File
+  ) => {
+    if (!file) return;
+
+    const tiposPermitidos = ["image/jpeg", "image/png", "application/pdf"];
+
+    if (!tiposPermitidos.includes(file.type)) {
+      Swal.fire("Archivo no valido", "Solo se permiten archivos JPG, PNG o PDF.", "warning");
+      return;
+    }
+
+    setFiles((prev) => ({
+      ...prev,
+      [solicitudId]: file,
+    }));
+  };
+
 
 
 
@@ -155,22 +201,18 @@ export default function TablaConciliacionPagos({
                     {sol.comprobante ? (
                       <div className="flex flex-col items-center gap-2">
                         <button
-                          onClick={() => window.open(sol.comprobante, "_blank")}
+                          onClick={() => descargarComprobante(sol.solicitud_id)}
                           className="rounded-xl bg-gradient-to-r from-green-700 to-green-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md transition hover:scale-105 hover:from-green-600 hover:to-green-500"
                         >
                           Ver comprobante
                         </button>
 
-                        <a
-                          href={sol.comprobante}
-                          download
-                          className="text-xs font-bold text-red-950 hover:underline"
-                        >
-                          Descargar
-                        </a>
-
                         <button
-                          onClick={() => setOpenUploadId(sol.solicitud_id)}
+                          onClick={() =>
+                            setOpenUploadId(
+                              openUploadId === sol.solicitud_id ? null : sol.solicitud_id
+                            )
+                          }
                           className="text-xs font-bold text-gray-500 transition hover:text-red-950"
                         >
                           Reemplazar
@@ -179,7 +221,9 @@ export default function TablaConciliacionPagos({
                     ) : (
                       <button
                         onClick={() =>
-                          setOpenUploadId(openUploadId === index ? null : index)
+                          setOpenUploadId(
+                            openUploadId === sol.solicitud_id ? null : sol.solicitud_id
+                          )
                         }
                         className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-gray-700 to-gray-600 shadow-md transition hover:scale-105 hover:from-red-950 hover:to-red-900"
                         title="Subir comprobante"
@@ -188,19 +232,15 @@ export default function TablaConciliacionPagos({
                       </button>
                     )}
 
-                    {openUploadId === index && (
+                    {openUploadId === sol.solicitud_id && (
                       <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-3 shadow-sm">
                         <input
                           type="file"
+                          accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
                           className="w-full text-xs font-semibold text-gray-600"
-                          onChange={(e) => {
-                            if (e.target.files?.length) {
-                              setFiles((prev) => ({
-                                ...prev,
-                                [sol.solicitud_id]: e.target.files![0],
-                              }));
-                            }
-                          }}
+                          onChange={(e) =>
+                            seleccionarArchivo(sol.solicitud_id, e.target.files?.[0])
+                          }
                         />
 
                         <button
@@ -220,7 +260,7 @@ export default function TablaConciliacionPagos({
                           }}
                           className="mt-2 w-full rounded-lg bg-gradient-to-r from-green-700 to-green-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:from-green-600 hover:to-green-500"
                         >
-                          Guardar
+                          {sol.comprobante ? "Reemplazar" : "Guardar"}
                         </button>
                       </div>
                     )}

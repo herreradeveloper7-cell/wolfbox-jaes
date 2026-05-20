@@ -46,9 +46,23 @@ export default function SolicitudesRealizadasTabla({
   };
 
   const actionButton =
-    "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md";
+    "inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md";
   const statusIconBase =
-    "inline-flex h-9 w-9 items-center justify-center rounded-xl border shadow-sm transition";
+    "inline-flex h-8 w-8 items-center justify-center rounded-lg border shadow-sm transition";
+
+  const formatearFecha = (fecha: string) => {
+    const date = new Date(fecha);
+
+    if (Number.isNaN(date.getTime())) return "-";
+
+    return date
+      .toLocaleDateString("es-CO", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+      .replace(/\sde\s/g, " ");
+  };
 
   const renderHawbs = (solicitud: Solicitud) => {
     const texto = solicitud.guia_agrupada
@@ -81,19 +95,30 @@ export default function SolicitudesRealizadasTabla({
         </div>
       </div>
 
-      <div className="w-full max-w-full overflow-x-auto">
-        <table className="min-w-[1060px] w-full border-collapse">
-          <thead className="bg-gradient-to-r from-gray-100 to-gray-50 text-xs uppercase font-black tracking-[0.16em] text-gray-600">
+      <div className="w-full max-w-full overflow-x-auto scrollbar-thin">
+        <table className="w-full min-w-[980px] table-fixed border-collapse">
+          <colgroup>
+            <col className="w-[136px]" />
+            <col className="w-[104px]" />
+            <col className="w-[92px]" />
+            <col className="w-[112px]" />
+            <col className="w-[160px]" />
+            <col className="w-[160px]" />
+            <col className="w-[220px]" />
+            <col className="w-[96px]" />
+            <col className="w-[110px]" />
+          </colgroup>
+          <thead className="bg-gradient-to-r from-gray-100 to-gray-50 text-[11px] uppercase font-black tracking-[0.14em] text-gray-600">
             <tr>
-              <th className="px-4 py-3 text-center">Opciones</th>
-              <th className="px-4 py-3 text-left"># Solicitud</th>
-              <th className="px-4 py-3 text-center">Control</th>
-              <th className="px-4 py-3 text-left">Fecha</th>
-              <th className="px-4 py-3 text-left">Destinatario</th>
-              <th className="px-4 py-3 text-left">Guia agrupada</th>
-              <th className="px-4 py-3 text-left">HAWB agregados</th>
-              <th className="px-4 py-3 text-center">Paquetes</th>
-              <th className="px-4 py-3 text-center">Peso Total (lb)</th>
+              <th className="px-3 py-3 text-center">Opciones</th>
+              <th className="px-3 py-3 text-left"># Solicitud</th>
+              <th className="px-3 py-3 text-center">Control</th>
+              <th className="px-3 py-3 text-left">Fecha</th>
+              <th className="px-3 py-3 text-left">Destinatario</th>
+              <th className="px-3 py-3 text-left">Guia agrupada</th>
+              <th className="px-3 py-3 text-left">HAWB agregados</th>
+              <th className="px-3 py-3 text-center">Paquetes</th>
+              <th className="px-3 py-3 text-center">Peso total</th>
             </tr>
           </thead>
 
@@ -108,14 +133,14 @@ export default function SolicitudesRealizadasTabla({
 
                 return (
                 <tr key={s.id} className="transition-all duration-200 hover:bg-red-50/50">
-                  <td className="px-4 py-3 text-center align-middle">
-                    <div className="flex items-center justify-center gap-2">
+                  <td className="px-3 py-3 text-center align-middle">
+                    <div className="flex items-center justify-center gap-1.5">
                       <button
                         onClick={() => confirmarEliminacion(s)}
                         title="Eliminar solicitud"
                         className={`${actionButton} hover:border-red-200 hover:bg-red-50`}
                       >
-                        <img src={iconTrash} alt="Eliminar" className="h-4 w-4 opacity-80" />
+                        <img src={iconTrash} alt="Eliminar" className="h-3.5 w-3.5 opacity-80" />
                       </button>
 
                       <button
@@ -123,7 +148,7 @@ export default function SolicitudesRealizadasTabla({
                         title="Ver detalle"
                         className={`${actionButton} hover:border-slate-300 hover:bg-slate-50`}
                       >
-                        <img src={iconOptions} alt="Ver detalle" className="h-4 w-4 opacity-80" />
+                        <img src={iconOptions} alt="Ver detalle" className="h-3.5 w-3.5 opacity-80" />
                       </button>
 
                       <button
@@ -139,7 +164,7 @@ export default function SolicitudesRealizadasTabla({
                         title="Imprimir preliquidacion"
                         className={`${actionButton} hover:border-blue-200 hover:bg-blue-50`}
                       >
-                        <img src={iconPrinter} alt="Imprimir" className="h-4 w-4 opacity-80" />
+                        <img src={iconPrinter} alt="Imprimir" className="h-3.5 w-3.5 opacity-80" />
                       </button>
 
                       <button
@@ -147,17 +172,17 @@ export default function SolicitudesRealizadasTabla({
                         title="Editar solicitud"
                         className={`${actionButton} hover:border-amber-200 hover:bg-amber-50`}
                       >
-                        <img src={iconEdit} alt="Editar" className="h-4 w-4 opacity-80" />
+                        <img src={iconEdit} alt="Editar" className="h-3.5 w-3.5 opacity-80" />
                       </button>
                     </div>
                   </td>
 
-                  <td className="px-4 py-3 font-mono font-black text-red-950">
+                  <td className="px-3 py-3 font-mono text-sm font-black text-red-950">
                     #{s.id}
                   </td>
 
-                  <td className="px-4 py-3 text-center align-middle">
-                    <div className="flex items-center justify-center gap-2">
+                  <td className="px-3 py-3 text-center align-middle">
+                    <div className="flex items-center justify-center gap-1.5">
                       <span
                         title={
                           tieneComprobante
@@ -170,7 +195,7 @@ export default function SolicitudesRealizadasTabla({
                             : "border-gray-200 bg-gray-50 text-gray-400"
                         }`}
                       >
-                        <ReceiptText size={18} strokeWidth={2.4} />
+                        <ReceiptText size={16} strokeWidth={2.4} />
                       </span>
 
                       <span
@@ -185,46 +210,44 @@ export default function SolicitudesRealizadasTabla({
                             : "border-gray-200 bg-gray-50 text-gray-400"
                         }`}
                       >
-                        <BadgeCheck size={18} strokeWidth={2.4} />
+                        <BadgeCheck size={16} strokeWidth={2.4} />
                       </span>
                     </div>
                   </td>
 
-                  <td className="px-4 py-3 font-semibold text-gray-700">
-                    {new Date(s.fecha).toLocaleDateString("es-CO", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })}
+                  <td className="whitespace-nowrap px-3 py-3 text-sm font-semibold text-gray-700">
+                    {formatearFecha(s.fecha)}
                   </td>
 
-                  <td className="px-4 py-3 font-semibold text-gray-700">
-                    {s.destinatario_nombre || "-"}
+                  <td className="px-3 py-3 text-sm font-semibold text-gray-700">
+                    <span className="block truncate" title={s.destinatario_nombre || "-"}>
+                      {s.destinatario_nombre || "-"}
+                    </span>
                   </td>
 
-                  <td className="px-4 py-3 font-semibold text-gray-700">
+                  <td className="px-3 py-3 font-semibold text-gray-700">
                     {s.guia_agrupada ? (
-                      <span className="rounded-full border border-red-900/10 bg-red-50 px-3 py-1 font-mono text-xs font-black text-red-950">
-                        {s.guia_agrupada}
+                      <span className="inline-flex max-w-full rounded-full border border-red-900/10 bg-red-50 px-2.5 py-1 font-mono text-[11px] font-black text-red-950">
+                        <span className="truncate">{s.guia_agrupada}</span>
                       </span>
                     ) : (
-                      "-"
+                      <span className="text-gray-400">-</span>
                     )}
                   </td>
 
-                  <td className="px-4 py-3 text-xs leading-relaxed text-gray-700">
-                    <div className="max-h-28 min-w-[190px] overflow-y-auto rounded-xl border border-gray-100 bg-slate-50/70 px-3 py-2">
+                  <td className="px-3 py-3 text-xs leading-relaxed text-gray-700">
+                    <div className="max-h-20 overflow-y-auto rounded-xl border border-gray-100 bg-slate-50/70 px-3 py-2 font-mono">
                       {renderHawbs(s)}
                     </div>
                   </td>
 
-                  <td className="px-4 py-3 text-center text-gray-700">
-                    <span className="inline-flex min-w-10 justify-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-black">
+                  <td className="px-3 py-3 text-center text-gray-700">
+                    <span className="inline-flex min-w-9 justify-center rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-black">
                       {s.cantidadPaquetes ?? 0}
                     </span>
                   </td>
 
-                  <td className="px-4 py-3 text-center font-semibold text-gray-700">
+                  <td className="whitespace-nowrap px-3 py-3 text-center text-sm font-semibold text-gray-700">
                     {Number(s.pesoTotal || 0).toFixed(2)}
                   </td>
                 </tr>
