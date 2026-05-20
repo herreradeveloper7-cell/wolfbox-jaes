@@ -6,6 +6,10 @@ import PDFDocument from "pdfkit";
 import bwipjs from "bwip-js";
 import { fileURLToPath } from "url";
 import { drawLogoJaesCargo } from "../utils/pdf.helpers.js";
+import {
+  enviarEmailDesdePlantilla,
+  obtenerPlantillaEmailPorEvento,
+} from "../utils/email.service.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -67,6 +71,343 @@ const calcularFleteServicio = (servicio, pesoTotal) => {
     fleteUSD: 0,
   };
 };
+
+const WHATSAPP_SERVICIO = "+57 302 8600369";
+
+const formatCOP = (value) =>
+  Number(value || 0).toLocaleString("es-CO", {
+    style: "currency",
+    currency: "COP",
+  });
+
+const formatUSD = (value) => `$${Number(value || 0).toFixed(2)}`;
+
+const crearPlantillaFallbackSolicitudFacturada = () => ({
+  id: null,
+  email_remitente: process.env.BREVO_DEFAULT_SENDER_EMAIL,
+  asunto: "Solicitud #{{solicitud_id}} disponible para pago en Colombia",
+  cuerpo: `<div style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+  <div style="max-width:560px;margin:0 auto;padding:24px 14px;">
+    <div style="overflow:hidden;border-radius:18px;background:#ffffff;border:1px solid #e5e7eb;box-shadow:0 18px 45px rgba(17,24,39,.12);">
+      <div style="height:5px;background:linear-gradient(90deg,#450a0a,#7f1d1d,#d1d5db);"></div>
+      <div style="padding:22px 24px 24px;">
+        <div style="display:inline-block;border-radius:999px;background:#7f1d1d14;color:#7f1d1d;padding:8px 12px;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;">
+          Wolfbox - JAES Cargo
+        </div>
+        <h1 style="margin:18px 0 8px;font-size:24px;line-height:1.18;color:#111827;">
+          Solicitud disponible para pago
+        </h1>
+        <p style="margin:0 0 14px;color:#4b5563;font-size:14px;line-height:1.6;">
+          Hola <strong>{{cliente_nombre}}</strong>, tu solicitud <strong>#{{solicitud_id}}</strong> ya se encuentra facturada y disponible para pago en Colombia.
+        </p>
+        <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">
+          Por favor realiza el pago y responde a este mismo correo con el comprobante. Tambien puedes enviarlo por WhatsApp a <strong>{{whatsapp_servicio}}</strong>.
+        </p>
+        <p style="margin:16px 0 0;color:#6b7280;font-size:12px;line-height:1.5;">
+          Adjuntamos el PDF de la solicitud de envio para revisar el detalle del cobro.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>`,
+});
+
+const obtenerSolicitudParaCobro = async (pool, solicitudId) => {
+  const solicitudQuery = await pool
+    .request()
+    .input("id", sql.Int, solicitudId)
+    .query(`
+      SELECT
+        s.id,
+        s.fecha,
+        s.estado,
+        s.valor_estimado_usd,
+        s.valor_moneda_local,
+        s.servicio_id,
+        CASE
+          WHEN LOWER(ISNULL(c.tipo_cliente, '')) = 'empresarial' THEN
+            COALESCE(NULLIF(c.nombre_empresa, ''), CONCAT(c.primer_nombre, ' ', c.primer_apellido))
+          ELSE
+            RTRIM(
+              ISNULL(c.primer_nombre, '') + ' ' +
+              ISNULL(c.segundo_nombre + ' ', '') +
+              ISNULL(c.primer_apellido, '') + ' ' +
+              ISNULL(c.segundo_apellido, '')
+            )
+        END AS cliente_nombre,
+        c.correo AS cliente_correo,
+        c.codigo_referencia AS codigoCasillero,
+        d.nombre AS destinatario_nombre,
+        d.ciudad AS destinatario_ciudad,
+        d.direccion AS destinatario_direccion,
+        d.telefono AS destinatario_telefono
+      FROM solicitudes s
+      LEFT JOIN clientes c ON s.cliente_id = c.id
+      LEFT JOIN destinatarios d ON s.destinatario = d.id
+      WHERE s.id = @id
+    `);
+
+  if (!solicitudQuery.recordset.length) return null;
+
+  const solicitud = solicitudQuery.recordset[0];
+
+  const paquetes = await pool
+    .request()
+    .input("id", sql.Int, solicitudId)
+    .query(`
+      SELECT tracking, hawb, peso, contenido, asegurado
+      FROM paquetes
+      WHERE solicitud_id = @id
+      ORDER BY id ASC
+    `);
+
+  const cargos = await pool
+    .request()
+    .input("id", sql.Int, solicitudId)
+    .query(`
+      SELECT tipo_cargo, valor_usd, valor_cop
+      FROM cargos_adicionales
+      WHERE solicitud_id = @id
+      ORDER BY id ASC
+    `);
+
+  const servicioQuery = await pool
+    .request()
+    .input("id", sql.Int, solicitud.servicio_id)
+    .query(`
+      SELECT
+        nombre AS servicio_nombre,
+        codigo,
+        tipo,
+        tarifa_fija_1lb,
+        tarifa_fija_2a5,
+        tarifa_fija_6a10,
+        tarifa_por_libra_extra,
+        tarifa_por_libra_cc,
+        porcentaje_seguro,
+        seguro_minimo_usd,
+        aplica_minimo,
+        peso_minimo,
+        tarifa_minima_usd,
+        aplica_peso_maximo,
+        peso_maximo
+      FROM servicios
+      WHERE id = @id
+    `);
+
+  const servicio = servicioQuery.recordset[0] || {};
+  const paquetesParaTotales = paquetes.recordset.filter(
+    (p) => !String(p.hawb || "").toUpperCase().endsWith("G")
+  );
+  const totalPeso = paquetesParaTotales.reduce(
+    (sum, p) => sum + Number(p.peso || 0),
+    0
+  );
+  const totalAsegurado = paquetesParaTotales.reduce(
+    (sum, p) => sum + Number(p.asegurado || 0),
+    0
+  );
+  const calculoFlete = calcularFleteServicio(servicio, totalPeso);
+
+  if (!calculoFlete.ok) {
+    const error = new Error(calculoFlete.mensaje);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const porcentaje = Number(servicio.porcentaje_seguro || 0) / 100;
+  const seguroMinimoUSD = Number(servicio.seguro_minimo_usd || 0);
+  const seguroUSD = Math.max(totalAsegurado * porcentaje, seguroMinimoUSD);
+  const fleteUSD = Number(calculoFlete.fleteUSD || 0);
+  const totalUSD = Number(solicitud.valor_estimado_usd || fleteUSD + seguroUSD || 0);
+  const totalCOP = Number(solicitud.valor_moneda_local || 0);
+  const totalCargosUSD = cargos.recordset.reduce(
+    (sum, cargo) => sum + Number(cargo.valor_usd || 0),
+    0
+  );
+  const totalCargosCOP = cargos.recordset.reduce(
+    (sum, cargo) => sum + Number(cargo.valor_cop || 0),
+    0
+  );
+
+  return {
+    ...solicitud,
+    servicio_nombre: servicio.servicio_nombre || "Servicio no especificado",
+    paquetes: paquetes.recordset,
+    cargos: cargos.recordset,
+    seguroUSD,
+    fleteUSD,
+    totalUSD,
+    totalCOP,
+    totalUSDConCargos: totalUSD + totalCargosUSD,
+    totalCOPConCargos: totalCOP + totalCargosCOP,
+    trm: totalUSD > 0 ? Number((totalCOP / totalUSD).toFixed(2)) : 0,
+  };
+};
+
+const generarPdfCobroSolicitud = (solicitud) =>
+  new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: "A4", margin: 38 });
+    const chunks = [];
+
+    doc.on("data", (chunk) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    const pageWidth = doc.page.width;
+    const contentWidth = pageWidth - 76;
+    const red = "#8B0000";
+
+    drawLogoJaesCargo(doc, 44, 38, 92);
+
+    doc
+      .fillColor(red)
+      .font("Helvetica-Bold")
+      .fontSize(20)
+      .text("SOLICITUD DE ENVIO", 280, 46, { align: "right", width: 260 });
+    doc
+      .fillColor("#222222")
+      .fontSize(12)
+      .text(`No. ${solicitud.id}`, 280, 76, { align: "right", width: 260 });
+    doc
+      .font("Helvetica")
+      .fontSize(9)
+      .fillColor("#555555")
+      .text(
+        `Fecha: ${
+          solicitud.fecha ? new Date(solicitud.fecha).toLocaleDateString("es-CO") : "-"
+        }`,
+        280,
+        94,
+        { align: "right", width: 260 }
+      );
+
+    doc
+      .roundedRect(38, 132, contentWidth, 98, 10)
+      .lineWidth(1)
+      .strokeColor("#E5E7EB")
+      .stroke();
+
+    doc
+      .fillColor(red)
+      .font("Helvetica-Bold")
+      .fontSize(9)
+      .text("CLIENTE", 54, 150)
+      .text("DESTINATARIO", 300, 150);
+
+    doc
+      .fillColor("#222222")
+      .font("Helvetica")
+      .fontSize(9)
+      .text(`Nombre: ${solicitud.cliente_nombre || "-"}`, 54, 170, { width: 210 })
+      .text(`Codigo casillero: ${solicitud.codigoCasillero || "-"}`, 54, 186, {
+        width: 210,
+      })
+      .text(`Nombre: ${solicitud.destinatario_nombre || "-"}`, 300, 170, {
+        width: 220,
+      })
+      .text(`Ciudad: ${solicitud.destinatario_ciudad || "-"}`, 300, 186, {
+        width: 220,
+      })
+      .text(`Telefono: ${solicitud.destinatario_telefono || "-"}`, 300, 202, {
+        width: 220,
+      });
+
+    let y = 260;
+    doc.fillColor(red).font("Helvetica-Bold").fontSize(10).text("DETALLE DE PAQUETES", 38, y);
+    y += 18;
+
+    const columns = [
+      { label: "Tracking", x: 38, width: 130 },
+      { label: "HAWB", x: 168, width: 110 },
+      { label: "Contenido", x: 278, width: 140 },
+      { label: "Peso", x: 418, width: 55 },
+      { label: "Asegurado", x: 473, width: 70 },
+    ];
+
+    doc.rect(38, y, contentWidth, 24).fill(red);
+    doc.fillColor("#FFFFFF").font("Helvetica-Bold").fontSize(8);
+    columns.forEach((col) => doc.text(col.label, col.x + 5, y + 8, { width: col.width - 8 }));
+    y += 24;
+
+    doc.font("Helvetica").fontSize(8).fillColor("#333333");
+    solicitud.paquetes.forEach((paquete, index) => {
+      if (y > 680) {
+        doc.addPage();
+        y = 50;
+      }
+
+      if (index % 2 === 0) {
+        doc.rect(38, y, contentWidth, 25).fill("#F9FAFB");
+        doc.fillColor("#333333");
+      }
+
+      doc
+        .text(paquete.tracking || "-", 43, y + 8, { width: 120 })
+        .text(paquete.hawb || "-", 173, y + 8, { width: 100 })
+        .text(paquete.contenido || "-", 283, y + 8, { width: 130 })
+        .text(String(paquete.peso || "0"), 423, y + 8, { width: 45 })
+        .text(formatUSD(paquete.asegurado), 478, y + 8, { width: 60 });
+
+      y += 25;
+    });
+
+    y += 22;
+    if (solicitud.cargos.length) {
+      doc.fillColor(red).font("Helvetica-Bold").fontSize(10).text("CARGOS ADICIONALES", 38, y);
+      y += 18;
+
+      solicitud.cargos.forEach((cargo) => {
+        doc
+          .fillColor("#333333")
+          .font("Helvetica")
+          .fontSize(9)
+          .text(cargo.tipo_cargo || "-", 48, y, { width: 220 })
+          .text(formatUSD(cargo.valor_usd), 300, y, { width: 90 })
+          .text(formatCOP(cargo.valor_cop), 410, y, { width: 120 });
+        y += 16;
+      });
+      y += 14;
+    }
+
+    if (y > 620) {
+      doc.addPage();
+      y = 50;
+    }
+
+    doc
+      .roundedRect(38, y, contentWidth, 142, 10)
+      .fillAndStroke("#FAFAFA", "#E5E7EB");
+    doc.fillColor(red).font("Helvetica-Bold").fontSize(10).text("TOTALES", 54, y + 18);
+    doc
+      .fillColor("#222222")
+      .font("Helvetica")
+      .fontSize(10)
+      .text(`Seguro total (USD): ${formatUSD(solicitud.seguroUSD)}`, 54, y + 40)
+      .text(`Flete (USD): ${formatUSD(solicitud.fleteUSD)}`, 54, y + 58)
+      .text(`Total USD: ${formatUSD(solicitud.totalUSDConCargos)}`, 54, y + 76)
+      .text(`TRM aplicada: ${solicitud.trm}`, 300, y + 40)
+      .text(`Total COP: ${formatCOP(solicitud.totalCOPConCargos)}`, 300, y + 58);
+
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(13)
+      .fillColor(red)
+      .text(`Total final COP: ${formatCOP(solicitud.totalCOPConCargos)}`, 54, y + 104);
+
+    doc
+      .font("Helvetica")
+      .fontSize(8)
+      .fillColor("#6B7280")
+      .text(
+        "Documento generado automaticamente por Wolfbox - JAES Cargo Internacional.",
+        38,
+        780,
+        { align: "center", width: contentWidth }
+      );
+
+    doc.end();
+  });
 
 export const crearSolicitud = async (req, res) => {
   let transaction;
@@ -983,6 +1324,81 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
   } catch (err) {
     console.error("❌ Error en obtenerDatosPDFSolicitud", err);
     res.status(500).json({ error: "Error generando datos para PDF" });
+  }
+};
+
+export const enviarCobroSolicitud = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const solicitudId = Number(req.params.id);
+
+    if (!solicitudId) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: "Solicitud no valida.",
+      });
+    }
+
+    const solicitud = await obtenerSolicitudParaCobro(pool, solicitudId);
+
+    if (!solicitud) {
+      return res.status(404).json({
+        ok: false,
+        mensaje: "Solicitud no encontrada.",
+      });
+    }
+
+    if (!solicitud.cliente_correo) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: "El cliente no tiene correo registrado.",
+      });
+    }
+
+    const plantilla =
+      (await obtenerPlantillaEmailPorEvento("solicitud_facturada")) ||
+      crearPlantillaFallbackSolicitudFacturada();
+
+    const pdfBuffer = await generarPdfCobroSolicitud(solicitud);
+
+    await enviarEmailDesdePlantilla({
+      plantilla,
+      destinatarios: [
+        {
+          email: solicitud.cliente_correo,
+          name: solicitud.cliente_nombre || "Cliente",
+        },
+      ],
+      variables: {
+        cliente_nombre: solicitud.cliente_nombre || "Cliente",
+        codigo_casillero: solicitud.codigoCasillero || "",
+        email: solicitud.cliente_correo,
+        solicitud_id: solicitud.id,
+        total_cop: formatCOP(solicitud.totalCOPConCargos),
+        total_usd: formatUSD(solicitud.totalUSDConCargos),
+        fecha: new Date().toLocaleDateString("es-CO"),
+        whatsapp_servicio: WHATSAPP_SERVICIO,
+      },
+      evento: "solicitud_facturada",
+      adjuntos: [
+        {
+          name: `Solicitud_${solicitud.id}.pdf`,
+          content: pdfBuffer.toString("base64"),
+        },
+      ],
+    });
+
+    return res.json({
+      ok: true,
+      mensaje: "Cobro enviado correctamente al cliente.",
+      destinatario: solicitud.cliente_correo,
+    });
+  } catch (error) {
+    console.error("Error enviando cobro de solicitud:", error);
+    return res.status(error.statusCode || 500).json({
+      ok: false,
+      mensaje: error.message || "Error enviando cobro de solicitud.",
+    });
   }
 };
 

@@ -100,6 +100,10 @@ const variablesDisponibles = [
   "{{peso}}",
   "{{servicio}}",
   "{{consulta_url}}",
+  "{{solicitud_id}}",
+  "{{total_cop}}",
+  "{{total_usd}}",
+  "{{whatsapp_servicio}}",
 ];
 
 const eventosPlantilla = [
@@ -107,7 +111,7 @@ const eventosPlantilla = [
   { value: "recuperacion_password", label: "Recuperacion de contrasena" },
   { value: "apertura_cuenta", label: "Apertura de cuenta" },
   { value: "paquete_digitado", label: "Digitacion de paquete" },
-  { value: "solicitud_creada", label: "Solicitud creada" },
+  { value: "solicitud_facturada", label: "Solicitud facturada" },
   { value: "cambio_estado", label: "Cambio de estado" },
 ];
 
@@ -229,6 +233,51 @@ const plantillaPaqueteDigitado = {
     </div>
     <p style="text-align:center;margin:14px 0 0;color:#9ca3af;font-size:11px;">
       JAES Cargo Internacional · Notificacion automatica
+    </p>
+  </div>
+</div>`,
+};
+
+const plantillaSolicitudFacturada = {
+  nombre: "Solicitud facturada",
+  clave_evento: "solicitud_facturada",
+  asunto: "Solicitud #{{solicitud_id}} disponible para pago en Colombia",
+  cuerpo: `<div style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+  <div style="max-width:560px;margin:0 auto;padding:24px 14px;">
+    <div style="overflow:hidden;border-radius:18px;background:#ffffff;border:1px solid #e5e7eb;box-shadow:0 18px 45px rgba(17,24,39,.12);">
+      <div style="height:5px;background:linear-gradient(90deg,#450a0a,#7f1d1d,#d1d5db);"></div>
+      <div style="padding:22px 24px 24px;">
+        <div style="display:inline-block;border-radius:999px;background:#7f1d1d14;color:#7f1d1d;padding:8px 12px;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;">
+          Wolfbox Â· JAES Cargo
+        </div>
+        <h1 style="margin:18px 0 8px;font-size:24px;line-height:1.18;color:#111827;">
+          Solicitud disponible para pago
+        </h1>
+        <p style="margin:0 0 14px;color:#4b5563;font-size:14px;line-height:1.6;">
+          Hola <strong>{{cliente_nombre}}</strong>, tu solicitud <strong>#{{solicitud_id}}</strong> ya se encuentra facturada y disponible para pago en Colombia.
+        </p>
+        <div style="border-radius:14px;background:#f9fafb;border:1px solid #e5e7eb;padding:14px;margin:14px 0;">
+          <p style="margin:0;color:#374151;font-size:13px;line-height:1.7;">
+            <strong>Solicitud:</strong> #{{solicitud_id}}<br />
+            <strong>Codigo casillero:</strong> {{codigo_casillero}}<br />
+            <strong>Total COP:</strong> {{total_cop}}<br />
+            <strong>Total USD:</strong> {{total_usd}}<br />
+            <strong>Fecha:</strong> {{fecha}}
+          </p>
+        </div>
+        <div style="border-radius:14px;background:#7f1d1d0d;border:1px solid #7f1d1d22;padding:14px;margin:14px 0;">
+          <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">
+            Por favor realiza el pago y responde a este mismo correo con el comprobante. Tambien puedes enviarlo por WhatsApp a nuestro numero de servicio al cliente:
+            <strong>{{whatsapp_servicio}}</strong>.
+          </p>
+        </div>
+        <p style="margin:16px 0 0;color:#6b7280;font-size:12px;line-height:1.5;">
+          Adjuntamos el PDF de la solicitud de envio para que puedas revisar el detalle del cobro.
+        </p>
+      </div>
+    </div>
+    <p style="text-align:center;margin:14px 0 0;color:#9ca3af;font-size:11px;">
+      JAES Cargo Internacional Â· Notificacion automatica
     </p>
   </div>
 </div>`,
@@ -371,6 +420,16 @@ export default function PlantillaComunicacion() {
       setForm((prev) => ({
         ...prev,
         ...plantillaPaqueteDigitado,
+        email_remitente: prev.email_remitente,
+        activo: prev.activo,
+      }));
+      return;
+    }
+
+    if (name === "clave_evento" && value === "solicitud_facturada") {
+      setForm((prev) => ({
+        ...prev,
+        ...plantillaSolicitudFacturada,
         email_remitente: prev.email_remitente,
         activo: prev.activo,
       }));
@@ -663,7 +722,7 @@ export default function PlantillaComunicacion() {
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-red-900">
                   Editor de correo
                 </p>
-                <h2 className="text-xl font-black text-gray-900">
+                <h2 className="text-xl font-black text-gray-700">
                   {modo === "crear" ? "Crear nueva plantilla" : "Editar plantilla"}
                 </h2>
               </div>

@@ -25,6 +25,7 @@
     eliminarComprobantePago,
     agruparSolicitud,
     generarEtiquetaHawbPadre,
+    enviarCobroSolicitud,
     reporteSolicitudes
   } from "../controllers/solicitudes.controller.js";
 
@@ -61,6 +62,7 @@
   router.get("/detalle/:id", validar({ params: idParam() }), obtenerDetalleSolicitud);
 
   router.get("/pdf-data/:id", validar({ params: idParam() }), obtenerDatosPDFSolicitud);
+  router.post("/enviar-cobro/:id", validar({ params: idParam() }), enviarCobroSolicitud);
 
   router.put("/estado/:id", validar({ params: idParam(), body: solicitudSchemas.estado }), actualizarEstadoSolicitud);
   router.delete("/eliminar/:id", validar({ params: idParam() }), eliminarSolicitud);
