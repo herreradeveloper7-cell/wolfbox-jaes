@@ -141,7 +141,7 @@ export default function Transportadoras() {
 
   return (
     <UserDashboardLayout scrollable>
-      <div className="min-w-0 max-w-full overflow-x-hidden px-4 pb-8 text-gray-800 animate-fade-in sm:px-6 lg:px-10">
+      <div className="min-w-0 max-w-full overflow-x-hidden px-4 pb-8 text-gray-600 animate-fade-in sm:px-6 lg:px-10">
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="mb-1 text-3xl font-bold text-red-900">
@@ -164,7 +164,7 @@ export default function Transportadoras() {
             <button
               type="button"
               onClick={cargarDatos}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-900"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-900 cursor-pointer"
             >
               <RefreshCcw size={17} />
               Actualizar
@@ -173,7 +173,7 @@ export default function Transportadoras() {
             <button
               type="button"
               onClick={abrirCrear}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-700 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green-900/15 transition hover:bg-green-800 hover:shadow-xl"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-700 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green-900/15 transition hover:bg-green-800 hover:shadow-xl cursor-pointer"
             >
               <Plus size={18} />
               Crear transportadora
@@ -191,7 +191,7 @@ export default function Transportadoras() {
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">
                   Total
                 </p>
-                <p className="text-2xl font-black text-gray-900">
+                <p className="text-2xl font-black text-gray-700">
                   {transportadoras.length}
                 </p>
               </div>
@@ -207,7 +207,7 @@ export default function Transportadoras() {
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">
                   Activas
                 </p>
-                <p className="text-2xl font-black text-gray-900">{totalActivas}</p>
+                <p className="text-2xl font-black text-gray-700">{totalActivas}</p>
               </div>
             </div>
           </div>
@@ -221,7 +221,7 @@ export default function Transportadoras() {
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">
                   Inhabilitadas
                 </p>
-                <p className="text-2xl font-black text-gray-900">
+                <p className="text-2xl font-black text-gray-700">
                   {transportadoras.length - totalActivas}
                 </p>
               </div>
@@ -234,7 +234,7 @@ export default function Transportadoras() {
 
           <div className="mb-5 flex flex-col gap-2 border-b border-gray-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-black tracking-wide text-gray-800">
+              <h2 className="text-xl font-black tracking-wide text-gray-600">
                 Listado de transportadoras
               </h2>
               <p className="text-xs text-gray-500">
@@ -290,7 +290,7 @@ export default function Transportadoras() {
                               <Truck size={18} />
                             </span>
                             <div>
-                              <p className="font-black text-gray-900">{item.nombre}</p>
+                              <p className="font-black text-gray-700">{item.nombre}</p>
                               <p className="text-xs font-semibold text-gray-500">
                                 NIT: {dato(item.nit)}
                               </p>
@@ -299,7 +299,7 @@ export default function Transportadoras() {
                         </td>
 
                         <td className="border-y border-gray-100 px-4 py-4">
-                          <p className="font-semibold text-gray-800">
+                          <p className="font-semibold text-gray-600">
                             {dato(item.oficina)}
                           </p>
                         </td>
@@ -338,7 +338,7 @@ export default function Transportadoras() {
                             <button
                               type="button"
                               onClick={() => abrirEditar(item)}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-900"
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-900 cursor-pointer"
                             >
                               <Pencil size={14} />
                               Editar
@@ -348,7 +348,7 @@ export default function Transportadoras() {
                               type="button"
                               onClick={() => inhabilitarTransportadora(item)}
                               disabled={!activa}
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-red-900 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-950 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-red-900 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-950 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer"
                             >
                               <Ban size={14} />
                               Inhabilitar
