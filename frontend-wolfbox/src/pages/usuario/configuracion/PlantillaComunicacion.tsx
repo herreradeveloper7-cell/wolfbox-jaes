@@ -104,6 +104,11 @@ const variablesDisponibles = [
   "{{total_cop}}",
   "{{total_usd}}",
   "{{whatsapp_servicio}}",
+  "{{banco_titular}}",
+  "{{banco_nombre}}",
+  "{{banco_cuenta}}",
+  "{{banco_nit}}",
+  "{{banco_llave}}",
 ];
 
 const eventosPlantilla = [
@@ -269,6 +274,18 @@ const plantillaSolicitudFacturada = {
           <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">
             Por favor realiza el pago y responde a este mismo correo con el comprobante. Tambien puedes enviarlo por WhatsApp a nuestro numero de servicio al cliente:
             <strong>{{whatsapp_servicio}}</strong>.
+          </p>
+        </div>
+        <div style="border-radius:14px;background:#f9fafb;border:1px solid #e5e7eb;padding:14px;margin:14px 0;">
+          <p style="margin:0 0 8px;color:#7f1d1d;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">
+            Informacion bancaria
+          </p>
+          <p style="margin:0;color:#374151;font-size:13px;line-height:1.7;">
+            <strong>{{banco_titular}}</strong><br />
+            <strong>{{banco_nombre}}</strong><br />
+            <strong>Cuenta de Ahorros:</strong> {{banco_cuenta}}<br />
+            <strong>NIT:</strong> {{banco_nit}}<br />
+            <strong>Llave:</strong> {{banco_llave}}
           </p>
         </div>
         <p style="margin:16px 0 0;color:#6b7280;font-size:12px;line-height:1.5;">
