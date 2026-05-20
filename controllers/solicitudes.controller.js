@@ -73,6 +73,13 @@ const calcularFleteServicio = (servicio, pesoTotal) => {
 };
 
 const WHATSAPP_SERVICIO = "+57 302 8600369";
+const INFORMACION_BANCARIA = {
+  titular: "JAES CARGO INTERNACIONAL",
+  banco: "Davivienda",
+  cuenta: "1089 0062 3159",
+  nit: "901.935.143-6",
+  llave: "@9019351436",
+};
 
 const formatCOP = (value) =>
   Number(value || 0).toLocaleString("es-CO", {
@@ -103,6 +110,18 @@ const crearPlantillaFallbackSolicitudFacturada = () => ({
         <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">
           Por favor realiza el pago y responde a este mismo correo con el comprobante. Tambien puedes enviarlo por WhatsApp a <strong>{{whatsapp_servicio}}</strong>.
         </p>
+        <div style="border-radius:14px;background:#f9fafb;border:1px solid #e5e7eb;padding:14px;margin:14px 0;">
+          <p style="margin:0 0 8px;color:#7f1d1d;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">
+            Informacion bancaria
+          </p>
+          <p style="margin:0;color:#374151;font-size:13px;line-height:1.7;">
+            <strong>{{banco_titular}}</strong><br />
+            <strong>{{banco_nombre}}</strong><br />
+            <strong>Cuenta de Ahorros:</strong> {{banco_cuenta}}<br />
+            <strong>NIT:</strong> {{banco_nit}}<br />
+            <strong>Llave:</strong> {{banco_llave}}
+          </p>
+        </div>
         <p style="margin:16px 0 0;color:#6b7280;font-size:12px;line-height:1.5;">
           Adjuntamos el PDF de la solicitud de envio para revisar el detalle del cobro.
         </p>
@@ -370,7 +389,7 @@ const generarPdfCobroSolicitud = (solicitud) =>
       y += 14;
     }
 
-    if (y > 620) {
+    if (y > 560) {
       doc.addPage();
       y = 50;
     }
@@ -394,6 +413,35 @@ const generarPdfCobroSolicitud = (solicitud) =>
       .fontSize(13)
       .fillColor(red)
       .text(`Total final COP: ${formatCOP(solicitud.totalCOPConCargos)}`, 54, y + 104);
+
+    y += 164;
+
+    if (y > 650) {
+      doc.addPage();
+      y = 50;
+    }
+
+    doc
+      .roundedRect(38, y, contentWidth, 116, 10)
+      .fillAndStroke("#FFFFFF", "#E5E7EB");
+    doc
+      .fillColor(red)
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .text("INFORMACION BANCARIA", 54, y + 18);
+    doc
+      .fillColor("#222222")
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .text(INFORMACION_BANCARIA.titular, 54, y + 42);
+    doc
+      .font("Helvetica-Bold")
+      .text(INFORMACION_BANCARIA.banco, 54, y + 58);
+    doc
+      .font("Helvetica")
+      .text(`Cuenta de Ahorros: ${INFORMACION_BANCARIA.cuenta}`, 54, y + 74)
+      .text(`NIT: ${INFORMACION_BANCARIA.nit}`, 54, y + 90)
+      .text(`Llave: ${INFORMACION_BANCARIA.llave}`, 300, y + 90);
 
     doc
       .font("Helvetica")
@@ -1378,6 +1426,11 @@ export const enviarCobroSolicitud = async (req, res) => {
         total_usd: formatUSD(solicitud.totalUSDConCargos),
         fecha: new Date().toLocaleDateString("es-CO"),
         whatsapp_servicio: WHATSAPP_SERVICIO,
+        banco_titular: INFORMACION_BANCARIA.titular,
+        banco_nombre: INFORMACION_BANCARIA.banco,
+        banco_cuenta: INFORMACION_BANCARIA.cuenta,
+        banco_nit: INFORMACION_BANCARIA.nit,
+        banco_llave: INFORMACION_BANCARIA.llave,
       },
       evento: "solicitud_facturada",
       adjuntos: [
