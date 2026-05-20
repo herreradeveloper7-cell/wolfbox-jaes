@@ -4,6 +4,7 @@ import iconTrash from "../../assets/trash-svgrepo-com.svg";
 import iconEdit from "../../assets/pencil-edit-button-svgrepo-com.svg";
 import iconOptions from "../../assets/detail-interface-list-svgrepo-com.svg";
 import iconPrinter from "../../assets/printer-free-6-svgrepo-com.svg";
+import { BadgeCheck, ReceiptText } from "lucide-react";
 
 interface Props {
   solicitudes: Solicitud[];
@@ -46,6 +47,8 @@ export default function SolicitudesRealizadasTabla({
 
   const actionButton =
     "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md";
+  const statusIconBase =
+    "inline-flex h-9 w-9 items-center justify-center rounded-xl border shadow-sm transition";
 
   const renderHawbs = (solicitud: Solicitud) => {
     const texto = solicitud.guia_agrupada
@@ -79,11 +82,12 @@ export default function SolicitudesRealizadasTabla({
       </div>
 
       <div className="w-full max-w-full overflow-x-auto">
-        <table className="min-w-[980px] w-full border-collapse">
+        <table className="min-w-[1060px] w-full border-collapse">
           <thead className="bg-gradient-to-r from-gray-100 to-gray-50 text-xs uppercase font-black tracking-[0.16em] text-gray-600">
             <tr>
               <th className="px-4 py-3 text-center">Opciones</th>
               <th className="px-4 py-3 text-left"># Solicitud</th>
+              <th className="px-4 py-3 text-center">Control</th>
               <th className="px-4 py-3 text-left">Fecha</th>
               <th className="px-4 py-3 text-left">Destinatario</th>
               <th className="px-4 py-3 text-left">Guia agrupada</th>
@@ -95,7 +99,14 @@ export default function SolicitudesRealizadasTabla({
 
           <tbody className="divide-y divide-gray-100">
             {solicitudesFiltradas.length > 0 ? (
-              solicitudesFiltradas.map((s) => (
+              solicitudesFiltradas.map((s) => {
+                const tieneComprobante = Boolean(
+                  s.comprobante_pago_url || s.comprobante
+                );
+                const estaAutorizada =
+                  String(s.estado || "").trim().toLowerCase() === "autorizado";
+
+                return (
                 <tr key={s.id} className="transition-all duration-200 hover:bg-red-50/50">
                   <td className="px-4 py-3 text-center align-middle">
                     <div className="flex items-center justify-center gap-2">
@@ -145,6 +156,40 @@ export default function SolicitudesRealizadasTabla({
                     #{s.id}
                   </td>
 
+                  <td className="px-4 py-3 text-center align-middle">
+                    <div className="flex items-center justify-center gap-2">
+                      <span
+                        title={
+                          tieneComprobante
+                            ? "Comprobante de pago cargado"
+                            : "Sin comprobante de pago"
+                        }
+                        className={`${statusIconBase} ${
+                          tieneComprobante
+                            ? "border-green-900/20 bg-green-50 text-green-900"
+                            : "border-gray-200 bg-gray-50 text-gray-400"
+                        }`}
+                      >
+                        <ReceiptText size={18} strokeWidth={2.4} />
+                      </span>
+
+                      <span
+                        title={
+                          estaAutorizada
+                            ? "Solicitud autorizada"
+                            : "Solicitud sin autorizar"
+                        }
+                        className={`${statusIconBase} ${
+                          estaAutorizada
+                            ? "border-green-900/20 bg-green-50 text-green-900"
+                            : "border-gray-200 bg-gray-50 text-gray-400"
+                        }`}
+                      >
+                        <BadgeCheck size={18} strokeWidth={2.4} />
+                      </span>
+                    </div>
+                  </td>
+
                   <td className="px-4 py-3 font-semibold text-gray-700">
                     {new Date(s.fecha).toLocaleDateString("es-CO", {
                       year: "numeric",
@@ -183,10 +228,11 @@ export default function SolicitudesRealizadasTabla({
                     {Number(s.pesoTotal || 0).toFixed(2)}
                   </td>
                 </tr>
-              ))
+              );
+              })
             ) : (
               <tr>
-                <td colSpan={8} className="py-12 text-center text-gray-500">
+                <td colSpan={9} className="py-12 text-center text-gray-500">
                   <div className="mx-auto flex max-w-sm flex-col items-center">
                     <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-xl font-black text-red-950">
                       !

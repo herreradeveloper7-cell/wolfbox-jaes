@@ -707,6 +707,7 @@ export const obtenerSolicitudes = async (req, res) => {
       d.nombre AS destinatario_nombre,
       s.medio_pago,
       s.observaciones,
+      s.comprobante_pago_url,
       CONCAT(c.primer_nombre, ' ', c.primer_apellido) AS cliente,
 
       MAX(
@@ -774,6 +775,7 @@ export const obtenerSolicitudes = async (req, res) => {
         d.nombre,
         s.medio_pago,
         s.observaciones,
+        s.comprobante_pago_url,
         c.primer_nombre,
         c.primer_apellido
 

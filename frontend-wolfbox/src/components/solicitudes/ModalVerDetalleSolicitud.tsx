@@ -567,13 +567,13 @@ export default function ModalVerDetalleSolicitud({
           <button
             onClick={enviarCobro}
             disabled={enviandoCobro}
-            className="inline-flex items-center justify-center rounded-xl border border-red-900/20 bg-white px-5 sm:px-7 py-2 sm:py-3 text-xs sm:text-sm font-bold text-red-950 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-50 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-red-900/10 disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap"
+            className="inline-flex items-center justify-center rounded-xl border border-red-900/20 bg-white px-5 sm:px-7 py-2 sm:py-3 text-xs sm:text-sm font-bold text-red-950 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-50 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-red-900/10 disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap cursor-pointer"
           >
             {enviandoCobro ? "Enviando cobro..." : "Enviar cobro"}
           </button>
           <button
             onClick={onClose}
-            className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-red-950 to-red-900 hover:from-red-900 hover:to-red-800 px-6 sm:px-8 py-2 sm:py-3 text-xs sm:text-sm font-bold text-white shadow-lg shadow-red-950/20 transition-all duration-200 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-900/20 whitespace-nowrap"
+            className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-red-950 to-red-900 hover:from-red-900 hover:to-red-800 px-6 sm:px-8 py-2 sm:py-3 text-xs sm:text-sm font-bold text-white shadow-lg shadow-red-950/20 transition-all duration-200 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-900/20 whitespace-nowrap cursor-pointer"
           >
             Cerrar
           </button>
