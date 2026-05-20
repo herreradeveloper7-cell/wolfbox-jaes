@@ -1,35 +1,92 @@
 import { FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import logo from "../assets/logoJaesHome.png";
 
 export default function PasswordResetPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token") || "";
   const [email, setEmail] = useState("");
+  const [contrasena, setContrasena] = useState("");
+  const [confirmarContrasena, setConfirmarContrasena] = useState("");
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const limpiarMensajes = () => {
     setError("");
     setMensaje("");
+  };
+
+  const handleSolicitar = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    limpiarMensajes();
 
     if (!email.trim()) {
-      setError("Ingresa tu correo electrónico para continuar.");
+      setError("Ingresa tu correo electronico para continuar.");
       return;
     }
 
     setLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 700));
+      const res = await fetch("/api/auth/password-reset/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.mensaje || "No fue posible procesar la solicitud.");
+      }
+
       setMensaje(
-        "Si el correo está registrado, recibirás las instrucciones para restablecer tu contraseña."
+        "Si el correo esta registrado, recibiras las instrucciones para restablecer tu contrasena."
       );
       setEmail("");
-    } catch (err) {
-      console.error("Error solicitando recuperación:", err);
-      setError("No fue posible procesar la solicitud. Intenta nuevamente.");
+    } catch (err: any) {
+      console.error("Error solicitando recuperacion:", err);
+      setError(err.message || "No fue posible procesar la solicitud. Intenta nuevamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmar = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    limpiarMensajes();
+
+    if (contrasena.length < 6) {
+      setError("La contrasena debe tener minimo 6 caracteres.");
+      return;
+    }
+
+    if (contrasena !== confirmarContrasena) {
+      setError("Las contrasenas no coinciden.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/password-reset/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, contrasena }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.mensaje || "No fue posible actualizar la contrasena.");
+      }
+
+      setMensaje("Contrasena actualizada correctamente. Ya puedes iniciar sesion.");
+      setContrasena("");
+      setConfirmarContrasena("");
+    } catch (err: any) {
+      console.error("Error confirmando recuperacion:", err);
+      setError(err.message || "No fue posible actualizar la contrasena.");
     } finally {
       setLoading(false);
     }
@@ -56,7 +113,7 @@ export default function PasswordResetPage() {
         onClick={() => navigate("/login")}
         className="absolute left-5 top-5 z-20 rounded-2xl border border-red-900/10 bg-white/80 px-4 py-2.5 text-xs font-bold text-red-900 shadow-lg backdrop-blur transition hover:-translate-y-0.5 hover:bg-white hover:shadow-xl"
       >
-        ← Volver
+        Volver
       </button>
 
       <section className="relative z-10 w-full max-w-3xl">
@@ -80,10 +137,11 @@ export default function PasswordResetPage() {
                   Recupera el acceso a tu cuenta
                 </h1>
                 <p className="mt-4 max-w-sm text-sm font-medium leading-6 text-white/75">
-                  Solicita las instrucciones de restablecimiento y continúa operando en la plataforma Jaes Cargo.
+                  {token
+                    ? "Crea una nueva contrasena para volver a operar en la plataforma."
+                    : "Solicita las instrucciones de restablecimiento y continua operando en la plataforma Jaes Cargo."}
                 </p>
               </div>
-
             </aside>
 
             <div className="flex flex-col justify-center px-6 py-8 sm:px-8 lg:px-10">
@@ -97,30 +155,67 @@ export default function PasswordResetPage() {
                     Restablecimiento
                   </p>
                   <h2 className="text-2xl font-black tracking-tight text-gray-700">
-                    ¿Olvidaste tu contraseña?
+                    {token ? "Nueva contrasena" : "Olvidaste tu contrasena?"}
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Ingresa el correo asociado a tu cuenta y te enviaremos las instrucciones para recuperar el acceso.
+                    {token
+                      ? "Escribe y confirma tu nueva contrasena."
+                      : "Ingresa el correo asociado a tu cuenta y te enviaremos las instrucciones para recuperar el acceso."}
                   </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
-                      Correo electrónico
-                    </label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(event) => {
-                        setEmail(event.target.value);
-                        setError("");
-                        setMensaje("");
-                      }}
-                      placeholder="Ingrese su correo electrónico"
-                      className="w-full rounded-2xl border border-gray-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-slate-700 shadow-inner outline-none transition-all duration-300 placeholder:text-slate-400 hover:border-gray-300 focus:border-red-900 focus:bg-white focus:ring-4 focus:ring-red-900/10"
-                    />
-                  </div>
+                <form onSubmit={token ? handleConfirmar : handleSolicitar} className="space-y-4">
+                  {!token ? (
+                    <div>
+                      <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                        Correo electronico
+                      </label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(event) => {
+                          setEmail(event.target.value);
+                          limpiarMensajes();
+                        }}
+                        placeholder="Ingrese su correo electronico"
+                        className="w-full rounded-2xl border border-gray-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-slate-700 shadow-inner outline-none transition-all duration-300 placeholder:text-slate-400 hover:border-gray-300 focus:border-red-900 focus:bg-white focus:ring-4 focus:ring-red-900/10"
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                          Nueva contrasena
+                        </label>
+                        <input
+                          type="password"
+                          value={contrasena}
+                          onChange={(event) => {
+                            setContrasena(event.target.value);
+                            limpiarMensajes();
+                          }}
+                          placeholder="Minimo 6 caracteres"
+                          className="w-full rounded-2xl border border-gray-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-slate-700 shadow-inner outline-none transition-all duration-300 placeholder:text-slate-400 hover:border-gray-300 focus:border-red-900 focus:bg-white focus:ring-4 focus:ring-red-900/10"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                          Confirmar contrasena
+                        </label>
+                        <input
+                          type="password"
+                          value={confirmarContrasena}
+                          onChange={(event) => {
+                            setConfirmarContrasena(event.target.value);
+                            limpiarMensajes();
+                          }}
+                          placeholder="Repite la nueva contrasena"
+                          className="w-full rounded-2xl border border-gray-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-slate-700 shadow-inner outline-none transition-all duration-300 placeholder:text-slate-400 hover:border-gray-300 focus:border-red-900 focus:bg-white focus:ring-4 focus:ring-red-900/10"
+                        />
+                      </div>
+                    </>
+                  )}
 
                   {error && (
                     <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700">
@@ -143,7 +238,13 @@ export default function PasswordResetPage() {
                         : "cursor-pointer bg-red-900 hover:-translate-y-0.5 hover:bg-red-950 hover:shadow-red-900/25"
                     }`}
                   >
-                    {loading ? "Enviando instrucciones..." : "Enviar instrucciones"}
+                    {loading
+                      ? token
+                        ? "Actualizando contrasena..."
+                        : "Enviando instrucciones..."
+                      : token
+                        ? "Actualizar contrasena"
+                        : "Enviar instrucciones"}
                   </button>
 
                   <button
@@ -151,12 +252,12 @@ export default function PasswordResetPage() {
                     onClick={() => navigate("/login")}
                     className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
                   >
-                    Volver al inicio de sesión
+                    Volver al inicio de sesion
                   </button>
                 </form>
 
                 <p className="mt-6 text-center text-xs font-semibold text-slate-400">
-                  Copyright © Wolfbox Software 2025
+                  Copyright Wolfbox Software 2025
                 </p>
               </div>
             </div>

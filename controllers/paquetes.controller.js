@@ -12,6 +12,100 @@ import {
   sqlStringOrNull,
 } from "../utils/paquetes.helpers.js";
 import { drawLogoJaesCargo } from "../utils/pdf.helpers.js";
+import {
+  enviarEmailDesdePlantilla,
+  obtenerPlantillaEmailPorEvento,
+} from "../utils/email.service.js";
+
+const obtenerBaseFrontend = () =>
+  (
+    process.env.FRONTEND_URL ||
+    process.env.PUBLIC_FRONTEND_URL ||
+    process.env.CLIENT_URL ||
+    "http://localhost:5173"
+  ).replace(/\/$/, "");
+
+const crearPlantillaFallbackPaqueteDigitado = () => ({
+  id: null,
+  email_remitente: process.env.BREVO_DEFAULT_SENDER_EMAIL,
+  asunto: "Paquete digitado: {{tracking}}",
+  cuerpo: `<div style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+  <div style="max-width:560px;margin:0 auto;padding:24px 14px;">
+    <div style="overflow:hidden;border-radius:18px;background:#ffffff;border:1px solid #e5e7eb;box-shadow:0 18px 45px rgba(17,24,39,.12);">
+      <div style="height:5px;background:linear-gradient(90deg,#450a0a,#7f1d1d,#d1d5db);"></div>
+      <div style="padding:22px 24px 24px;">
+        <div style="display:inline-block;border-radius:999px;background:#7f1d1d14;color:#7f1d1d;padding:8px 12px;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;">
+          Wolfbox - JAES Cargo
+        </div>
+        <h1 style="margin:18px 0 8px;font-size:24px;line-height:1.18;color:#111827;">
+          Paquete digitado
+        </h1>
+        <p style="margin:0 0 14px;color:#4b5563;font-size:14px;line-height:1.6;">
+          Hola <strong>{{cliente_nombre}}</strong>, tu paquete fue registrado correctamente en nuestro sistema.
+        </p>
+        <div style="border-radius:14px;background:#f9fafb;border:1px solid #e5e7eb;padding:14px;margin:14px 0;">
+          <p style="margin:0;color:#374151;font-size:13px;line-height:1.7;">
+            <strong>Tracking:</strong> {{tracking}}<br />
+            <strong>HAWB:</strong> {{hawb}}<br />
+            <strong>Tienda:</strong> {{tienda}}<br />
+            <strong>Contenido:</strong> {{contenido}}<br />
+            <strong>Peso:</strong> {{peso}} lb<br />
+            <strong>Servicio:</strong> {{servicio}}
+          </p>
+        </div>
+        <a href="{{consulta_url}}" style="display:inline-block;background:#7f1d1d;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;border-radius:12px;padding:12px 18px;">
+          Consultar guia
+        </a>
+      </div>
+    </div>
+    <p style="text-align:center;margin:14px 0 0;color:#9ca3af;font-size:11px;">
+      JAES Cargo Internacional - Notificacion automatica
+    </p>
+  </div>
+</div>`,
+});
+
+const obtenerNombreCliente = (cliente) => {
+  const nombre = [
+    cliente.primer_nombre,
+    cliente.segundo_nombre,
+    cliente.primer_apellido,
+    cliente.segundo_apellido,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  return nombre || cliente.nombre_empresa || "Cliente";
+};
+
+const enviarCorreoPaqueteDigitado = async ({ cliente, paquete, servicio }) => {
+  if (!cliente?.correo) return;
+
+  const plantilla =
+    (await obtenerPlantillaEmailPorEvento("paquete_digitado")) ||
+    crearPlantillaFallbackPaqueteDigitado();
+  const clienteNombre = obtenerNombreCliente(cliente);
+
+  await enviarEmailDesdePlantilla({
+    plantilla,
+    destinatarios: [{ email: cliente.correo, name: clienteNombre }],
+    variables: {
+      cliente_nombre: clienteNombre,
+      email: cliente.correo,
+      codigo_casillero: cliente.codigo_referencia,
+      tracking: paquete.tracking || "-",
+      hawb: paquete.hawb || "-",
+      tienda: paquete.tienda || "-",
+      contenido: paquete.contenido || "-",
+      peso: Number(paquete.peso || 0).toFixed(2),
+      servicio: servicio?.nombre || "-",
+      fecha: new Date().toLocaleDateString("es-CO"),
+      consulta_url: `${obtenerBaseFrontend()}/consulta-hawb`,
+    },
+    evento: "paquete_digitado",
+  });
+};
 
 const generarHAWBUnico = async (pool) => {
   let hawb;
@@ -118,7 +212,19 @@ export const registrarPaqueteConDeps = async (req, res, deps) => {
 
     const cliente = await requestTx()
       .input('codigo', dbSql.NVarChar, codigo_referencia)
-      .query('SELECT id FROM clientes WHERE codigo_referencia = @codigo');
+      .query(`
+        SELECT
+          id,
+          correo,
+          codigo_referencia,
+          primer_nombre,
+          segundo_nombre,
+          primer_apellido,
+          segundo_apellido,
+          nombre_empresa
+        FROM clientes
+        WHERE codigo_referencia = @codigo
+      `);
 
     if (cliente.recordset.length === 0) {
       await transaction.rollback();
@@ -159,7 +265,8 @@ export const registrarPaqueteConDeps = async (req, res, deps) => {
     }
 
 
-    const cliente_id = cliente.recordset[0].id;
+    const clienteData = cliente.recordset[0];
+    const cliente_id = clienteData.id;
     const hawb = await deps.generarHAWBUnico(pool);
 
     if (!hawb || hawb.trim() === "") {
@@ -240,6 +347,20 @@ export const registrarPaqueteConDeps = async (req, res, deps) => {
 
     await transaction.commit();
     transactionStarted = false;
+
+    enviarCorreoPaqueteDigitado({
+      cliente: clienteData,
+      paquete: {
+        tracking,
+        hawb,
+        tienda,
+        contenido,
+        peso,
+      },
+      servicio: validacionServicio.servicio,
+    }).catch((mailError) => {
+      console.error("Error enviando correo de paquete digitado:", mailError);
+    });
 
     res.status(201).json({ mensaje: 'Paquete registrado correctamente', hawb });
 
