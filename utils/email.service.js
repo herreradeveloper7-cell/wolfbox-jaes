@@ -114,6 +114,7 @@ export const enviarEmailBrevo = async ({
   replyTo,
   plantillaId = null,
   evento = null,
+  adjuntos = [],
 }) => {
   const apiKey = process.env.BREVO_API_KEY;
   const senderEmail = remitenteEmail || process.env.BREVO_DEFAULT_SENDER_EMAIL;
@@ -145,6 +146,16 @@ export const enviarEmailBrevo = async ({
 
   if (replyTo?.email) {
     payload.replyTo = replyTo;
+  }
+
+  if (Array.isArray(adjuntos) && adjuntos.length) {
+    payload.attachment = adjuntos
+      .filter((adjunto) => adjunto?.name && (adjunto?.content || adjunto?.url))
+      .map((adjunto) => ({
+        name: adjunto.name,
+        ...(adjunto.content ? { content: adjunto.content } : {}),
+        ...(adjunto.url ? { url: adjunto.url } : {}),
+      }));
   }
 
   const response = await fetch(BREVO_EMAIL_URL, {
@@ -198,6 +209,7 @@ export const enviarEmailDesdePlantilla = async ({
   remitenteNombre,
   replyTo,
   evento = null,
+  adjuntos = [],
 }) => {
   const asunto = renderizarTexto(plantilla.asunto, variables);
   const cuerpo = renderizarTexto(plantilla.cuerpo, variables);
@@ -212,6 +224,7 @@ export const enviarEmailDesdePlantilla = async ({
     replyTo,
     plantillaId: plantilla.id,
     evento,
+    adjuntos,
   });
 };
 
