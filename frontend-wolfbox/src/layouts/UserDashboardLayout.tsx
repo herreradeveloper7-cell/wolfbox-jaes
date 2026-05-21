@@ -12,6 +12,7 @@ import iconTracking from "../assets/barcode-svgrepo-com.svg";
 import iconReport from "../assets/report-file-svgrepo-com (1).svg";
 import iconSecurity from "../assets/security-shield-svgrepo-com.svg"
 import iconSettings from "../assets/settings-svgrepo-com.svg"
+import NotificationBell from "../components/notificaciones/NotificationBell";
 
 type Props = {
     children: ReactNode;
@@ -454,6 +455,7 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
         </footer>
 
       </main>
+      <NotificationBell />
     </div>
   );
 }
