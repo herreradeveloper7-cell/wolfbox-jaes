@@ -134,7 +134,7 @@ export default function NotificationBell() {
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-[80] flex flex-col items-end gap-3">
+    <div className="fixed bottom-8 right-8 z-[80] flex flex-col items-end gap-3">
       {open && (
         <section className="w-[min(92vw,390px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_22px_60px_rgba(15,23,42,.20)]">
           <header className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3">
@@ -259,12 +259,19 @@ export default function NotificationBell() {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={`relative grid h-14 w-14 place-items-center rounded-full bg-red-950 text-white shadow-[0_16px_35px_rgba(69,10,10,.35)] transition hover:-translate-y-0.5 hover:bg-red-900 ${
-          noLeidas > 0 ? "motion-safe:animate-bounce" : ""
+        className={`relative grid h-16 w-16 place-items-center rounded-full bg-red-950 text-white shadow-[0_18px_40px_rgba(69,10,10,.38)] transition hover:-translate-y-0.5 hover:bg-red-900 cursor-pointer ${
+          noLeidas > 0 ? "notification-bell-active" : ""
         }`}
         aria-label="Abrir notificaciones"
       >
-        <Bell size={24} />
+        {noLeidas > 0 && (
+          <>
+            <span className="notification-bell-wave" />
+            <span className="notification-bell-wave notification-bell-wave-delay" />
+          </>
+        )}
+
+        <Bell className={noLeidas > 0 ? "notification-bell-icon" : ""} size={28} />
 
         {noLeidas > 0 && (
           <span className="absolute -right-1 -top-1 grid h-6 min-w-6 place-items-center rounded-full bg-green-900 px-1.5 text-xs font-black text-white ring-4 ring-white">
