@@ -1,6 +1,13 @@
 import { poolPromise, sql } from "../config/db.js";
 import { buildConciliacionQuery } from "../utils/conciliacion.helpers.js";
 import { crearNotificacionUsuarios } from "../utils/notificaciones.service.js";
+import {
+  azureStorageDisponible,
+  descargarArchivoPrivado,
+  eliminarArchivoPrivado,
+  nombreSeguroArchivo,
+  subirArchivoPrivado,
+} from "../utils/storage.service.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -19,6 +26,12 @@ const eliminarArchivoComprobante = (rutaRelativa) => {
     fs.unlinkSync(filePath);
   }
 };
+
+const esBlobComprobante = (valor) =>
+  Boolean(valor && String(valor).startsWith("azure://"));
+
+const blobNameDesdeValor = (valor) =>
+  esBlobComprobante(valor) ? String(valor).replace(/^azure:\/\//, "") : null;
 
 export const buscarConciliacion = async (req, res) => {
   try {
@@ -250,7 +263,9 @@ export const subirComprobante = async (req, res) => {
       `);
 
     if (!existente.recordset.length) {
-      eliminarArchivoComprobante(`/uploads/comprobantes/${req.file.filename}`);
+      if (req.file.filename) {
+        eliminarArchivoComprobante(`/uploads/comprobantes/${req.file.filename}`);
+      }
       return res.status(404).json({ mensaje: "Solicitud no encontrada." });
     }
 
@@ -258,11 +273,35 @@ export const subirComprobante = async (req, res) => {
       existente.recordset[0].comprobante_pago_url || existente.recordset[0].comprobante;
 
     if (comprobanteActual) {
-      const rutaAnterior = String(comprobanteActual).replace(/^https?:\/\/[^/]+/i, "");
-      eliminarArchivoComprobante(rutaAnterior);
+      const blobAnterior = blobNameDesdeValor(comprobanteActual);
+
+      if (blobAnterior) {
+        eliminarArchivoPrivado(blobAnterior).catch((error) => {
+          console.error("Error eliminando comprobante anterior en Azure:", error);
+        });
+      } else {
+        const rutaAnterior = String(comprobanteActual).replace(/^https?:\/\/[^/]+/i, "");
+        eliminarArchivoComprobante(rutaAnterior);
+      }
     }
 
-    const rutaArchivo = `/uploads/comprobantes/${req.file.filename}`;
+    let rutaArchivo = `/uploads/comprobantes/${req.file.filename}`;
+
+    if (azureStorageDisponible()) {
+      const nombreSeguro = nombreSeguroArchivo(req.file.originalname || req.file.filename);
+      const blobName = `comprobantes/solicitud-${id}/${Date.now()}-${nombreSeguro}`;
+      const resultadoStorage = await subirArchivoPrivado({
+        buffer: req.file.buffer,
+        blobName,
+        contentType: req.file.mimetype,
+      });
+
+      rutaArchivo = `azure://${resultadoStorage.blobName}`;
+      if (req.file.filename) {
+        eliminarArchivoComprobante(`/uploads/comprobantes/${req.file.filename}`);
+      }
+    }
+
     const request = pool.request();
 
     request.input("id", sql.Int, id);
@@ -354,6 +393,22 @@ export const descargarComprobante = async (req, res) => {
     }
 
     const rutaRelativa = String(comprobante).replace(/^https?:\/\/[^/]+/i, "");
+
+    const blobName = blobNameDesdeValor(comprobante);
+
+    if (blobName) {
+      const descarga = await descargarArchivoPrivado(blobName);
+
+      if (!descarga?.readableStreamBody) {
+        return res.status(404).json({ mensaje: "No se encontro el archivo del comprobante." });
+      }
+
+      const fileName = path.basename(blobName) || `comprobante-${id}`;
+      res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+      res.setHeader("Content-Type", descarga.contentType || "application/octet-stream");
+
+      return descarga.readableStreamBody.pipe(res);
+    }
 
     if (!rutaRelativa.startsWith("/uploads/comprobantes/")) {
       return res.status(400).json({ mensaje: "Ruta de comprobante no valida." });
