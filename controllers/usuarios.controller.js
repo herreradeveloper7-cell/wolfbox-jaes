@@ -5,6 +5,9 @@ import {
   obtenerPlantillaEmailPorEvento,
 } from "../utils/email.service.js";
 
+const WHATSAPP_SERVICIO = "+57 302 8600369";
+const WHATSAPP_SERVICIO_URL = "https://wa.me/573028600369";
+
 const obtenerBaseFrontend = () =>
   (
     process.env.FRONTEND_URL ||
@@ -63,6 +66,8 @@ const enviarCorreoAperturaUsuario = async ({ email, nombre, tipo }) => {
       codigo_casillero: "",
       tipo_cuenta: tipo || "usuario",
       login_url: `${obtenerBaseFrontend()}/login`,
+      whatsapp_servicio: WHATSAPP_SERVICIO,
+      whatsapp_url: WHATSAPP_SERVICIO_URL,
     },
     evento: "apertura_cuenta",
   });

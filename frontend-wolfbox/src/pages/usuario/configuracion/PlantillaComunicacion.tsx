@@ -95,6 +95,7 @@ const variablesDisponibles = [
   "{{expira_minutos}}",
   "{{tipo_cuenta}}",
   "{{login_url}}",
+  "{{whatsapp_url}}",
   "{{tienda}}",
   "{{contenido}}",
   "{{peso}}",
@@ -188,8 +189,14 @@ const plantillaAperturaCuenta = {
         <a href="{{login_url}}" style="display:inline-block;background:#7f1d1d;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;border-radius:12px;padding:12px 18px;">
           Ingresar a Wolfbox
         </a>
+        <div style="border-radius:14px;background:#7f1d1d0d;border:1px solid #7f1d1d22;padding:14px;margin:16px 0 0;">
+          <p style="margin:0;color:#374151;font-size:13px;line-height:1.7;">
+            Adjunto encontraras las tarifas del servicio, nuestras politicas y el paso a paso para realizar tu primera compra.
+          </p>
+        </div>
         <p style="margin:16px 0 0;color:#6b7280;font-size:12px;line-height:1.5;">
-          Si necesitas ayuda, responde a este correo o comunicate con el equipo de JAES Cargo.
+          Cualquier duda puedes comunicarte por WhatsApp a nuestra linea de servicio al cliente:
+          <a href="{{whatsapp_url}}" style="color:#7f1d1d;font-weight:800;text-decoration:none;">{{whatsapp_servicio}}</a>.
         </p>
       </div>
     </div>

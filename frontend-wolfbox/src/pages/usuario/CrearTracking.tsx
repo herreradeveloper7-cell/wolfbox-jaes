@@ -501,7 +501,7 @@ export default function CrearTracking() {
                     <button
                     type="button"
                     onClick={handleLimpiarFormulario}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm border
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm border cursor-pointer
                         bg-white border-gray-300 text-gray-700 hover:bg-red-50 hover:border-red-400 hover:text-red-700"
                     >
                         <img src={iconCancel} alt="Cancelar" className="w-5 h-5" />
@@ -514,7 +514,7 @@ export default function CrearTracking() {
                     onClick={actualizarEstadoTracking}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition shadow-md
                         ${botonGuardarActivo
-                        ? "bg-green-600 text-white hover:bg-green-700 hover:shadow-lg hover:scale-[1.02]"
+                        ? "bg-green-600 text-white hover:bg-green-700 hover:shadow-lg hover:scale-[1.02] cursor-pointer"
                         : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
                     >
                     <img src={iconSave} alt="Guardar" className="w-5 h-5" />
