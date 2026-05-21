@@ -154,9 +154,16 @@ export const registrarUsuario = async (req, res) => {
 export const loginGeneral = async (req, res) => {
   const { email, contrasena, mantenerSesion } = req.body;
   const expiresIn = getLoginExpiresIn(mantenerSesion);
+  const startedAt = Date.now();
+  const marca = (label) => {
+    if (process.env.LOG_AUTH_TIMING === "1") {
+      console.log(`[auth/login] ${label}: ${Date.now() - startedAt}ms`);
+    }
+  };
 
   try {
     const pool = await poolPromise;
+    marca("pool listo");
 
     const resultUsuario = await pool.request()
       .input("email", sql.VarChar, email)
@@ -164,11 +171,13 @@ export const loginGeneral = async (req, res) => {
         SELECT * FROM usuarios 
         WHERE correo = @email
       `);
+    marca("consulta usuario");
 
     const usuario = resultUsuario.recordset[0];
 
     if (usuario) {
       const passwordMatch = await bcrypt.compare(contrasena, usuario.contrasena);
+      marca("bcrypt usuario");
       
       if (!passwordMatch) {
         return res.status(401).json({ ok: false, message: "Contraseña incorrecta" });
@@ -198,11 +207,13 @@ export const loginGeneral = async (req, res) => {
         SELECT * FROM clientes 
         WHERE correo = @email
       `);
+    marca("consulta cliente");
 
     const cliente = resultCliente.recordset[0];
 
     if (cliente) {
       const passwordMatch = await bcrypt.compare(contrasena, cliente.contrasena);
+      marca("bcrypt cliente");
 
       if (!passwordMatch) {
         return res.status(401).json({ ok: false, message: "Contraseña incorrecta" });

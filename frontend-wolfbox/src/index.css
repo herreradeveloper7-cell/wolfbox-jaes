@@ -30,6 +30,60 @@
   animation: slide-up 0.3s ease-out forwards;
 }
 
+.notification-bell-active {
+  animation: notification-bell-pulse 1.8s ease-in-out infinite;
+}
+
+.notification-bell-icon {
+  transform-origin: 50% 8%;
+  animation: notification-bell-ring 1.15s ease-in-out infinite;
+}
+
+.notification-bell-wave {
+  position: absolute;
+  inset: -7px;
+  border-radius: 9999px;
+  border: 2px solid rgba(20, 83, 45, 0.42);
+  animation: notification-bell-wave 1.8s ease-out infinite;
+  pointer-events: none;
+}
+
+.notification-bell-wave-delay {
+  animation-delay: 0.55s;
+}
+
+@keyframes notification-bell-ring {
+  0%, 100% { transform: rotate(0deg); }
+  8% { transform: rotate(16deg); }
+  16% { transform: rotate(-14deg); }
+  24% { transform: rotate(11deg); }
+  32% { transform: rotate(-8deg); }
+  40% { transform: rotate(5deg); }
+  48% { transform: rotate(0deg); }
+}
+
+@keyframes notification-bell-pulse {
+  0%, 100% {
+    box-shadow: 0 18px 40px rgba(69, 10, 10, .38);
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    box-shadow: 0 20px 48px rgba(20, 83, 45, .42);
+    transform: translateY(-2px) scale(1.03);
+  }
+}
+
+@keyframes notification-bell-wave {
+  0% {
+    opacity: .62;
+    transform: scale(.86);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.42);
+  }
+}
+
 .scrollbar-hide {
   -ms-overflow-style: none;  
   scrollbar-width: none;     
