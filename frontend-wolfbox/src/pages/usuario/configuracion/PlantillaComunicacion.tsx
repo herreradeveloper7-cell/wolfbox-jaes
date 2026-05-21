@@ -891,7 +891,7 @@ export default function PlantillaComunicacion() {
 
           <div className="mb-5 flex flex-col gap-2 border-b border-gray-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-black tracking-wide text-gray-800">
+              <h2 className="text-xl font-black tracking-wide text-slate-700">
                 Mensajes de plantillas
               </h2>
               <p className="text-xs text-gray-500">
@@ -961,17 +961,17 @@ export default function PlantillaComunicacion() {
                         </td>
 
                         <td className="border-y border-gray-100 px-4 py-4 align-top">
-                          <p className="font-semibold text-gray-800">
+                          <p className="font-semibold text-slate-700">
                             {item.email_remitente}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-slate-500">
                             Por: {item.creado_por || "Sistema"}
                           </p>
                         </td>
 
                         <td className="max-w-xl border-y border-gray-100 px-4 py-4 align-top">
-                          <p className="font-bold text-gray-900">{item.asunto}</p>
-                          <p className="mt-1 text-xs leading-5 text-gray-500">
+                          <p className="font-bold text-slate-700">{item.asunto}</p>
+                          <p className="mt-1 text-xs leading-5 text-slate-500">
                             {recortar(item.cuerpo)}
                           </p>
                         </td>
