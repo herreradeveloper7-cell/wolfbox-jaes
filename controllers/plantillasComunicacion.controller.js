@@ -1,5 +1,7 @@
 import { poolPromise, sql } from "../config/db.js";
 import { enviarEmailDesdePlantilla } from "../utils/email.service.js";
+import fs from "fs";
+import path from "path";
 
 let tablaVerificada = false;
 
@@ -32,6 +34,29 @@ const asegurarTablaPlantillas = async (pool) => {
 
 const obtenerResponsable = (req) =>
   req.usuario?.nombre || req.usuario?.email || req.usuario?.id || "Sistema";
+
+const obtenerAdjuntoAperturaCuenta = () => {
+  const rutaConfigurada =
+    process.env.CUENTA_CREADA_PDF_PATH ||
+    process.env.APERTURA_CUENTA_PDF_PATH ||
+    "assets/correos/politicas-jaes-cargo-internacional.pdf";
+
+  const rutaPdf = path.isAbsolute(rutaConfigurada)
+    ? rutaConfigurada
+    : path.resolve(rutaConfigurada);
+
+  if (!fs.existsSync(rutaPdf)) {
+    console.warn(`PDF de apertura de cuenta no encontrado: ${rutaPdf}`);
+    return [];
+  }
+
+  return [
+    {
+      name: process.env.CUENTA_CREADA_PDF_NAME || path.basename(rutaPdf),
+      content: fs.readFileSync(rutaPdf).toString("base64"),
+    },
+  ];
+};
 
 const validarPayload = ({ nombre, email_remitente, asunto, cuerpo }) => {
   if (
@@ -263,6 +288,7 @@ export const enviarPruebaPlantillaComunicacion = async (req, res) => {
         total_cop: "$150.735,90",
         total_usd: "$40.10",
         whatsapp_servicio: "+57 302 8600369",
+        whatsapp_url: "https://wa.me/573028600369",
         banco_titular: "JAES CARGO INTERNACIONAL",
         banco_nombre: "Davivienda",
         banco_cuenta: "1089 0062 3159",
@@ -271,6 +297,10 @@ export const enviarPruebaPlantillaComunicacion = async (req, res) => {
         ...variables,
       },
       evento: "prueba_plantilla",
+      adjuntos:
+        plantilla.clave_evento === "apertura_cuenta"
+          ? obtenerAdjuntoAperturaCuenta()
+          : [],
     });
 
     res.json({
