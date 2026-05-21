@@ -1,10 +1,15 @@
 import { sql, poolPromise } from "../config/db.js";
 import bcrypt from "bcrypt";
 import { firmarToken } from "../middleware/auth.middleware.js";
+import fs from "fs";
+import path from "path";
 import {
   enviarEmailDesdePlantilla,
   obtenerPlantillaEmailPorEvento,
 } from "../utils/email.service.js";
+
+const WHATSAPP_SERVICIO = "+57 302 8600369";
+const WHATSAPP_SERVICIO_URL = "https://wa.me/573028600369";
 
 function generarCodigoReferencia(texto) {
   const letras = (texto || "").trim().toUpperCase().slice(0, 3);
@@ -19,6 +24,29 @@ const obtenerBaseFrontend = () =>
     process.env.CLIENT_URL ||
     "http://localhost:5173"
   ).replace(/\/$/, "");
+
+const obtenerAdjuntoAperturaCuenta = () => {
+  const rutaConfigurada =
+    process.env.CUENTA_CREADA_PDF_PATH ||
+    process.env.APERTURA_CUENTA_PDF_PATH ||
+    "assets/correos/politicas-jaes-cargo-internacional.pdf";
+
+  const rutaPdf = path.isAbsolute(rutaConfigurada)
+    ? rutaConfigurada
+    : path.resolve(rutaConfigurada);
+
+  if (!fs.existsSync(rutaPdf)) {
+    console.warn(`PDF de apertura de cuenta no encontrado: ${rutaPdf}`);
+    return [];
+  }
+
+  return [
+    {
+      name: process.env.CUENTA_CREADA_PDF_NAME || path.basename(rutaPdf),
+      content: fs.readFileSync(rutaPdf).toString("base64"),
+    },
+  ];
+};
 
 const crearPlantillaFallbackAperturaCuenta = () => ({
   id: null,
@@ -48,6 +76,15 @@ const crearPlantillaFallbackAperturaCuenta = () => ({
         <a href="{{login_url}}" style="display:inline-block;background:#7f1d1d;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;border-radius:12px;padding:12px 18px;">
           Ingresar a Wolfbox
         </a>
+        <div style="border-radius:14px;background:#7f1d1d0d;border:1px solid #7f1d1d22;padding:14px;margin:16px 0 0;">
+          <p style="margin:0;color:#374151;font-size:13px;line-height:1.7;">
+            Adjunto encontraras las tarifas del servicio, nuestras politicas y el paso a paso para realizar tu primera compra.
+          </p>
+        </div>
+        <p style="margin:16px 0 0;color:#6b7280;font-size:12px;line-height:1.5;">
+          Cualquier duda puedes comunicarte por WhatsApp a nuestra linea de servicio al cliente:
+          <a href="{{whatsapp_url}}" style="color:#7f1d1d;font-weight:800;text-decoration:none;">{{whatsapp_servicio}}</a>.
+        </p>
       </div>
     </div>
     <p style="text-align:center;margin:14px 0 0;color:#9ca3af;font-size:11px;">
@@ -76,8 +113,11 @@ const enviarCorreoAperturaCliente = async ({
       codigo_casillero: codigoReferencia,
       tipo_cuenta: tipoCliente || "cliente",
       login_url: `${obtenerBaseFrontend()}/login`,
+      whatsapp_servicio: WHATSAPP_SERVICIO,
+      whatsapp_url: WHATSAPP_SERVICIO_URL,
     },
     evento: "apertura_cuenta",
+    adjuntos: obtenerAdjuntoAperturaCuenta(),
   });
 };
 
