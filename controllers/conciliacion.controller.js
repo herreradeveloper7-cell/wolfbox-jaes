@@ -112,6 +112,17 @@ export const autorizarSolicitud = async (req, res) => {
 
     await transaction.commit();
 
+    crearNotificacionUsuarios({
+      tipo: "success",
+      titulo: "Solicitud autorizada",
+      mensaje: `Se autorizo el pago de la solicitud #${id}.`,
+      entidadTipo: "solicitud",
+      entidadId: Number(id),
+      url: `/conciliacion-pagos?solicitud=${id}`,
+    }).catch((error) => {
+      console.error("Error creando notificacion de autorizacion:", error);
+    });
+
     res.json({
       message: "Solicitud autorizada correctamente"
     });
@@ -189,6 +200,17 @@ export const quitarAutorizacionSolicitud = async (req, res) => {
     `);
 
     await transaction.commit();
+
+    crearNotificacionUsuarios({
+      tipo: "warning",
+      titulo: "Autorizacion removida",
+      mensaje: `Se quito la autorizacion de pago de la solicitud #${id}.`,
+      entidadTipo: "solicitud",
+      entidadId: Number(id),
+      url: `/conciliacion-pagos?solicitud=${id}`,
+    }).catch((error) => {
+      console.error("Error creando notificacion de autorizacion removida:", error);
+    });
 
     res.json({
       message: "Autorización removida correctamente"
@@ -287,7 +309,7 @@ export const subirComprobante = async (req, res) => {
       mensaje: `Se ${accion} el comprobante de pago de la solicitud #${id} para ${cliente}.`,
       entidadTipo: "solicitud",
       entidadId: Number(id),
-      url: "/conciliacion-pagos",
+      url: `/conciliacion-pagos?solicitud=${id}`,
     }).catch((error) => {
       console.error("Error creando notificacion de comprobante:", error);
     });

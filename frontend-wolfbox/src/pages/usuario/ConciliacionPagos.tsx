@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import UserDashboardLayout from "../../layouts/UserDashboardLayout";
 import iconHome from "../../assets/home-svgrepo-com.svg";
 import iconSearch from "../../assets/search-alt-svgrepo-com.svg";
@@ -11,6 +11,8 @@ import axios from "axios";
 
 export default function ConciliacionPago() {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const solicitudNotificacion = searchParams.get("solicitud") || "";
 
     const [filtros, setFiltros] = useState({
         fechaInicio: "",
@@ -23,12 +25,12 @@ export default function ConciliacionPago() {
     const [clientes, setClientes] = useState<any[]>([]);
     const [mostrarClientes, setMostrarClientes] = useState(false);
 
-    const handleBuscar = async () => {
+    const buscarConFiltros = async (filtrosBusqueda = filtros) => {
         
         try {
             const params = new URLSearchParams();
 
-            Object.entries(filtros).forEach(([key, value]) => {
+            Object.entries(filtrosBusqueda).forEach(([key, value]) => {
                 if (value) params.append(key, value);
             });
 
@@ -46,6 +48,22 @@ export default function ConciliacionPago() {
             setSolicitudes([]);
         }
     };
+
+    const handleBuscar = () => buscarConFiltros();
+
+    useEffect(() => {
+        if (!solicitudNotificacion) return;
+
+        const filtrosNotificacion = {
+            fechaInicio: "",
+            fechaFin: "",
+            cliente: "",
+            solicitud: solicitudNotificacion,
+        };
+
+        setFiltros(filtrosNotificacion);
+        buscarConFiltros(filtrosNotificacion);
+    }, [solicitudNotificacion]);
 
     const handleImprimir = async (sol:any) => {
 
@@ -112,6 +130,7 @@ export default function ConciliacionPago() {
             solicitud: ""
         });
 
+        setSearchParams({});
         setSolicitudes([]);
     };
 
@@ -368,6 +387,7 @@ export default function ConciliacionPago() {
 
                     <TablaConciliacionPagos
                         solicitudes={solicitudes}
+                        solicitudDestacada={solicitudNotificacion ? Number(solicitudNotificacion) : null}
                         onSubirComprobante={handleSubirComprobante}
                         onAutorizar={handleAutorizar}
                         onImprimir={handleImprimir}
