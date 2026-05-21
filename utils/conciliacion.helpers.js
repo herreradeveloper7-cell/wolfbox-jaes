@@ -22,12 +22,25 @@ export const buildConciliacionQuery = ({ fechaInicio, fechaFin, cliente, solicit
       END AS trm,
 
       s.estado AS estado_paquete,
-      COALESCE(s.comprobante_pago_url, s.comprobante) AS comprobante
+      COALESCE(s.comprobante_pago_url, s.comprobante) AS comprobante,
+      agrupacion.hawb_padre,
+      CASE
+        WHEN agrupacion.hawb_padre IS NOT NULL THEN 1
+        ELSE 0
+      END AS esta_agrupada
 
   FROM solicitudes s
 
   INNER JOIN clientes c 
       ON c.id = s.cliente_id
+  OUTER APPLY (
+      SELECT TOP 1 p.hawb AS hawb_padre
+      FROM paquetes p
+      WHERE p.solicitud_id = s.id
+        AND ISNULL(p.agrupado_bit, 0) = 0
+        AND ISNULL(p.hawb, '') LIKE '%G'
+      ORDER BY p.id DESC
+  ) agrupacion
 
   WHERE 1=1
     `;

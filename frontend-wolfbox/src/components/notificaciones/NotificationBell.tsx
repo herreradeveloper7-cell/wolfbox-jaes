@@ -233,7 +233,10 @@ export default function NotificationBell() {
                             <span
                               className={`mt-2 inline-flex items-center gap-1 text-xs font-bold ${styles.text}`}
                             >
-                              Abrir modulo <ExternalLink size={13} />
+                              {notificacion.entidad_tipo === "solicitud"
+                                ? "Ver solicitud"
+                                : "Abrir modulo"}{" "}
+                              <ExternalLink size={13} />
                             </span>
                           )}
                         </button>

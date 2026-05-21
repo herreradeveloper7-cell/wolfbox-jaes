@@ -12,10 +12,13 @@ interface SolicitudConciliacion {
   trm: number;
   estado_paquete?: string | null;
   comprobante?: string;
+  hawb_padre?: string | null;
+  esta_agrupada?: number | boolean | null;
 }
 
 interface Props {
   solicitudes: SolicitudConciliacion[];
+  solicitudDestacada?: number | null;
   onSubirComprobante: (id: number, archivo: File) => void;
   onAutorizar: (id: number, estadoActual?: string) => void;
   onImprimir?: (solicitud: SolicitudConciliacion) => void;
@@ -23,6 +26,7 @@ interface Props {
 
 export default function TablaConciliacionPagos({
   solicitudes,
+  solicitudDestacada,
   onSubirComprobante,
   onAutorizar,
   onImprimir,
@@ -155,7 +159,7 @@ export default function TablaConciliacionPagos({
       </div>
 
       <div className="relative overflow-x-auto">
-        <table className="w-full min-w-[1180px] text-sm">
+        <table className="w-full min-w-[1320px] text-sm">
           <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gradient-to-r from-gray-100 via-white to-gray-50">
             <tr className="text-[10px] uppercase tracking-[0.18em] text-gray-600">
               <th className="px-5 py-4 text-left font-black">Solicitud</th>
@@ -165,6 +169,7 @@ export default function TablaConciliacionPagos({
               <th className="px-5 py-4 text-center font-black">COP</th>
               <th className="px-5 py-4 text-center font-black">TRM</th>
               <th className="px-5 py-4 text-center font-black">Fecha</th>
+              <th className="px-5 py-4 text-center font-black">Agrupacion</th>
               <th className="px-5 py-4 text-center font-black">Comprobante</th>
               <th className="px-5 py-4 text-center font-black">Imprimir</th>
               <th className="px-5 py-4 text-center font-black">Acciones</th>
@@ -174,7 +179,7 @@ export default function TablaConciliacionPagos({
           <tbody className="divide-y divide-gray-100">
             {solicitudes.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-6 py-12 text-center">
+                <td colSpan={11} className="px-6 py-12 text-center">
                   <div className="mx-auto flex max-w-md flex-col items-center">
                     <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-2xl font-semibold text-red-950">
                       !
@@ -189,10 +194,17 @@ export default function TablaConciliacionPagos({
                 </td>
               </tr>
             ) : (
-              solicitudes.map((sol, index) => (
+              solicitudes.map((sol, index) => {
+                const destacada = solicitudDestacada === Number(sol.solicitud_id);
+                const agrupada = Boolean(Number(sol.esta_agrupada)) || Boolean(sol.hawb_padre);
+
+                return (
                 <tr
+                  id={`solicitud-${sol.solicitud_id}`}
                   key={`${sol.solicitud_id}-${index}`}
-                  className="group bg-white transition-all duration-200 hover:bg-gradient-to-r hover:from-red-50/80 hover:via-white hover:to-transparent"
+                  className={`group bg-white transition-all duration-200 hover:bg-gradient-to-r hover:from-red-50/80 hover:via-white hover:to-transparent ${
+                    destacada ? "bg-green-50/80 shadow-[inset_4px_0_0_#14532d]" : ""
+                  }`}
                 >
                   <td className="px-5 py-4 align-middle">
                     <span className="inline-flex rounded-xl border border-red-900/10 bg-red-50 px-3 py-1.5 font-mono text-xs font-semibold text-red-950">
@@ -226,6 +238,23 @@ export default function TablaConciliacionPagos({
 
                   <td className="px-5 py-4 text-center align-middle font-mono text-xs font-bold text-gray-600">
                     {formatearFecha(sol.fecha)}
+                  </td>
+
+                  <td className="px-5 py-4 text-center align-middle">
+                    {agrupada ? (
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="inline-flex rounded-full border border-green-900/20 bg-green-50 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-green-900">
+                          Agrupada
+                        </span>
+                        <span className="rounded-xl border border-gray-200 bg-white px-3 py-1 font-mono text-xs font-semibold text-gray-700">
+                          {sol.hawb_padre || "-"}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="inline-flex rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-gray-500">
+                        No agrupada
+                      </span>
+                    )}
                   </td>
 
                   <td className="px-5 py-4 text-center align-middle">
@@ -292,7 +321,8 @@ export default function TablaConciliacionPagos({
                     </button>
                   </td>
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>
