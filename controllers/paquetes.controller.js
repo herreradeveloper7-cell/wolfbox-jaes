@@ -1284,6 +1284,7 @@ export const obtenerPaquetePorHAWB = async (req, res) => {
       `);
 
     const respuesta = {
+      id: datosPaquete.id,
       hawb: datosPaquete.hawb,
       tracking: datosPaquete.tracking,
       contenido: datosPaquete.contenido,
