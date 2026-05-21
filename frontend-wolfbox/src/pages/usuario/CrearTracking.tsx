@@ -39,6 +39,22 @@ export default function CrearTracking() {
 
     const [modalError, setModalError] = useState<string | null>(null);
 
+    const obtenerResponsableSesion = () => {
+        const stored =
+        localStorage.getItem("usuario") ||
+        sessionStorage.getItem("usuario") ||
+        localStorage.getItem("cliente") ||
+        sessionStorage.getItem("cliente") ||
+        "{}";
+
+        try {
+            const usuario = JSON.parse(stored);
+            return usuario.nombre || usuario.email || usuario.correo || "Usuario desconocido";
+        } catch {
+            return "Usuario desconocido";
+        }
+    };
+
     const handleArchivoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.name.endsWith(".xlsx")) {
@@ -93,8 +109,7 @@ export default function CrearTracking() {
             return;
             }
 
-            const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
-            const responsable = usuario.nombre || "Usuario desconocido";
+            const responsable = obtenerResponsableSesion();
 
             const fechaCompleta = `${fecha} ${horas}:${minutos}:00`;
 
@@ -109,9 +124,11 @@ export default function CrearTracking() {
 
             setPaquetesTracking((prev) => {
             const nuevoPaquete = {
-                id: Date.now(),
+                id: paquete.id || Date.now(),
                 hawb: paquete.hawb,
                 usuario: responsable,
+                cliente: paquete.cliente || paquete.codigo_referencia || "Sin cliente",
+                tienda: paquete.tienda || "Sin tienda",
                 contenido: paquete.contenido || "Sin contenido",
                 peso: paquete.peso?.toFixed(2) || "0.00",
             };
@@ -201,6 +218,8 @@ export default function CrearTracking() {
     id: number;
     hawb: string;
     usuario: string;
+    cliente: string;
+    tienda: string;
     contenido: string;
     peso: string;
     }
@@ -612,11 +631,15 @@ export default function CrearTracking() {
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm border-separate border-spacing-y-2">
+                    <table className="min-w-[980px] w-full text-sm border-separate border-spacing-y-2">
                     <thead className="bg-gray-100 text-gray-700">
                         <tr className="bg-gray-50 hover:bg-gray-100 transition">
                         <th className="px-4 py-3 text-left font-semibold text-gray-600">ID</th>
                         <th className="px-4 py-3 text-left font-semibold text-gray-600">HAWB</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Cliente</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Tienda</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Contenido</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Peso</th>
                         <th className="px-4 py-3 text-left font-semibold text-gray-600">Usuario</th>
                         </tr>
                     </thead>
@@ -625,6 +648,10 @@ export default function CrearTracking() {
                         <tr key={paquete.id} className="bg-white hover:bg-gray-50 transition border border-gray-200 rounded-lg">
                             <td className="px-4 py-3 text-gray-700 font-medium">{paquete.id}</td>
                             <td className="px-4 py-3 text-gray-700 font-medium">{paquete.hawb}</td>
+                            <td className="px-4 py-3 text-gray-600 max-w-[220px] truncate">{paquete.cliente}</td>
+                            <td className="px-4 py-3 text-gray-600 max-w-[180px] truncate">{paquete.tienda}</td>
+                            <td className="px-4 py-3 text-gray-600 max-w-[180px] truncate">{paquete.contenido}</td>
+                            <td className="px-4 py-3 text-gray-700 font-semibold">{paquete.peso} lb</td>
                             <td className="px-4 py-3 text-gray-600">{paquete.usuario}</td>
                         </tr>
                         ))}
