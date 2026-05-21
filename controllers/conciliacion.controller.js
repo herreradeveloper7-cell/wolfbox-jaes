@@ -1,5 +1,6 @@
 import { poolPromise, sql } from "../config/db.js";
 import { buildConciliacionQuery } from "../utils/conciliacion.helpers.js";
+import { crearNotificacionUsuarios } from "../utils/notificaciones.service.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -251,6 +252,45 @@ export const subirComprobante = async (req, res) => {
           comprobante = @comprobante
       WHERE id = @id
     `);
+
+    const detalle = await pool
+      .request()
+      .input("id", sql.Int, id)
+      .query(`
+        SELECT TOP 1
+          s.id,
+          c.codigo_referencia,
+          LTRIM(RTRIM(
+            CASE
+              WHEN LOWER(ISNULL(c.tipo_cliente, '')) = 'empresarial'
+                THEN ISNULL(NULLIF(c.nombre_empresa, ''), CONCAT(c.primer_nombre, ' ', c.primer_apellido))
+              ELSE CONCAT(
+                ISNULL(c.primer_nombre, ''), ' ',
+                ISNULL(c.segundo_nombre, ''), ' ',
+                ISNULL(c.primer_apellido, ''), ' ',
+                ISNULL(c.segundo_apellido, '')
+              )
+            END
+          )) AS nombre_cliente
+        FROM solicitudes s
+        LEFT JOIN clientes c ON c.id = s.cliente_id
+        WHERE s.id = @id
+      `);
+
+    const solicitud = detalle.recordset[0];
+    const cliente = solicitud?.nombre_cliente || solicitud?.codigo_referencia || "cliente";
+    const accion = comprobanteActual ? "reemplazo" : "cargo";
+
+    crearNotificacionUsuarios({
+      tipo: "success",
+      titulo: comprobanteActual ? "Comprobante reemplazado" : "Comprobante cargado",
+      mensaje: `Se ${accion} el comprobante de pago de la solicitud #${id} para ${cliente}.`,
+      entidadTipo: "solicitud",
+      entidadId: Number(id),
+      url: "/conciliacion-pagos",
+    }).catch((error) => {
+      console.error("Error creando notificacion de comprobante:", error);
+    });
 
     res.json({
       ok: true,

@@ -347,7 +347,7 @@ export default function ConciliacionPago() {
                 <div className="relative mt-6 flex flex-col gap-3 border-t border-gray-200/70 pt-5 sm:flex-row sm:justify-end">
                     <button
                     onClick={handleCancelar}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-bold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-4 focus:ring-gray-300/40"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-bold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-4 focus:ring-gray-300/40 cursor-pointer"
                     >
                     <img src={iconCancel} className="h-4 w-4" />
                     Cancelar
@@ -355,7 +355,7 @@ export default function ConciliacionPago() {
 
                     <button
                     onClick={handleBuscar}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-950 to-red-900 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-red-950/20 transition-all duration-200 hover:scale-[1.02] hover:from-red-900 hover:to-red-800 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-900/20"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-950 to-red-900 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-red-950/20 transition-all duration-200 hover:scale-[1.02] hover:from-red-900 hover:to-red-800 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-900/20 cursor-pointer"
                     >
                     <img src={iconSearch} className="h-4 w-4" />
                     Buscar

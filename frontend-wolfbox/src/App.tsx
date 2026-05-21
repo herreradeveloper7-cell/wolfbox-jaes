@@ -26,6 +26,7 @@ import VerClientes from './pages/usuario/VerClientes';
 import ConsultarGuiaHome from './pages/consultarGuiaHome';
 import PasswordResetPage from './pages/passwordReset';
 import SessionExpiredOverlay from './components/SessionExpiredOverlay';
+import InactivityWatcher from './components/InactivityWatcher';
 import CrearDespachos from './pages/usuario/CrearDespachos';
 import ArmarDespachos from './pages/usuario/ArmarDespachos';
 import ReporteEstadoGuia from './pages/usuario/Reportes/ReporteEstadoGuia';
@@ -79,6 +80,7 @@ function App() {
         <Route path="/Clientes" element={<VerClientes />} />
 
       </Routes>
+      <InactivityWatcher />
       <SessionExpiredOverlay />
     </>
   );

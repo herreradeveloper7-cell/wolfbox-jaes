@@ -111,7 +111,7 @@ export default function SolicitudesRealizadasTabla({
           <thead className="bg-gradient-to-r from-gray-100 to-gray-50 text-[11px] uppercase font-black tracking-[0.14em] text-gray-600">
             <tr>
               <th className="px-3 py-3 text-center">Opciones</th>
-              <th className="px-3 py-3 text-left"># Solicitud</th>
+              <th className="px-3 py-3 text-left">Solicitud</th>
               <th className="px-3 py-3 text-center">Control</th>
               <th className="px-3 py-3 text-left">Fecha</th>
               <th className="px-3 py-3 text-left">Destinatario</th>

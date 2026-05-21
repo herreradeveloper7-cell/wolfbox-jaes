@@ -1,7 +1,6 @@
-import { useState } from "react";
-import uploadIcon from "../../assets/upload-svgrepo-com.svg";
 import printIcon from "../../assets/print2-svgrepo-com.svg";
 import Swal from "sweetalert2";
+import { Download, RefreshCcw, Upload } from "lucide-react";
 
 interface SolicitudConciliacion {
   solicitud_id: number;
@@ -28,9 +27,6 @@ export default function TablaConciliacionPagos({
   onAutorizar,
   onImprimir,
 }: Props) {
-  const [files, setFiles] = useState<{ [key: number]: File | null }>({});
-  const [openUploadId, setOpenUploadId] = useState<number | null>(null);
-
   const formatearCOP = (valor: number) => {
     return new Intl.NumberFormat("es-CO", {
       style: "currency",
@@ -75,15 +71,19 @@ export default function TablaConciliacionPagos({
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+
+      Swal.fire({
+        icon: "success",
+        title: "Comprobante descargado",
+        text: "El comprobante de pago se descargó correctamente.",
+        confirmButtonColor: "#14532d",
+      });
     } catch (error: any) {
       Swal.fire("Error", error.message || "No se pudo descargar el comprobante", "error");
     }
   };
 
-  const seleccionarArchivo = (
-    solicitudId: number,
-    file?: File
-  ) => {
+  const validarArchivo = (file?: File) => {
     if (!file) return;
 
     const tiposPermitidos = ["image/jpeg", "image/png", "application/pdf"];
@@ -93,10 +93,41 @@ export default function TablaConciliacionPagos({
       return;
     }
 
-    setFiles((prev) => ({
-      ...prev,
-      [solicitudId]: file,
-    }));
+    return file;
+  };
+
+  const abrirSelectorComprobante = async (
+    solicitudId: number,
+    reemplazar = false
+  ) => {
+    if (reemplazar) {
+      const confirmacion = await Swal.fire({
+        title: "Reemplazar comprobante",
+        text: "Si continuas, el comprobante actual sera reemplazado por el nuevo archivo seleccionado.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#14532d",
+        cancelButtonColor: "#6b7280",
+        confirmButtonText: "Si, reemplazar",
+        cancelButtonText: "Cancelar",
+      });
+
+      if (!confirmacion.isConfirmed) return;
+    }
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf";
+
+    input.onchange = () => {
+      const file = validarArchivo(input.files?.[0]);
+
+      if (file) {
+        onSubirComprobante(solicitudId, file);
+      }
+    };
+
+    input.click();
   };
 
 
@@ -199,70 +230,31 @@ export default function TablaConciliacionPagos({
 
                   <td className="px-5 py-4 text-center align-middle">
                     {sol.comprobante ? (
-                      <div className="flex flex-col items-center gap-2">
+                      <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => descargarComprobante(sol.solicitud_id)}
-                          className="rounded-xl bg-gradient-to-r from-green-700 to-green-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md transition hover:scale-105 hover:from-green-600 hover:to-green-500"
+                          title="Ver comprobante"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-green-900 text-white shadow-md shadow-green-900/20 transition hover:-translate-y-0.5 hover:bg-green-800 hover:shadow-lg"
                         >
-                          Ver comprobante
+                          <Download size={17} />
                         </button>
 
                         <button
-                          onClick={() =>
-                            setOpenUploadId(
-                              openUploadId === sol.solicitud_id ? null : sol.solicitud_id
-                            )
-                          }
-                          className="text-xs font-bold text-gray-500 transition hover:text-red-950"
+                          onClick={() => abrirSelectorComprobante(sol.solicitud_id, true)}
+                          title="Reemplazar comprobante"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-green-900/20 bg-green-50 text-green-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-green-100 hover:shadow-md"
                         >
-                          Reemplazar
+                          <RefreshCcw size={17} />
                         </button>
                       </div>
                     ) : (
                       <button
-                        onClick={() =>
-                          setOpenUploadId(
-                            openUploadId === sol.solicitud_id ? null : sol.solicitud_id
-                          )
-                        }
-                        className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-gray-700 to-gray-600 shadow-md transition hover:scale-105 hover:from-red-950 hover:to-red-900"
+                        onClick={() => abrirSelectorComprobante(sol.solicitud_id)}
+                        className="mx-auto inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-gray-700 to-gray-600 text-white shadow-md transition hover:scale-105 hover:from-green-900 hover:to-green-800"
                         title="Subir comprobante"
                       >
-                        <img src={uploadIcon} className="h-4 w-4" />
+                        <Upload size={17} />
                       </button>
-                    )}
-
-                    {openUploadId === sol.solicitud_id && (
-                      <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-3 shadow-sm">
-                        <input
-                          type="file"
-                          accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                          className="w-full text-xs font-semibold text-gray-600"
-                          onChange={(e) =>
-                            seleccionarArchivo(sol.solicitud_id, e.target.files?.[0])
-                          }
-                        />
-
-                        <button
-                          onClick={() => {
-                            const file = files[sol.solicitud_id];
-
-                            if (file) {
-                              onSubirComprobante(sol.solicitud_id, file);
-
-                              setFiles((prev) => ({
-                                ...prev,
-                                [sol.solicitud_id]: null,
-                              }));
-
-                              setOpenUploadId(null);
-                            }
-                          }}
-                          className="mt-2 w-full rounded-lg bg-gradient-to-r from-green-700 to-green-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:from-green-600 hover:to-green-500"
-                        >
-                          {sol.comprobante ? "Reemplazar" : "Guardar"}
-                        </button>
-                      </div>
                     )}
                   </td>
 
