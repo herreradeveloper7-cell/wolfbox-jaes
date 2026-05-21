@@ -1,6 +1,7 @@
 import express from "express";
 import multer from "multer";
 import { autenticarToken, autorizarRoles } from "../middleware/auth.middleware.js";
+import { azureStorageDisponible } from "../utils/storage.service.js";
 import {
   buscarConciliacion,
   autorizarSolicitud,
@@ -30,7 +31,7 @@ const tiposPermitidos = new Set([
 ]);
 
 const upload = multer({
-  storage,
+  storage: azureStorageDisponible() ? multer.memoryStorage() : storage,
   limits: { fileSize: 8 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (tiposPermitidos.has(file.mimetype)) {
