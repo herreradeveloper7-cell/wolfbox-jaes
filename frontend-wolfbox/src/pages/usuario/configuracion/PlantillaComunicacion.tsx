@@ -118,7 +118,6 @@ const eventosPlantilla = [
   { value: "apertura_cuenta", label: "Apertura de cuenta" },
   { value: "paquete_digitado", label: "Digitacion de paquete" },
   { value: "solicitud_facturada", label: "Solicitud facturada" },
-  { value: "cambio_estado", label: "Cambio de estado" },
 ];
 
 const plantillaRecuperacionPassword = {
@@ -643,7 +642,7 @@ export default function PlantillaComunicacion() {
               onClick={() =>
                 tabActiva === "logs" ? cargarLogs() : cargarPlantillas()
               }
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-900"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-900 cursor-pointer"
             >
               <RefreshCcw size={17} />
               Actualizar
@@ -653,7 +652,7 @@ export default function PlantillaComunicacion() {
               <button
                 type="button"
                 onClick={abrirCrear}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-700 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green-900/15 transition hover:bg-green-800 hover:shadow-xl"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-900 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green-900/15 transition hover:bg-green-950 hover:shadow-xl cursor-pointer"
               >
                 <Plus size={18} />
                 Nueva plantilla
@@ -865,7 +864,7 @@ export default function PlantillaComunicacion() {
               <button
                 type="button"
                 onClick={cancelarFormulario}
-                className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 transition hover:bg-gray-100"
+                className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 transition hover:bg-gray-100 cursor-pointer"
               >
                 Cancelar
               </button>
@@ -873,7 +872,7 @@ export default function PlantillaComunicacion() {
                 type="button"
                 onClick={guardarPlantilla}
                 disabled={guardando}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-900 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-900/20 transition hover:bg-red-950 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-900 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-900/20 transition hover:bg-red-950 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
               >
                 <Save size={17} />
                 {guardando

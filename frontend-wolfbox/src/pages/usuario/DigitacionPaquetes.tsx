@@ -896,18 +896,18 @@ export default function DigitacionPaquetes() {
               </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="flex min-w-0 flex-col gap-4 bg-gray-50/80 border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-sm">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <label className="w-full sm:w-24 text-sm font-semibold text-gray-600 tracking-tighter">
+                      <div className="grid gap-2 sm:grid-cols-[76px_minmax(0,1fr)] sm:items-center">
+                        <label className="text-sm font-semibold text-gray-600 tracking-tighter sm:whitespace-nowrap">
                           Fecha / Hora
                         </label>
 
-                        <div className="grid w-full grid-cols-2 gap-2 sm:flex">
+                        <div className="grid min-w-0 w-full grid-cols-[minmax(0,1fr)_104px] gap-2 sm:flex sm:items-center">
                           <input
                             type="date"
                             value={fechaActual}
                             onChange={(e) => setFechaActual(e.target.value)}
                             disabled
-                            className="w-full sm:w-[150px] px-3 py-2 rounded-xl text-sm border border-gray-200 
+                            className="min-w-0 w-full sm:w-[128px] px-2.5 py-2 rounded-xl text-sm border border-gray-200 
                             bg-gray-100 text-gray-500 shadow-inner cursor-not-allowed"
                           />
 
@@ -916,7 +916,7 @@ export default function DigitacionPaquetes() {
                             value={horaActual}
                             onChange={(e) => setHoraActual(e.target.value)}
                             disabled
-                            className="w-full sm:w-[120px] px-3 py-2 rounded-xl text-sm border border-gray-200 
+                            className="min-w-0 w-full sm:w-[104px] px-2.5 py-2 rounded-xl text-sm border border-gray-200 
                             bg-gray-100 text-gray-500 shadow-inner cursor-not-allowed"
                           />
                         </div>
@@ -1567,7 +1567,7 @@ export default function DigitacionPaquetes() {
                     shadow-md ${
                       !modoEdicion && (trackingExistente || referenciaExistente)
                         ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        : "bg-green-600 text-white hover:bg-green-700 hover:shadow-lg hover:scale-[1.02]"
+                        : "bg-green-900 text-white hover:bg-green-950 hover:shadow-lg hover:scale-[1.02] cursor-pointer"
                     }`}
                   >
                     <img src={iconSave} alt="Guardar" className="w-5 h-5" />
@@ -1581,7 +1581,7 @@ export default function DigitacionPaquetes() {
                       ${
                         modoEdicion
                           ? "bg-gray-500 text-white hover:bg-gray-600 hover:shadow-md"
-                          : "bg-white border-gray-300 text-gray-700 hover:bg-red-50 hover:border-red-400 hover:text-red-700"
+                          : "bg-white border-gray-300 text-gray-700 hover:bg-red-50 hover:border-red-400 hover:text-red-700 cursor-pointer"
                       }`}
                   >
                     <img src={iconCancel} alt="Cancelar" className="w-5 h-5" />
