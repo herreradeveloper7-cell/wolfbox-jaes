@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import UserDashboardLayout from "../../layouts/UserDashboardLayout";
 import iconHome from "../../assets/home-svgrepo-com.svg";
 import iconSearch from "../../assets/search-alt-svgrepo-com.svg";
@@ -11,6 +11,8 @@ import axios from "axios";
 
 export default function ConciliacionPago() {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const solicitudNotificacion = searchParams.get("solicitud") || "";
 
     const [filtros, setFiltros] = useState({
         fechaInicio: "",
@@ -23,12 +25,12 @@ export default function ConciliacionPago() {
     const [clientes, setClientes] = useState<any[]>([]);
     const [mostrarClientes, setMostrarClientes] = useState(false);
 
-    const handleBuscar = async () => {
+    const buscarConFiltros = async (filtrosBusqueda = filtros) => {
         
         try {
             const params = new URLSearchParams();
 
-            Object.entries(filtros).forEach(([key, value]) => {
+            Object.entries(filtrosBusqueda).forEach(([key, value]) => {
                 if (value) params.append(key, value);
             });
 
@@ -46,6 +48,22 @@ export default function ConciliacionPago() {
             setSolicitudes([]);
         }
     };
+
+    const handleBuscar = () => buscarConFiltros();
+
+    useEffect(() => {
+        if (!solicitudNotificacion) return;
+
+        const filtrosNotificacion = {
+            fechaInicio: "",
+            fechaFin: "",
+            cliente: "",
+            solicitud: solicitudNotificacion,
+        };
+
+        setFiltros(filtrosNotificacion);
+        buscarConFiltros(filtrosNotificacion);
+    }, [solicitudNotificacion]);
 
     const handleImprimir = async (sol:any) => {
 
@@ -112,6 +130,7 @@ export default function ConciliacionPago() {
             solicitud: ""
         });
 
+        setSearchParams({});
         setSolicitudes([]);
     };
 
@@ -152,7 +171,7 @@ export default function ConciliacionPago() {
         Swal.fire({
         icon: "error",
         title: "Error",
-        text: "No se pudo subir el comprobante"
+        text: error instanceof Error ? error.message : "No se pudo subir el comprobante"
         });
     }
     };
@@ -347,7 +366,7 @@ export default function ConciliacionPago() {
                 <div className="relative mt-6 flex flex-col gap-3 border-t border-gray-200/70 pt-5 sm:flex-row sm:justify-end">
                     <button
                     onClick={handleCancelar}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-bold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-4 focus:ring-gray-300/40"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-bold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-4 focus:ring-gray-300/40 cursor-pointer"
                     >
                     <img src={iconCancel} className="h-4 w-4" />
                     Cancelar
@@ -355,7 +374,7 @@ export default function ConciliacionPago() {
 
                     <button
                     onClick={handleBuscar}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-950 to-red-900 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-red-950/20 transition-all duration-200 hover:scale-[1.02] hover:from-red-900 hover:to-red-800 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-900/20"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-950 to-red-900 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-red-950/20 transition-all duration-200 hover:scale-[1.02] hover:from-red-900 hover:to-red-800 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-900/20 cursor-pointer"
                     >
                     <img src={iconSearch} className="h-4 w-4" />
                     Buscar
@@ -368,6 +387,7 @@ export default function ConciliacionPago() {
 
                     <TablaConciliacionPagos
                         solicitudes={solicitudes}
+                        solicitudDestacada={solicitudNotificacion ? Number(solicitudNotificacion) : null}
                         onSubirComprobante={handleSubirComprobante}
                         onAutorizar={handleAutorizar}
                         onImprimir={handleImprimir}

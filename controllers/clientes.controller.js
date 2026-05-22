@@ -1,12 +1,125 @@
 import { sql, poolPromise } from "../config/db.js";
 import bcrypt from "bcrypt";
 import { firmarToken } from "../middleware/auth.middleware.js";
+import fs from "fs";
+import path from "path";
+import {
+  enviarEmailDesdePlantilla,
+  obtenerPlantillaEmailPorEvento,
+} from "../utils/email.service.js";
+
+const WHATSAPP_SERVICIO = "+57 302 8600369";
+const WHATSAPP_SERVICIO_URL = "https://wa.me/573028600369";
 
 function generarCodigoReferencia(texto) {
   const letras = (texto || "").trim().toUpperCase().slice(0, 3);
   const numeros = Math.floor(10000 + Math.random() * 90000);
   return `JACO${letras}${numeros}`;
 }
+
+const obtenerBaseFrontend = () =>
+  (
+    process.env.FRONTEND_URL ||
+    process.env.PUBLIC_FRONTEND_URL ||
+    process.env.CLIENT_URL ||
+    "http://localhost:5173"
+  ).replace(/\/$/, "");
+
+const obtenerAdjuntoAperturaCuenta = () => {
+  const rutaConfigurada =
+    process.env.CUENTA_CREADA_PDF_PATH ||
+    process.env.APERTURA_CUENTA_PDF_PATH ||
+    "assets/correos/politicas-jaes-cargo-internacional.pdf";
+
+  const rutaPdf = path.isAbsolute(rutaConfigurada)
+    ? rutaConfigurada
+    : path.resolve(rutaConfigurada);
+
+  if (!fs.existsSync(rutaPdf)) {
+    console.warn(`PDF de apertura de cuenta no encontrado: ${rutaPdf}`);
+    return [];
+  }
+
+  return [
+    {
+      name: process.env.CUENTA_CREADA_PDF_NAME || path.basename(rutaPdf),
+      content: fs.readFileSync(rutaPdf).toString("base64"),
+    },
+  ];
+};
+
+const crearPlantillaFallbackAperturaCuenta = () => ({
+  id: null,
+  email_remitente: process.env.BREVO_DEFAULT_SENDER_EMAIL,
+  asunto: "Bienvenido a JAES Cargo",
+  cuerpo: `<div style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+  <div style="max-width:560px;margin:0 auto;padding:24px 14px;">
+    <div style="overflow:hidden;border-radius:18px;background:#ffffff;border:1px solid #e5e7eb;box-shadow:0 18px 45px rgba(17,24,39,.12);">
+      <div style="height:5px;background:linear-gradient(90deg,#450a0a,#7f1d1d,#d1d5db);"></div>
+      <div style="padding:22px 24px 24px;">
+        <div style="display:inline-block;border-radius:999px;background:#7f1d1d14;color:#7f1d1d;padding:8px 12px;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;">
+          Wolfbox - JAES Cargo
+        </div>
+        <h1 style="margin:18px 0 8px;font-size:24px;line-height:1.18;color:#111827;">
+          Tu cuenta fue creada
+        </h1>
+        <p style="margin:0 0 14px;color:#4b5563;font-size:14px;line-height:1.6;">
+          Hola <strong>{{cliente_nombre}}</strong>, tu cuenta ya esta activa en nuestra plataforma.
+        </p>
+        <div style="border-radius:14px;background:#f9fafb;border:1px solid #e5e7eb;padding:14px;margin:14px 0;">
+          <p style="margin:0;color:#374151;font-size:13px;line-height:1.7;">
+            <strong>Correo:</strong> {{email}}<br />
+            <strong>Codigo casillero:</strong> {{codigo_casillero}}<br />
+            <strong>Tipo de cuenta:</strong> {{tipo_cuenta}}
+          </p>
+        </div>
+        <a href="{{login_url}}" style="display:inline-block;background:#7f1d1d;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;border-radius:12px;padding:12px 18px;">
+          Ingresar a Wolfbox
+        </a>
+        <div style="border-radius:14px;background:#7f1d1d0d;border:1px solid #7f1d1d22;padding:14px;margin:16px 0 0;">
+          <p style="margin:0;color:#374151;font-size:13px;line-height:1.7;">
+            Adjunto encontraras las tarifas del servicio, nuestras politicas y el paso a paso para realizar tu primera compra.
+          </p>
+        </div>
+        <p style="margin:16px 0 0;color:#6b7280;font-size:12px;line-height:1.5;">
+          Cualquier duda puedes comunicarte por WhatsApp a nuestra linea de servicio al cliente:
+          <a href="{{whatsapp_url}}" style="color:#7f1d1d;font-weight:800;text-decoration:none;">{{whatsapp_servicio}}</a>.
+        </p>
+      </div>
+    </div>
+    <p style="text-align:center;margin:14px 0 0;color:#9ca3af;font-size:11px;">
+      JAES Cargo Internacional - Notificacion automatica
+    </p>
+  </div>
+</div>`,
+});
+
+const enviarCorreoAperturaCliente = async ({
+  email,
+  nombre,
+  codigoReferencia,
+  tipoCliente,
+}) => {
+  const plantilla =
+    (await obtenerPlantillaEmailPorEvento("apertura_cuenta")) ||
+    crearPlantillaFallbackAperturaCuenta();
+
+  await enviarEmailDesdePlantilla({
+    plantilla,
+    destinatarios: [{ email, name: nombre }],
+    variables: {
+      cliente_nombre: nombre,
+      email,
+      codigo_casillero: codigoReferencia,
+      tipo_cuenta: tipoCliente || "cliente",
+      login_url: `${obtenerBaseFrontend()}/login`,
+      whatsapp_servicio: WHATSAPP_SERVICIO,
+      whatsapp_url: WHATSAPP_SERVICIO_URL,
+    },
+    evento: "apertura_cuenta",
+    adjuntos: obtenerAdjuntoAperturaCuenta(),
+  });
+};
 
 /* =======================================================
     1) VALIDAR CLIENTE EXISTENTE
@@ -163,6 +276,23 @@ export const registrarCliente = async (req, res) => {
       `);
 
     await transaction.commit();
+
+    const nombreCliente =
+      tipo_cliente === "empresarial"
+        ? razonSocial
+        : [primerNombre, segundoNombre, primerApellido, segundoApellido]
+            .filter(Boolean)
+            .join(" ")
+            .trim();
+
+    enviarCorreoAperturaCliente({
+      email,
+      nombre: nombreCliente || "Cliente",
+      codigoReferencia,
+      tipoCliente: tipo_cliente,
+    }).catch((mailError) => {
+      console.error("Error enviando correo de apertura de cliente:", mailError);
+    });
 
     return res.status(201).json({
       ok: true,

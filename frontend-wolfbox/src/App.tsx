@@ -26,12 +26,14 @@ import VerClientes from './pages/usuario/VerClientes';
 import ConsultarGuiaHome from './pages/consultarGuiaHome';
 import PasswordResetPage from './pages/passwordReset';
 import SessionExpiredOverlay from './components/SessionExpiredOverlay';
+import InactivityWatcher from './components/InactivityWatcher';
 import CrearDespachos from './pages/usuario/CrearDespachos';
 import ArmarDespachos from './pages/usuario/ArmarDespachos';
 import ReporteEstadoGuia from './pages/usuario/Reportes/ReporteEstadoGuia';
 import ReporteClientesCasilleros from './pages/usuario/Reportes/ReporteClientesCasilleros';
 import ReporteSolicitudes from './pages/usuario/Reportes/ReporteSolicitudes';
 import Transportadoras from './pages/usuario/configuracion/Transportadoras';
+import PlantillaComunicacion from './pages/usuario/configuracion/PlantillaComunicacion';
 
 
 
@@ -70,6 +72,7 @@ function App() {
         <Route path="/reporte-clientes-casilleros" element={<ReporteClientesCasilleros />} />
         <Route path="/reporte-solicitudes" element={<ReporteSolicitudes />} />
         <Route path="/transportadoras" element={<Transportadoras />} />
+        <Route path="/plantilla-comunicacion" element={<PlantillaComunicacion />} />
         <Route
           path="/dashboardUsuario/agrupar-solicitud/:id"
           element={<AgruparSolicitud />}
@@ -77,6 +80,7 @@ function App() {
         <Route path="/Clientes" element={<VerClientes />} />
 
       </Routes>
+      <InactivityWatcher />
       <SessionExpiredOverlay />
     </>
   );

@@ -85,6 +85,7 @@ export default function ModalVerDetalleSolicitud({
   });
 
   const [cargando, setCargando] = useState(true);
+  const [enviandoCobro, setEnviandoCobro] = useState(false);
 
   const [servicio, setServicio] = useState<any>(null);
   const [loadingServicio, setLoadingServicio] = useState(true);
@@ -201,6 +202,45 @@ export default function ModalVerDetalleSolicitud({
   );
 
   const cantidadPaquetes = hawbPadre ? hawbHijos.length : detalle.paquetes.length;
+
+  const enviarCobro = async () => {
+    const confirmacion = await Swal.fire({
+      title: "Enviar cobro",
+      text: "Se enviara el correo de solicitud facturada al email registrado del cliente con el PDF adjunto.",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#7d1111",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Si, enviar",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!confirmacion.isConfirmed) return;
+
+    try {
+      setEnviandoCobro(true);
+      const { data } = await axios.post(
+        `/api/solicitudes/enviar-cobro/${solicitud.id}`
+      );
+
+      Swal.fire(
+        "Cobro enviado",
+        data?.destinatario
+          ? `El correo fue enviado a ${data.destinatario}.`
+          : "El correo fue enviado correctamente.",
+        "success"
+      );
+    } catch (error: any) {
+      console.error("Error enviando cobro:", error);
+      Swal.fire(
+        "Error",
+        error?.response?.data?.mensaje || "No se pudo enviar el cobro.",
+        "error"
+      );
+    } finally {
+      setEnviandoCobro(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/65 px-3 py-3 backdrop-blur-md animate-fade-in sm:px-6 sm:py-5">
@@ -525,8 +565,15 @@ export default function ModalVerDetalleSolicitud({
         {/* Footer - Button */}
         <footer className="flex items-center justify-end gap-3 border-t border-gray-200/50 bg-gradient-to-r from-white via-gray-50/50 to-white px-4 py-4 sm:px-8 sm:py-5 flex-shrink-0">
           <button
+            onClick={enviarCobro}
+            disabled={enviandoCobro}
+            className="inline-flex items-center justify-center rounded-xl border border-red-900/20 bg-white px-5 sm:px-7 py-2 sm:py-3 text-xs sm:text-sm font-bold text-red-950 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-50 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-red-900/10 disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap cursor-pointer"
+          >
+            {enviandoCobro ? "Enviando cobro..." : "Enviar cobro"}
+          </button>
+          <button
             onClick={onClose}
-            className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-red-950 to-red-900 hover:from-red-900 hover:to-red-800 px-6 sm:px-8 py-2 sm:py-3 text-xs sm:text-sm font-bold text-white shadow-lg shadow-red-950/20 transition-all duration-200 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-900/20 whitespace-nowrap"
+            className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-red-950 to-red-900 hover:from-red-900 hover:to-red-800 px-6 sm:px-8 py-2 sm:py-3 text-xs sm:text-sm font-bold text-white shadow-lg shadow-red-950/20 transition-all duration-200 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-900/20 whitespace-nowrap cursor-pointer"
           >
             Cerrar
           </button>

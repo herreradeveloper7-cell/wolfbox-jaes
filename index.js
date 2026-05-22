@@ -19,14 +19,17 @@ import agrupacionesRoutes from "./routes/agruparPaquetes.routes.js";
 import conciliacionRoutes from "./routes/conciliacion.routes.js";
 import despachosRoutes from "./routes/despachos.routes.js";
 import transportadorasRoutes from "./routes/transportadoras.routes.js";
+import plantillasComunicacionRoutes from "./routes/plantillasComunicacion.routes.js";
+import notificacionesRoutes from "./routes/notificaciones.routes.js";
 import oficinasRoutes from "./routes/catalogos/oficinas.routes.js";
 import paisesRoutes from "./routes/catalogos/paises.routes.js";
 import regionesRoutes from "./routes/catalogos/regiones.routes.js";
 import ciudadesRoutes from "./routes/catalogos/ciudades.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
-import { poolPromise } from "./config/db.js";
+import { iniciarDbKeepAlive, poolPromise } from "./config/db.js";
 
 const app = express();
+iniciarDbKeepAlive();
 
 const uploadsPath = path.resolve("uploads/comprobantes");
 if (!fs.existsSync(uploadsPath)) {
@@ -51,6 +54,23 @@ app.use(cors({
 app.use(bodyParser.json());
 app.use(express.json());
 
+app.use((req, res, next) => {
+  const startedAt = Date.now();
+  const slowRequestMs = Number(process.env.SLOW_REQUEST_MS) || 2500;
+
+  res.on("finish", () => {
+    const elapsed = Date.now() - startedAt;
+
+    if (elapsed >= slowRequestMs) {
+      console.warn(
+        `[slow-request] ${req.method} ${req.originalUrl} ${res.statusCode} ${elapsed}ms`
+      );
+    }
+  });
+
+  next();
+});
+
 app.use("/uploads", express.static("uploads"));
 
 app.get('/', (req, res) => {
@@ -63,9 +83,10 @@ app.get("/health", (req, res) => {
 
 app.get("/health/db", async (req, res) => {
   try {
+    const startedAt = Date.now();
     const pool = await poolPromise;
     await pool.request().query("SELECT 1 AS ok");
-    res.json({ ok: true, db: "connected" });
+    res.json({ ok: true, db: "connected", latency_ms: Date.now() - startedAt });
   } catch (error) {
     console.error("Health DB failed:", error);
     res.status(503).json({ ok: false, db: "unavailable" });
@@ -87,6 +108,8 @@ app.use("/api/agrupaciones", agrupacionesRoutes);
 app.use("/api/conciliacion", conciliacionRoutes);
 app.use("/api/despachos", despachosRoutes);
 app.use("/api/transportadoras", transportadorasRoutes);
+app.use("/api/plantillas-comunicacion", plantillasComunicacionRoutes);
+app.use("/api/notificaciones", notificacionesRoutes);
 app.use("/api/oficinas", oficinasRoutes);
 app.use("/api/catalogos/paises", paisesRoutes);
 app.use("/api/catalogos/regiones", regionesRoutes);

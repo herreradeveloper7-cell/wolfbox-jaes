@@ -10,8 +10,8 @@ const config = {
   requestTimeout: Number(process.env.DB_REQUEST_TIMEOUT) || 60000,
   pool: {
     max: Number(process.env.DB_POOL_MAX) || 10,
-    min: Number(process.env.DB_POOL_MIN) || 0,
-    idleTimeoutMillis: Number(process.env.DB_POOL_IDLE_TIMEOUT) || 30000,
+    min: Number(process.env.DB_POOL_MIN) || 1,
+    idleTimeoutMillis: Number(process.env.DB_POOL_IDLE_TIMEOUT) || 300000,
   },
   options: {
     encrypt: true,
@@ -22,6 +22,7 @@ const config = {
 let pool;
 let connectingPromise;
 let testPoolPromise = null;
+let keepAliveStarted = false;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -81,6 +82,32 @@ const getPool = async () => {
   }
 
   return connectingPromise;
+};
+
+export const warmUpDatabase = async () => {
+  const startedAt = Date.now();
+  const nextPool = await getPool();
+  await nextPool.request().query("SELECT 1 AS ok");
+  const elapsed = Date.now() - startedAt;
+  console.log(`Azure SQL warm-up OK en ${elapsed}ms`);
+};
+
+export const iniciarDbKeepAlive = ({
+  intervaloMs = Number(process.env.DB_KEEPALIVE_INTERVAL_MS) || 240000,
+} = {}) => {
+  if (keepAliveStarted || process.env.NODE_ENV === "test") return;
+
+  keepAliveStarted = true;
+
+  warmUpDatabase().catch((error) => {
+    console.error("Warm-up inicial Azure SQL fallo:", error.message);
+  });
+
+  setInterval(() => {
+    warmUpDatabase().catch((error) => {
+      console.error("Keep-alive Azure SQL fallo:", error.message);
+    });
+  }, intervaloMs).unref?.();
 };
 
 export const poolPromise = {

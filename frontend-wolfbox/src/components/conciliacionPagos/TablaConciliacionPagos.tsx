@@ -1,7 +1,6 @@
-import { useState } from "react";
-import uploadIcon from "../../assets/upload-svgrepo-com.svg";
 import printIcon from "../../assets/print2-svgrepo-com.svg";
 import Swal from "sweetalert2";
+import { Download, RefreshCcw, Upload } from "lucide-react";
 
 interface SolicitudConciliacion {
   solicitud_id: number;
@@ -13,10 +12,13 @@ interface SolicitudConciliacion {
   trm: number;
   estado_paquete?: string | null;
   comprobante?: string;
+  hawb_padre?: string | null;
+  esta_agrupada?: number | boolean | null;
 }
 
 interface Props {
   solicitudes: SolicitudConciliacion[];
+  solicitudDestacada?: number | null;
   onSubirComprobante: (id: number, archivo: File) => void;
   onAutorizar: (id: number, estadoActual?: string) => void;
   onImprimir?: (solicitud: SolicitudConciliacion) => void;
@@ -24,13 +26,11 @@ interface Props {
 
 export default function TablaConciliacionPagos({
   solicitudes,
+  solicitudDestacada,
   onSubirComprobante,
   onAutorizar,
   onImprimir,
 }: Props) {
-  const [files, setFiles] = useState<{ [key: number]: File | null }>({});
-  const [openUploadId, setOpenUploadId] = useState<number | null>(null);
-
   const formatearCOP = (valor: number) => {
     return new Intl.NumberFormat("es-CO", {
       style: "currency",
@@ -51,6 +51,87 @@ export default function TablaConciliacionPagos({
   const formatearFecha = (fecha: string) => {
     if (!fecha) return "-";
     return new Date(fecha).toLocaleDateString("es-CO");
+  };
+
+  const descargarComprobante = async (solicitudId: number) => {
+    try {
+      const response = await fetch(`/api/conciliacion/comprobante/${solicitudId}`);
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.mensaje || "No se pudo descargar el comprobante");
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get("content-disposition") || "";
+      const match = contentDisposition.match(/filename="?([^"]+)"?/i);
+      const fileName = match?.[1] || `comprobante-${solicitudId}`;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+
+      Swal.fire({
+        icon: "success",
+        title: "Comprobante descargado",
+        text: "El comprobante de pago se descargó correctamente.",
+        confirmButtonColor: "#14532d",
+      });
+    } catch (error: any) {
+      Swal.fire("Error", error.message || "No se pudo descargar el comprobante", "error");
+    }
+  };
+
+  const validarArchivo = (file?: File) => {
+    if (!file) return;
+
+    const tiposPermitidos = ["image/jpeg", "image/png", "application/pdf"];
+
+    if (!tiposPermitidos.includes(file.type)) {
+      Swal.fire("Archivo no valido", "Solo se permiten archivos JPG, PNG o PDF.", "warning");
+      return;
+    }
+
+    return file;
+  };
+
+  const abrirSelectorComprobante = async (
+    solicitudId: number,
+    reemplazar = false
+  ) => {
+    if (reemplazar) {
+      const confirmacion = await Swal.fire({
+        title: "Reemplazar comprobante",
+        text: "Si continuas, el comprobante actual sera reemplazado por el nuevo archivo seleccionado.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#14532d",
+        cancelButtonColor: "#6b7280",
+        confirmButtonText: "Si, reemplazar",
+        cancelButtonText: "Cancelar",
+      });
+
+      if (!confirmacion.isConfirmed) return;
+    }
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf";
+
+    input.onchange = () => {
+      const file = validarArchivo(input.files?.[0]);
+
+      if (file) {
+        onSubirComprobante(solicitudId, file);
+      }
+    };
+
+    input.click();
   };
 
 
@@ -78,7 +159,7 @@ export default function TablaConciliacionPagos({
       </div>
 
       <div className="relative overflow-x-auto">
-        <table className="w-full min-w-[1180px] text-sm">
+        <table className="w-full min-w-[1320px] text-sm">
           <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gradient-to-r from-gray-100 via-white to-gray-50">
             <tr className="text-[10px] uppercase tracking-[0.18em] text-gray-600">
               <th className="px-5 py-4 text-left font-black">Solicitud</th>
@@ -88,6 +169,7 @@ export default function TablaConciliacionPagos({
               <th className="px-5 py-4 text-center font-black">COP</th>
               <th className="px-5 py-4 text-center font-black">TRM</th>
               <th className="px-5 py-4 text-center font-black">Fecha</th>
+              <th className="px-5 py-4 text-center font-black">Agrupacion</th>
               <th className="px-5 py-4 text-center font-black">Comprobante</th>
               <th className="px-5 py-4 text-center font-black">Imprimir</th>
               <th className="px-5 py-4 text-center font-black">Acciones</th>
@@ -97,7 +179,7 @@ export default function TablaConciliacionPagos({
           <tbody className="divide-y divide-gray-100">
             {solicitudes.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-6 py-12 text-center">
+                <td colSpan={11} className="px-6 py-12 text-center">
                   <div className="mx-auto flex max-w-md flex-col items-center">
                     <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-2xl font-semibold text-red-950">
                       !
@@ -112,10 +194,17 @@ export default function TablaConciliacionPagos({
                 </td>
               </tr>
             ) : (
-              solicitudes.map((sol, index) => (
+              solicitudes.map((sol, index) => {
+                const destacada = solicitudDestacada === Number(sol.solicitud_id);
+                const agrupada = Boolean(Number(sol.esta_agrupada)) || Boolean(sol.hawb_padre);
+
+                return (
                 <tr
+                  id={`solicitud-${sol.solicitud_id}`}
                   key={`${sol.solicitud_id}-${index}`}
-                  className="group bg-white transition-all duration-200 hover:bg-gradient-to-r hover:from-red-50/80 hover:via-white hover:to-transparent"
+                  className={`group bg-white transition-all duration-200 hover:bg-gradient-to-r hover:from-red-50/80 hover:via-white hover:to-transparent ${
+                    destacada ? "bg-green-50/80 shadow-[inset_4px_0_0_#14532d]" : ""
+                  }`}
                 >
                   <td className="px-5 py-4 align-middle">
                     <span className="inline-flex rounded-xl border border-red-900/10 bg-red-50 px-3 py-1.5 font-mono text-xs font-semibold text-red-950">
@@ -152,77 +241,49 @@ export default function TablaConciliacionPagos({
                   </td>
 
                   <td className="px-5 py-4 text-center align-middle">
+                    {agrupada ? (
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="inline-flex rounded-full border border-green-900/20 bg-green-50 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-green-900">
+                          Agrupada
+                        </span>
+                        <span className="rounded-xl border border-gray-200 bg-white px-3 py-1 font-mono text-xs font-semibold text-gray-700">
+                          {sol.hawb_padre || "-"}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="inline-flex rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-gray-500">
+                        No agrupada
+                      </span>
+                    )}
+                  </td>
+
+                  <td className="px-5 py-4 text-center align-middle">
                     {sol.comprobante ? (
-                      <div className="flex flex-col items-center gap-2">
+                      <div className="flex items-center justify-center gap-2">
                         <button
-                          onClick={() => window.open(sol.comprobante, "_blank")}
-                          className="rounded-xl bg-gradient-to-r from-green-700 to-green-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md transition hover:scale-105 hover:from-green-600 hover:to-green-500"
+                          onClick={() => descargarComprobante(sol.solicitud_id)}
+                          title="Ver comprobante"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-green-900 text-white shadow-md shadow-green-900/20 transition hover:-translate-y-0.5 hover:bg-green-800 hover:shadow-lg"
                         >
-                          Ver comprobante
+                          <Download size={17} />
                         </button>
 
-                        <a
-                          href={sol.comprobante}
-                          download
-                          className="text-xs font-bold text-red-950 hover:underline"
-                        >
-                          Descargar
-                        </a>
-
                         <button
-                          onClick={() => setOpenUploadId(sol.solicitud_id)}
-                          className="text-xs font-bold text-gray-500 transition hover:text-red-950"
+                          onClick={() => abrirSelectorComprobante(sol.solicitud_id, true)}
+                          title="Reemplazar comprobante"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-green-900/20 bg-green-50 text-green-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-green-100 hover:shadow-md"
                         >
-                          Reemplazar
+                          <RefreshCcw size={17} />
                         </button>
                       </div>
                     ) : (
                       <button
-                        onClick={() =>
-                          setOpenUploadId(openUploadId === index ? null : index)
-                        }
-                        className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-gray-700 to-gray-600 shadow-md transition hover:scale-105 hover:from-red-950 hover:to-red-900"
+                        onClick={() => abrirSelectorComprobante(sol.solicitud_id)}
+                        className="mx-auto inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-gray-700 to-gray-600 text-white shadow-md transition hover:scale-105 hover:from-green-900 hover:to-green-800"
                         title="Subir comprobante"
                       >
-                        <img src={uploadIcon} className="h-4 w-4" />
+                        <Upload size={17} />
                       </button>
-                    )}
-
-                    {openUploadId === index && (
-                      <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-3 shadow-sm">
-                        <input
-                          type="file"
-                          className="w-full text-xs font-semibold text-gray-600"
-                          onChange={(e) => {
-                            if (e.target.files?.length) {
-                              setFiles((prev) => ({
-                                ...prev,
-                                [sol.solicitud_id]: e.target.files![0],
-                              }));
-                            }
-                          }}
-                        />
-
-                        <button
-                          onClick={() => {
-                            const file = files[sol.solicitud_id];
-
-                            if (file) {
-                              onSubirComprobante(sol.solicitud_id, file);
-
-                              setFiles((prev) => ({
-                                ...prev,
-                                [sol.solicitud_id]: null,
-                              }));
-
-                              setOpenUploadId(null);
-                            }
-                          }}
-                          className="mt-2 w-full rounded-lg bg-gradient-to-r from-green-700 to-green-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:from-green-600 hover:to-green-500"
-                        >
-                          Guardar
-                        </button>
-                      </div>
                     )}
                   </td>
 
@@ -260,7 +321,8 @@ export default function TablaConciliacionPagos({
                     </button>
                   </td>
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>

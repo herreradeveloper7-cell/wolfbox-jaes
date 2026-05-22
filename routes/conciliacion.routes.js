@@ -1,43 +1,65 @@
 import express from "express";
 import multer from "multer";
 import { autenticarToken, autorizarRoles } from "../middleware/auth.middleware.js";
+import { azureStorageDisponible } from "../utils/storage.service.js";
 import {
   buscarConciliacion,
   autorizarSolicitud,
   quitarAutorizacionSolicitud,
-  subirComprobante // 👈 IMPORTANTE
+  subirComprobante,
+  descargarComprobante,
 } from "../controllers/conciliacion.controller.js";
 
 const router = express.Router();
 const soloOperacion = autorizarRoles("admin", "usuario");
+const comprobantesDir = "uploads/comprobantes";
 
-
-// 📁 CONFIGURACIÓN DE MULTER
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/comprobantes"); // 👈 carpeta donde se guardan
+    cb(null, comprobantesDir);
   },
   filename: (req, file, cb) => {
-    const nombre = Date.now() + "-" + file.originalname;
-    cb(null, nombre);
-  }
+    const limpio = file.originalname.replace(/[^\w.\-]+/g, "_");
+    cb(null, `${Date.now()}-${limpio}`);
+  },
 });
 
-const upload = multer({ storage });
+const tiposPermitidos = new Set([
+  "image/jpeg",
+  "image/png",
+  "application/pdf",
+]);
+
+const upload = multer({
+  storage: azureStorageDisponible() ? multer.memoryStorage() : storage,
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (tiposPermitidos.has(file.mimetype)) {
+      return cb(null, true);
+    }
+
+    return cb(new Error("Solo se permiten archivos JPG, PNG o PDF."));
+  },
+});
+
 router.use(autenticarToken, soloOperacion);
 
-
-// 🔎 CONSULTA
 router.get("/", buscarConciliacion);
-
-// 🔐 AUTORIZACIÓN
 router.put("/autorizar/:id", autorizarSolicitud);
 router.put("/quitar-autorizacion/:id", quitarAutorizacionSolicitud);
+router.get("/comprobante/:id", descargarComprobante);
 
-// 📤 SUBIR COMPROBANTE (NUEVO)
 router.post(
   "/subir-comprobante/:id",
-  upload.single("comprobante"),
+  (req, res, next) => {
+    upload.single("comprobante")(req, res, (error) => {
+      if (!error) return next();
+
+      return res.status(400).json({
+        mensaje: error.message || "Archivo no valido.",
+      });
+    });
+  },
   subirComprobante
 );
 
