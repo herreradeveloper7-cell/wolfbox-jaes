@@ -73,6 +73,7 @@ const calcularFleteServicio = (servicio, pesoTotal) => {
 };
 
 const WHATSAPP_SERVICIO = "+57 302 8600369";
+const WHATSAPP_SERVICIO_URL = "https://wa.me/573028600369";
 const INFORMACION_BANCARIA = {
   titular: "JAES CARGO INTERNACIONAL",
   banco: "Davivienda",
@@ -108,7 +109,8 @@ const crearPlantillaFallbackSolicitudFacturada = () => ({
           Hola <strong>{{cliente_nombre}}</strong>, tu solicitud <strong>#{{solicitud_id}}</strong> ya se encuentra facturada y disponible para pago en Colombia.
         </p>
         <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">
-          Por favor realiza el pago y responde a este mismo correo con el comprobante. Tambien puedes enviarlo por WhatsApp a <strong>{{whatsapp_servicio}}</strong>.
+          Por favor realiza el pago y responde a este mismo correo con el comprobante. Tambien puedes enviarlo por WhatsApp a
+          <a href="{{whatsapp_url}}" style="color:#7f1d1d;font-weight:800;text-decoration:none;">{{whatsapp_servicio}}</a>.
         </p>
         <div style="border-radius:14px;background:#f9fafb;border:1px solid #e5e7eb;padding:14px;margin:14px 0;">
           <p style="margin:0 0 8px;color:#7f1d1d;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">
@@ -1428,6 +1430,7 @@ export const enviarCobroSolicitud = async (req, res) => {
         total_usd: formatUSD(solicitud.totalUSDConCargos),
         fecha: new Date().toLocaleDateString("es-CO"),
         whatsapp_servicio: WHATSAPP_SERVICIO,
+        whatsapp_url: WHATSAPP_SERVICIO_URL,
         banco_titular: INFORMACION_BANCARIA.titular,
         banco_nombre: INFORMACION_BANCARIA.banco,
         banco_cuenta: INFORMACION_BANCARIA.cuenta,
