@@ -72,7 +72,6 @@ const calcularFleteServicio = (servicio, pesoTotal) => {
   };
 };
 
-<<<<<<< HEAD
 export const normalizarHawbsAgrupacion = (hawbs) => {
   if (!Array.isArray(hawbs)) return [];
 
@@ -97,7 +96,6 @@ export const bindHawbInputs = (request, hawbs) => {
 };
 
 export const buildTrackingPadreAgrupado = (hawbPadre) => hawbPadre;
-=======
 const WHATSAPP_SERVICIO = "+57 302 8600369";
 const WHATSAPP_SERVICIO_URL = "https://wa.me/573028600369";
 const INFORMACION_BANCARIA = {
@@ -484,7 +482,6 @@ const generarPdfCobroSolicitud = (solicitud) =>
 
     doc.end();
   });
->>>>>>> feature/developer
 
 export const crearSolicitud = async (req, res) => {
   let transaction;
