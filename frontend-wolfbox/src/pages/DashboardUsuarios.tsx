@@ -4,6 +4,7 @@ import iconPackage from "../assets/lockers-storage-svgrepo-com.svg";
 import iconRequest from "../assets/file-ui-svgrepo-com.svg";
 import iconGroup from "../assets/sort-random-svgrepo-com.svg";
 import iconClients from "../assets/profile-circle-svgrepo-com.svg";
+import { CalendarRange, ChevronDown } from "lucide-react";
 
 type ResumenDashboard = {
   paquetesDigitados: number;
@@ -11,6 +12,8 @@ type ResumenDashboard = {
   solicitudesAgrupadas: number;
   clientesConPaquetesDigitados: number;
 };
+
+type PeriodoDashboard = "7d" | "15d" | "1m" | "1y" | "todos";
 
 const emptyResumen: ResumenDashboard = {
   paquetesDigitados: 0,
@@ -44,10 +47,46 @@ const parseJsonResponse = async (res: Response) => {
 
 const normalizeText = (value: unknown) => String(value || "").trim().toLowerCase();
 
+const periodosDashboard: { value: PeriodoDashboard; label: string; detail: string }[] = [
+  { value: "7d", label: "Ultimos 7 dias", detail: "Pulso operativo reciente" },
+  { value: "15d", label: "Ultimos 15 dias", detail: "Ventana quincenal" },
+  { value: "1m", label: "Ultimo mes", detail: "Ultimos 30 dias" },
+  { value: "1y", label: "Ultimo año", detail: "Ultimos 365 dias" },
+  { value: "todos", label: "Todos", detail: "Historico completo" },
+];
+
+const diasPorPeriodo: Partial<Record<PeriodoDashboard, number>> = {
+  "7d": 7,
+  "15d": 15,
+  "1m": 30,
+  "1y": 365,
+};
+
+const getFechaRegistro = (item: any) =>
+  item?.fecha_registro || item?.fecha || item?.fecha_creacion || item?.fecha_digitacion || "";
+
+const estaEnPeriodo = (item: any, periodo: PeriodoDashboard) => {
+  const dias = diasPorPeriodo[periodo];
+  if (!dias) return true;
+
+  const fechaValor = getFechaRegistro(item);
+  if (!fechaValor) return false;
+
+  const fecha = new Date(fechaValor);
+  if (Number.isNaN(fecha.getTime())) return false;
+
+  const desde = new Date();
+  desde.setHours(0, 0, 0, 0);
+  desde.setDate(desde.getDate() - dias);
+
+  return fecha >= desde;
+};
+
 export default function DashboardUsuarios() {
   const [resumen, setResumen] = useState<ResumenDashboard>(emptyResumen);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [periodo, setPeriodo] = useState<PeriodoDashboard>("7d");
 
   useEffect(() => {
     const cargarResumen = async () => {
@@ -55,7 +94,8 @@ export default function DashboardUsuarios() {
         setLoading(true);
         setError("");
 
-        const res = await fetch("/api/dashboard/usuario");
+        const params = new URLSearchParams({ periodo });
+        const res = await fetch(`/api/dashboard/usuario?${params.toString()}`);
         const data = await parseJsonResponse(res);
 
         if (res.ok && data?.ok) {
@@ -82,7 +122,14 @@ export default function DashboardUsuarios() {
           throw new Error("No se pudo cargar el resumen desde endpoints existentes");
         }
 
-        const paquetesDigitados = paquetesData.filter(
+        const paquetesFiltrados = paquetesData.filter((paquete: any) =>
+          estaEnPeriodo(paquete, periodo)
+        );
+        const solicitudesFiltradas = solicitudesData.filter((solicitud: any) =>
+          estaEnPeriodo(solicitud, periodo)
+        );
+
+        const paquetesDigitados = paquetesFiltrados.filter(
           (paquete: any) => normalizeText(paquete.estado) === "digitado"
         );
         const clientesConDigitados = new Set(
@@ -91,13 +138,13 @@ export default function DashboardUsuarios() {
             .filter(Boolean)
         );
 
-        const solicitudesAgrupadas = solicitudesData.filter((solicitud: any) => {
+        const solicitudesAgrupadas = solicitudesFiltradas.filter((solicitud: any) => {
           const guiaAgrupada = normalizeText(solicitud.guia_agrupada);
           const hawbsAgrupados = normalizeText(solicitud.hawbs_agrupados);
           return Boolean(guiaAgrupada || hawbsAgrupados);
         });
 
-        const solicitudesSinAgrupar = solicitudesData.filter((solicitud: any) => {
+        const solicitudesSinAgrupar = solicitudesFiltradas.filter((solicitud: any) => {
           const guiaAgrupada = normalizeText(solicitud.guia_agrupada);
           const hawbsAgrupados = normalizeText(solicitud.hawbs_agrupados);
           const hawbsNormales = normalizeText(solicitud.hawbs_normales);
@@ -119,7 +166,12 @@ export default function DashboardUsuarios() {
     };
 
     cargarResumen();
-  }, []);
+  }, [periodo]);
+
+  const periodoSeleccionado = useMemo(
+    () => periodosDashboard.find((item) => item.value === periodo) || periodosDashboard[0],
+    [periodo]
+  );
 
   const tarjetas = useMemo(
     () => [
@@ -176,6 +228,41 @@ export default function DashboardUsuarios() {
               </p>
             </div>
 
+            <div className="relative w-full max-w-sm overflow-hidden rounded-[1.35rem] border border-white/70 bg-white/90 p-1 shadow-xl shadow-slate-400/20 ring-1 ring-red-900/10">
+              <div className="absolute inset-0 bg-gradient-to-br from-red-900 via-white to-gray-600" />
+              <div className="relative rounded-[1.1rem] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-white p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-red-900 to-slate-900 text-white shadow-lg shadow-red-900/20">
+                      <CalendarRange className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-red-900">
+                        Rango
+                      </p>
+                      <p className="text-sm font-black text-gray-700">
+                        {periodoSeleccionado.detail}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <select
+                    value={periodo}
+                    onChange={(event) => setPeriodo(event.target.value as PeriodoDashboard)}
+                    className="h-12 w-full appearance-none rounded-2xl border border-slate-200 px-4 pr-11 text-sm font-black text-gray-600 shadow-inner outline-none transition hover:border-red-900/40 focus:border-red-900 focus:ring-4 focus:ring-red-950/15"
+                  >
+                    {periodosDashboard.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-700" />
+                </div>
+              </div>
+            </div>
           </div>
 
           {error && (
@@ -223,10 +310,10 @@ export default function DashboardUsuarios() {
                   Lectura rapida
                 </p>
                 <h2 className="mt-2 text-xl font-black text-gray-700">
-                  Flujo operativo del dia
+                  Flujo operativo filtrado
                 </h2>
                 <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-                  Usa estas tarjetas para priorizar digitacion pendiente, solicitudes listas para agrupar y clientes que ya tienen paquetes en estado digitado.
+                  Usa estas tarjetas para priorizar digitacion pendiente, solicitudes listas para agrupar y clientes dentro del rango seleccionado.
                 </p>
               </div>
 

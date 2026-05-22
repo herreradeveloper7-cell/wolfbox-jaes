@@ -12,6 +12,7 @@ import iconTracking from "../assets/barcode-svgrepo-com.svg";
 import iconReport from "../assets/report-file-svgrepo-com (1).svg";
 import iconSecurity from "../assets/security-shield-svgrepo-com.svg"
 import iconSettings from "../assets/settings-svgrepo-com.svg"
+import NotificationBell from "../components/notificaciones/NotificationBell";
 
 type Props = {
     children: ReactNode;
@@ -348,6 +349,7 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
             <button onClick={() => navegarORecargar("/config-trm")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">TRM</button>
             <button onClick={() => navegarORecargar("/config-tarifas")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Tarifas</button>
             <button onClick={() => navegarORecargar("/transportadoras")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Transportadoras</button>
+            <button onClick={() => navegarORecargar("/plantilla-comunicacion")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Plantillas Comunicación</button>
           </div>
         </div>
 
@@ -453,6 +455,7 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
         </footer>
 
       </main>
+      <NotificationBell />
     </div>
   );
 }

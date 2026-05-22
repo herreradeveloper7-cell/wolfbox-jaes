@@ -1,5 +1,5 @@
-import { FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { FormEvent, useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import iconSearchTracking from "../assets/search-alt-2-svgrepo-com (1).svg";
 
 type EstadoTracking = {
@@ -30,21 +30,23 @@ const API_URL = "/api/paquetes/tracking/hawb";
 
 export default function ConsultarGuiaHome() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [hawb, setHawb] = useState("");
   const [guia, setGuia] = useState<GuiaPublica | null>(null);
   const [mensaje, setMensaje] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const buscarGuia = async (event?: FormEvent<HTMLFormElement>) => {
+  const buscarGuia = async (event?: FormEvent<HTMLFormElement>, hawbDirecto?: string) => {
     event?.preventDefault();
 
-    const valor = hawb.trim();
+    const valor = (hawbDirecto ?? hawb).trim();
     if (!valor) {
       setMensaje("Ingresa un número HAWB para consultar el estado.");
       setGuia(null);
       return;
     }
 
+    setHawb(valor.toUpperCase());
     setLoading(true);
     setMensaje("");
     setGuia(null);
@@ -66,6 +68,14 @@ export default function ConsultarGuiaHome() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const hawbParam = searchParams.get("hawb") || searchParams.get("guia");
+    if (hawbParam) {
+      buscarGuia(undefined, hawbParam.toUpperCase());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const limpiarConsulta = () => {
     setHawb("");

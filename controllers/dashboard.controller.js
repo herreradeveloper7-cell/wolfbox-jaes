@@ -1,16 +1,36 @@
-import { poolPromise } from "../config/db.js";
+import { poolPromise, sql } from "../config/db.js";
 
 export const obtenerResumenUsuario = async (req, res) => {
   try {
+    const { periodo = "todos" } = req.query;
+    const diasPorPeriodo = {
+      "7d": 7,
+      "15d": 15,
+      "1m": 30,
+      "1y": 365,
+    };
+    const dias = diasPorPeriodo[periodo];
     const pool = await poolPromise;
+    const request = pool.request();
+    const filtroPaquetes = dias
+      ? "AND p.fecha_registro >= DATEADD(day, -@dias, CAST(GETDATE() AS date))"
+      : "";
+    const filtroSolicitudes = dias
+      ? "AND s.fecha >= DATEADD(day, -@dias, CAST(GETDATE() AS date))"
+      : "";
 
-    const result = await pool.request().query(`
+    if (dias) {
+      request.input("dias", sql.Int, dias);
+    }
+
+    const result = await request.query(`
       SELECT
         (
           SELECT COUNT(*)
           FROM paquetes p
           INNER JOIN estados_catalogo e ON e.id = p.estado_id
           WHERE LOWER(LTRIM(RTRIM(e.nombre))) = 'digitado'
+          ${filtroPaquetes}
         ) AS paquetesDigitados,
 
         (
@@ -24,6 +44,7 @@ export const obtenerResumenUsuario = async (req, res) => {
               AND ISNULL(p.agrupado_bit, 0) = 0
               AND ISNULL(p.hawb, '') NOT LIKE '%G'
           )
+          ${filtroSolicitudes}
           AND NOT EXISTS (
             SELECT 1
             FROM paquetes p
@@ -40,9 +61,12 @@ export const obtenerResumenUsuario = async (req, res) => {
           SELECT COUNT(DISTINCT s.id)
           FROM solicitudes s
           INNER JOIN paquetes p ON p.solicitud_id = s.id
-          WHERE p.hawb_padre IS NOT NULL
-             OR ISNULL(p.hawb, '') LIKE '%G'
-             OR ISNULL(p.agrupado_bit, 0) = 1
+          WHERE (
+            p.hawb_padre IS NOT NULL
+            OR ISNULL(p.hawb, '') LIKE '%G'
+            OR ISNULL(p.agrupado_bit, 0) = 1
+          )
+          ${filtroSolicitudes}
         ) AS solicitudesAgrupadas,
 
         (
@@ -50,6 +74,7 @@ export const obtenerResumenUsuario = async (req, res) => {
           FROM paquetes p
           INNER JOIN estados_catalogo e ON e.id = p.estado_id
           WHERE LOWER(LTRIM(RTRIM(e.nombre))) = 'digitado'
+          ${filtroPaquetes}
         ) AS clientesConPaquetesDigitados
     `);
 
