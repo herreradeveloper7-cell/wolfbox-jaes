@@ -280,7 +280,7 @@ const plantillaSolicitudFacturada = {
         <div style="border-radius:14px;background:#7f1d1d0d;border:1px solid #7f1d1d22;padding:14px;margin:14px 0;">
           <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">
             Por favor realiza el pago y responde a este mismo correo con el comprobante. Tambien puedes enviarlo por WhatsApp a nuestro numero de servicio al cliente:
-            <strong>{{whatsapp_servicio}}</strong>.
+            <a href="{{whatsapp_url}}" style="color:#7f1d1d;font-weight:800;text-decoration:none;">{{whatsapp_servicio}}</a>.
           </p>
         </div>
         <div style="border-radius:14px;background:#f9fafb;border:1px solid #e5e7eb;padding:14px;margin:14px 0;">
