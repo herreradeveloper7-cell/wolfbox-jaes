@@ -42,7 +42,7 @@ export default function PasswordResetPage() {
       }
 
       setMensaje(
-        "Si el correo esta registrado, recibiras las instrucciones para restablecer tu contrasena."
+        "Si el correo esta registrado, recibiras las instrucciones para restablecer tu contraseña."
       );
       setEmail("");
     } catch (err: any) {
@@ -58,12 +58,12 @@ export default function PasswordResetPage() {
     limpiarMensajes();
 
     if (contrasena.length < 6) {
-      setError("La contrasena debe tener minimo 6 caracteres.");
+      setError("La contraseña debe tener minimo 6 caracteres.");
       return;
     }
 
     if (contrasena !== confirmarContrasena) {
-      setError("Las contrasenas no coinciden.");
+      setError("Las contraseñas no coinciden.");
       return;
     }
 
@@ -78,15 +78,15 @@ export default function PasswordResetPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.mensaje || "No fue posible actualizar la contrasena.");
+        throw new Error(data.mensaje || "No fue posible actualizar la contraseña.");
       }
 
-      setMensaje("Contrasena actualizada correctamente. Ya puedes iniciar sesion.");
+      setMensaje("Contraseña actualizada correctamente. Ya puedes iniciar sesion.");
       setContrasena("");
       setConfirmarContrasena("");
     } catch (err: any) {
       console.error("Error confirmando recuperacion:", err);
-      setError(err.message || "No fue posible actualizar la contrasena.");
+      setError(err.message || "No fue posible actualizar la contraseña.");
     } finally {
       setLoading(false);
     }
@@ -138,7 +138,7 @@ export default function PasswordResetPage() {
                 </h1>
                 <p className="mt-4 max-w-sm text-sm font-medium leading-6 text-white/75">
                   {token
-                    ? "Crea una nueva contrasena para volver a operar en la plataforma."
+                    ? "Crea una nueva contraseña para volver a operar en la plataforma."
                     : "Solicita las instrucciones de restablecimiento y continua operando en la plataforma Jaes Cargo."}
                 </p>
               </div>
@@ -155,11 +155,11 @@ export default function PasswordResetPage() {
                     Restablecimiento
                   </p>
                   <h2 className="text-2xl font-black tracking-tight text-gray-700">
-                    {token ? "Nueva contrasena" : "Olvidaste tu contrasena?"}
+                    {token ? "Nueva contraseña" : "Olvidaste tu contraseña?"}
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-slate-500">
                     {token
-                      ? "Escribe y confirma tu nueva contrasena."
+                      ? "Escribe y confirma tu nueva contraseña."
                       : "Ingresa el correo asociado a tu cuenta y te enviaremos las instrucciones para recuperar el acceso."}
                   </p>
                 </div>
@@ -185,7 +185,7 @@ export default function PasswordResetPage() {
                     <>
                       <div>
                         <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
-                          Nueva contrasena
+                          Nueva contraseña
                         </label>
                         <input
                           type="password"
