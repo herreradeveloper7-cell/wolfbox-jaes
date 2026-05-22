@@ -25,6 +25,11 @@ const obtenerBaseFrontend = () =>
     "http://localhost:5173"
   ).replace(/\/$/, "");
 
+const crearUrlConsultaHawb = (hawb) => {
+  const baseUrl = `${obtenerBaseFrontend()}/consulta-hawb`;
+  return hawb ? `${baseUrl}?hawb=${encodeURIComponent(hawb)}` : baseUrl;
+};
+
 const crearPlantillaFallbackPaqueteDigitado = () => ({
   id: null,
   email_remitente: process.env.BREVO_DEFAULT_SENDER_EMAIL,
@@ -101,7 +106,7 @@ const enviarCorreoPaqueteDigitado = async ({ cliente, paquete, servicio }) => {
       peso: Number(paquete.peso || 0).toFixed(2),
       servicio: servicio?.nombre || "-",
       fecha: new Date().toLocaleDateString("es-CO"),
-      consulta_url: `${obtenerBaseFrontend()}/consulta-hawb`,
+      consulta_url: crearUrlConsultaHawb(paquete.hawb),
     },
     evento: "paquete_digitado",
   });
