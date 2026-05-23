@@ -20,6 +20,10 @@ type SolicitudReporte = {
   trm_liquidacion?: number | string | null;
   flete_usd?: number | string | null;
   seguro_usd?: number | string | null;
+  cantidad_cargos?: number | string | null;
+  total_cargos_usd?: number | string | null;
+  total_cargos_cop?: number | string | null;
+  detalle_cargos?: string | null;
   codigo_casillero?: string | null;
   cliente?: string | null;
   destinatario?: string | null;
@@ -73,6 +77,14 @@ export default function ReporteSolicitudes() {
         (total, solicitud) => total + Number(solicitud.peso_total || 0),
         0
       );
+      const totalCargosUsd = solicitudes.reduce(
+        (total, solicitud) => total + Number(solicitud.total_cargos_usd || 0),
+        0
+      );
+      const totalCargosCop = solicitudes.reduce(
+        (total, solicitud) => total + Number(solicitud.total_cargos_cop || 0),
+        0
+      );
       const rows = solicitudes.map((solicitud) => ({
         "Solicitud ID": solicitud.id,
         Fecha: solicitud.fecha || "-",
@@ -87,6 +99,11 @@ export default function ReporteSolicitudes() {
         "Peso total": Number(Number(solicitud.peso_total || 0).toFixed(2)),
         "Flete USD": Number(Number(solicitud.flete_usd || 0).toFixed(2)),
         "Seguro USD": Number(Number(solicitud.seguro_usd || 0).toFixed(2)),
+        "Cargos extras": Number(solicitud.cantidad_cargos || 0) > 0
+          ? solicitud.detalle_cargos || "-"
+          : "Sin cargos",
+        "Total cargos USD": Number(Number(solicitud.total_cargos_usd || 0).toFixed(2)),
+        "Total cargos COP": Number(Number(solicitud.total_cargos_cop || 0).toFixed(2)),
         "Valor USD": Number(Number(solicitud.valor_estimado_usd || 0).toFixed(2)),
         "TRM liquidacion": Number(Number(solicitud.trm_liquidacion || 0).toFixed(2)),
         "Valor COP": Number(Number(solicitud.valor_moneda_local || 0).toFixed(2)),
@@ -100,6 +117,8 @@ export default function ReporteSolicitudes() {
         ["Fecha final", fechaHasta || "Sin filtro"],
         ["Total solicitudes", solicitudes.length],
         ["Peso total", Number(totalPeso.toFixed(2))],
+        ["Total cargos extras USD", Number(totalCargosUsd.toFixed(2))],
+        ["Total cargos extras COP", Number(totalCargosCop.toFixed(2))],
         ["Generado", new Date().toLocaleString("es-CO")],
       ];
       const workbook = XLSX.utils.book_new();
@@ -121,6 +140,9 @@ export default function ReporteSolicitudes() {
         { wch: 14 },
         { wch: 14 },
         { wch: 14 },
+        { wch: 54 },
+        { wch: 18 },
+        { wch: 18 },
         { wch: 14 },
         { wch: 18 },
         { wch: 16 },
