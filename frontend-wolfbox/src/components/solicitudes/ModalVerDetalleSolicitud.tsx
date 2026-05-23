@@ -8,13 +8,13 @@ const cardBase =
 const labelBase =
   "text-[11px] font-bold uppercase tracking-[0.18em] text-gray-500";
 
-const formatUsd = (value: number) => `$${value.toFixed(2)}`;
+const formatUsd = (value: number) => `$${value.toFixed(2)} USD`;
 
 const formatCop = (value: number) =>
-  value.toLocaleString("es-CO", {
-    style: "currency",
-    currency: "COP",
-  });
+  `$${value.toLocaleString("es-CO", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} COP`;
 
 function LoadingState({ text }: { text: string }) {
   return (
@@ -335,7 +335,7 @@ export default function ModalVerDetalleSolicitud({
                         { label: "HAWB", value: hawbPadre.hawb },
                         { label: "Tracking", value: hawbPadre.tracking },
                         { label: "Peso", value: `${hawbPadre.peso} lb` },
-                        { label: "Asegurado", value: `$${hawbPadre.asegurado}` },
+                        { label: "Asegurado", value: formatUsd(Number(hawbPadre.asegurado || 0)) },
                       ].map((item, idx) => (
                         <div
                           key={idx}
@@ -441,7 +441,7 @@ export default function ModalVerDetalleSolicitud({
                               {p.peso}
                             </td>
                             <td className="px-3 sm:px-5 py-3 sm:py-4 text-center font-mono font-bold text-red-950 text-xs sm:text-sm">
-                              ${p.asegurado}
+                              {formatUsd(Number(p.asegurado || 0))}
                             </td>
                             <td className="px-3 sm:px-5 py-3 sm:py-4 text-xs leading-relaxed text-gray-600 hidden sm:table-cell">
                               {p.contenido || "—"}
@@ -492,10 +492,10 @@ export default function ModalVerDetalleSolicitud({
                               {c.tipo_cargo}
                             </td>
                             <td className="px-3 sm:px-5 py-3 sm:py-4 text-center font-mono font-bold text-red-950 text-xs sm:text-sm">
-                              ${c.valor_usd}
+                              {formatUsd(Number(c.valor_usd || 0))}
                             </td>
                             <td className="px-3 sm:px-5 py-3 sm:py-4 text-center font-mono font-semibold text-gray-700 text-xs sm:text-sm">
-                              ${Number(c.valor_cop).toLocaleString("es-CO")}
+                              {formatCop(Number(c.valor_cop || 0))}
                             </td>
                           </tr>
                         ))}

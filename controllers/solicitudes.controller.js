@@ -898,6 +898,10 @@ export const reporteSolicitudes = async (req, res) => {
             ELSE 0
           END
         ), 0) AS asegurado_total,
+        ISNULL(MAX(cargos.cantidad_cargos), 0) AS cantidad_cargos,
+        ISNULL(MAX(cargos.total_cargos_usd), 0) AS total_cargos_usd,
+        ISNULL(MAX(cargos.total_cargos_cop), 0) AS total_cargos_cop,
+        ISNULL(MAX(cargos.detalle_cargos), '') AS detalle_cargos,
         STRING_AGG(CAST(p.hawb AS NVARCHAR(MAX)), CHAR(10)) AS hawbs,
         MAX(CASE WHEN LOWER(ISNULL(ec.nombre, '')) = 'desbloqueado' THEN 1 ELSE 0 END) AS desbloqueada
       FROM solicitudes s
@@ -906,6 +910,26 @@ export const reporteSolicitudes = async (req, res) => {
       LEFT JOIN servicios srv ON srv.id = s.servicio_id
       LEFT JOIN paquetes p ON p.solicitud_id = s.id
       LEFT JOIN estados_catalogo ec ON ec.id = p.estado_id
+      OUTER APPLY (
+        SELECT
+          COUNT(ca.id) AS cantidad_cargos,
+          SUM(CAST(ISNULL(ca.valor_usd, 0) AS DECIMAL(18,2))) AS total_cargos_usd,
+          SUM(CAST(ISNULL(ca.valor_cop, 0) AS DECIMAL(18,2))) AS total_cargos_cop,
+          CAST(
+            STRING_AGG(
+              CONCAT(
+                ca.tipo_cargo,
+                ': USD ',
+                CONVERT(VARCHAR(32), CAST(ISNULL(ca.valor_usd, 0) AS DECIMAL(18,2))),
+                ' / COP ',
+                CONVERT(VARCHAR(32), CAST(ISNULL(ca.valor_cop, 0) AS DECIMAL(18,2)))
+              ),
+              CHAR(10)
+            ) AS NVARCHAR(4000)
+          ) AS detalle_cargos
+        FROM cargos_adicionales ca
+        WHERE ca.solicitud_id = s.id
+      ) cargos
       ${whereClause}
       GROUP BY
         s.id,
