@@ -861,7 +861,12 @@ export const reporteSolicitudes = async (req, res) => {
         srv.tarifa_minima_usd,
         srv.aplica_peso_maximo,
         srv.peso_maximo,
-        COUNT(p.id) AS cantidad_paquetes,
+        ISNULL(SUM(
+          CASE
+            WHEN p.id IS NOT NULL AND p.hawb NOT LIKE '%G' THEN 1
+            ELSE 0
+          END
+        ), 0) AS cantidad_paquetes,
         ISNULL(SUM(
           CASE
             WHEN p.hawb NOT LIKE '%G' THEN CAST(ISNULL(p.peso, 0) AS DECIMAL(10,2))
