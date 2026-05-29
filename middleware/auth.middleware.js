@@ -51,6 +51,32 @@ export const autorizarRoles = (...rolesPermitidos) => {
   };
 };
 
+export const autorizarPermisos = (...permisosPermitidos) => {
+  return (req, res, next) => {
+    const rol = req.usuario?.tipo;
+
+    if (rol === "admin") return next();
+
+    const permisosUsuario = Array.isArray(req.usuario?.permisos)
+      ? req.usuario.permisos
+      : [];
+
+    const tienePermiso = permisosPermitidos.some((permiso) =>
+      permisosUsuario.includes(permiso)
+    );
+
+    if (rol === "usuario" && tienePermiso) {
+      return next();
+    }
+
+    return res.status(403).json({
+      ok: false,
+      mensaje: "No tienes permisos para realizar esta accion",
+      message: "No tienes permisos para realizar esta accion",
+    });
+  };
+};
+
 export const autorizarClientePropio = (obtenerValor, campoToken = "id") => {
   return (req, res, next) => {
     if (["admin", "usuario"].includes(req.usuario?.tipo)) {

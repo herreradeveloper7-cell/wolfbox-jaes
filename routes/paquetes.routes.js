@@ -1,5 +1,5 @@
 import express from "express";
-import { autenticarToken, autorizarClientePropio, autorizarRoles } from "../middleware/auth.middleware.js";
+import { autenticarToken, autorizarClientePropio, autorizarPermisos, autorizarRoles } from "../middleware/auth.middleware.js";
 import { validar } from "../middleware/validate.middleware.js";
 import { idParam, paqueteSchemas, textParam } from "../validators/api.schemas.js";
 
@@ -31,6 +31,7 @@ router.use(autenticarToken);
 
 const soloOperacion = autorizarRoles("admin", "usuario");
 const soloAdmin = autorizarRoles("admin");
+const reportes = autorizarPermisos("Reportes");
 const autenticados = autorizarRoles("admin", "usuario", "cliente");
 
 router.post("/registrar", soloOperacion, validar({ body: paqueteSchemas.registrar }), registrarPaquete);
@@ -41,8 +42,8 @@ router.put("/editar/:id", soloOperacion, validar({ params: idParam(), body: paqu
 router.put("/editar-basico/:id", soloOperacion, validar({ params: idParam(), body: paqueteSchemas.editarBasico }), editarCamposBasicos);
 
 router.post("/buscar", soloOperacion, validar({ body: paqueteSchemas.buscar }), buscarPaquetesFiltrados);
-router.get("/reporte-estado-guia", soloAdmin, validar({ query: paqueteSchemas.reporteEstadoGuia }), reporteEstadoGuia);
-router.get("/reporte", soloAdmin, generarReporteCSV);
+router.get("/reporte-estado-guia", reportes, validar({ query: paqueteSchemas.reporteEstadoGuia }), reporteEstadoGuia);
+router.get("/reporte", reportes, generarReporteCSV);
 
 router.post("/tracking/estado", soloOperacion, validar({ body: paqueteSchemas.estadoTracking }), crearEstadoTracking);   
 router.put("/tracking/estado/historial/:id", soloOperacion, validar({ params: idParam(), body: paqueteSchemas.editarEstado }), editarEstadoHistorial);

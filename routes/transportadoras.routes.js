@@ -1,5 +1,5 @@
 import express from "express";
-import { autenticarToken, autorizarRoles } from "../middleware/auth.middleware.js";
+import { autenticarToken, autorizarPermisos, autorizarRoles } from "../middleware/auth.middleware.js";
 import {
   actualizarTransportadora,
   crearTransportadora,
@@ -10,12 +10,13 @@ import {
 const router = express.Router();
 const soloAdmin = autorizarRoles("admin");
 const soloOperacion = autorizarRoles("admin", "usuario");
+const configuracion = autorizarPermisos("Configuracion");
 
 router.use(autenticarToken);
 
 router.get("/", soloOperacion, listarTransportadoras);
-router.post("/", soloAdmin, crearTransportadora);
-router.put("/:id", soloAdmin, actualizarTransportadora);
-router.patch("/:id/inhabilitar", soloAdmin, inhabilitarTransportadora);
+router.post("/", configuracion, crearTransportadora);
+router.put("/:id", configuracion, actualizarTransportadora);
+router.patch("/:id/inhabilitar", configuracion, inhabilitarTransportadora);
 
 export default router;

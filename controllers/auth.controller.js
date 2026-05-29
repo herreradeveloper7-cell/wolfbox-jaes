@@ -61,6 +61,19 @@ const obtenerBaseFrontend = () =>
     "http://localhost:5173"
   ).replace(/\/$/, "");
 
+const obtenerPermisosUsuario = async (pool, usuarioId) => {
+  const result = await pool.request()
+    .input("usuario_id", sql.Int, usuarioId)
+    .query(`
+      SELECT permiso
+      FROM permisos_usuario
+      WHERE usuario_id = @usuario_id
+      ORDER BY permiso
+    `);
+
+  return result.recordset.map((item) => item.permiso);
+};
+
 const obtenerPlantillaPorEvento = async (pool, claveEvento) => {
   try {
     const result = await pool
@@ -190,6 +203,7 @@ export const loginGeneral = async (req, res) => {
         });
       }
 
+      usuario.permisos = await obtenerPermisosUsuario(pool, usuario.id);
       const usuarioResponse = buildUsuarioLoginResponse(usuario);
       const token = firmarToken(buildUsuarioTokenPayload(usuario), expiresIn);
 

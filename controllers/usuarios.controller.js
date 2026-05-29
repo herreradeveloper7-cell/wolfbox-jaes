@@ -86,10 +86,29 @@ const permisosPorRol = {
   usuario: ["Casilleros", "Operaciones", "Tracking", "Perfil"],
 };
 
+const todosLosPermisos = [
+  "Casilleros",
+  "Operaciones",
+  "Tracking",
+  "Reportes",
+  "Seguridad",
+  "Configuracion",
+  "Perfil",
+];
+
 const obtenerPermisosPorRol = (rol) => permisosPorRol[rol] || [];
 
-const guardarPermisosUsuario = async (pool, usuarioId, rol) => {
-  const permisos = obtenerPermisosPorRol(rol);
+const normalizarPermisosUsuario = (rol, permisos) => {
+  const permisosRecibidos = Array.isArray(permisos) ? permisos : [];
+  const permisosValidos = permisosRecibidos.filter((permiso) =>
+    todosLosPermisos.includes(permiso)
+  );
+
+  return permisosValidos.length > 0 ? permisosValidos : obtenerPermisosPorRol(rol);
+};
+
+const guardarPermisosUsuario = async (pool, usuarioId, rol, permisosSeleccionados) => {
+  const permisos = normalizarPermisosUsuario(rol, permisosSeleccionados);
 
   for (const permiso of permisos) {
     await pool.request()
@@ -104,7 +123,7 @@ const guardarPermisosUsuario = async (pool, usuarioId, rol) => {
 
 export const crearUsuario = async (req, res) => {
   try {
-    const { nombre, email, password, tipo, genero } = req.body;
+    const { nombre, email, password, tipo, permisos, genero } = req.body;
 
     const pool = await poolPromise; 
 
@@ -131,7 +150,7 @@ export const crearUsuario = async (req, res) => {
 
     const usuarioId = insertUser.recordset[0].id;
 
-    await guardarPermisosUsuario(pool, usuarioId, tipo);
+    await guardarPermisosUsuario(pool, usuarioId, tipo, permisos);
 
     enviarCorreoAperturaUsuario({
       email,
@@ -234,7 +253,7 @@ export const obtenerUsuarioPorId = async (req, res) => {
 export const actualizarUsuario = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, email, tipo_usuario, genero, password } = req.body;
+    const { nombre, email, tipo_usuario, genero, permisos, password } = req.body;
 
     const pool = await poolPromise;
 
@@ -276,7 +295,7 @@ export const actualizarUsuario = async (req, res) => {
       .input("usuario_id", sql.Int, id)
       .query(`DELETE FROM permisos_usuario WHERE usuario_id = @usuario_id`);
 
-    await guardarPermisosUsuario(pool, id, tipo_usuario);
+    await guardarPermisosUsuario(pool, id, tipo_usuario, permisos);
 
     return res.json({ mensaje: "✅ Usuario actualizado correctamente" });
 
@@ -289,7 +308,7 @@ export const actualizarUsuario = async (req, res) => {
 export const editarUsuario = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, email, password, tipo_usuario, genero } = req.body;
+    const { nombre, email, password, tipo_usuario, genero, permisos } = req.body;
 
     const pool = await poolPromise;
 
@@ -340,7 +359,7 @@ export const editarUsuario = async (req, res) => {
       .input("usuario_id", sql.Int, id)
       .query(`DELETE FROM permisos_usuario WHERE usuario_id=@usuario_id`);
 
-    await guardarPermisosUsuario(pool, id, tipo_usuario);
+    await guardarPermisosUsuario(pool, id, tipo_usuario, permisos);
 
     return res.json({ mensaje: "✅ Usuario actualizado correctamente" });
 

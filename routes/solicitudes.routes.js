@@ -2,7 +2,7 @@
   import multer from "multer";
   import path from "path";
   import { fileURLToPath } from "url";
-  import { autenticarToken, autorizarRoles } from "../middleware/auth.middleware.js";
+  import { autenticarToken, autorizarPermisos, autorizarRoles } from "../middleware/auth.middleware.js";
   import { validar } from "../middleware/validate.middleware.js";
   import { idParam, solicitudSchemas, textParam } from "../validators/api.schemas.js";
 
@@ -54,11 +54,12 @@
   const upload = multer({ storage });
   const soloAdmin = autorizarRoles("admin");
   const soloOperacion = autorizarRoles("admin", "usuario");
+  const reportes = autorizarPermisos("Reportes");
 
   router.use(autenticarToken, soloOperacion);
 
   router.post("/crear", validar({ body: solicitudSchemas.crear }), crearSolicitud);
-  router.get("/reporte", soloAdmin, validar({ query: solicitudSchemas.reporte }), reporteSolicitudes);
+  router.get("/reporte", reportes, validar({ query: solicitudSchemas.reporte }), reporteSolicitudes);
   router.get("/listar", obtenerSolicitudes);
   router.get("/detalle/:id", validar({ params: idParam() }), obtenerDetalleSolicitud);
 
