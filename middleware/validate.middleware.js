@@ -20,6 +20,7 @@ export const validar = (schemas = {}) => {
       if (error instanceof ZodError) {
         return res.status(400).json({
           ok: false,
+          mensaje: "Datos de entrada invalidos",
           message: "Datos de entrada invalidos",
           errores: error.issues.map((issue) => ({
             campo: issue.path.join("."),
@@ -30,6 +31,7 @@ export const validar = (schemas = {}) => {
 
       return res.status(500).json({
         ok: false,
+        mensaje: "Error validando datos de entrada",
         message: "Error validando datos de entrada",
       });
     }

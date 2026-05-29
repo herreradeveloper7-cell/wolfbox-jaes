@@ -37,8 +37,37 @@ export default function EditarUsuario() {
       "Servicio al Cliente",
       "Control Facturacion",
     ],
-    usuario: ["Casilleros", "Operaciones", "Servicio al Cliente"],
+    usuario: ["Casilleros", "Operaciones", "Tracking", "Perfil"],
     cliente: [],
+  };
+  const todosLosPermisos = [
+    "Casilleros",
+    "Operaciones",
+    "Tracking",
+    "Reportes",
+    "Seguridad",
+    "Configuracion",
+    "Perfil",
+  ];
+
+  const obtenerPermisosPorRol = (rol: string) => {
+    if (rol === "admin") {
+      return [
+        "Casilleros",
+        "Operaciones",
+        "Tracking",
+        "Reportes",
+        "Seguridad",
+        "Configuracion",
+        "Perfil",
+      ];
+    }
+
+    if (rol === "usuario") {
+      return ["Casilleros", "Operaciones", "Tracking", "Perfil"];
+    }
+
+    return permisosPorRol[rol] || [];
   };
 
   const obtenerUsuario = async () => {
@@ -51,7 +80,9 @@ export default function EditarUsuario() {
         password: "",
         tipo_usuario: data.tipo_usuario,
         genero: data.genero,
-        permisos: data.permisos || [],
+        permisos: Array.isArray(data.permisos) && data.permisos.length
+          ? data.permisos
+          : obtenerPermisosPorRol(data.tipo_usuario),
       });
     } catch {
       Swal.fire("Error", "No se pudo cargar la informacion", "error");
@@ -87,7 +118,7 @@ export default function EditarUsuario() {
     if (name === "tipo_usuario") {
       setFormData((prev) => ({
         ...prev,
-        permisos: permisosPorRol[value] || [],
+        permisos: obtenerPermisosPorRol(value),
       }));
     }
   };
@@ -308,7 +339,7 @@ export default function EditarUsuario() {
                         </div>
 
                         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                          {permisosPorRol[formData.tipo_usuario]?.map((permiso) => {
+                          {todosLosPermisos.map((permiso) => {
                             const checked = formData.permisos.includes(permiso);
 
                             return (
