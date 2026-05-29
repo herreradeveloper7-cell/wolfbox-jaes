@@ -79,6 +79,15 @@ export default function CrearUsuario() {
   };
 
   const [permisosSeleccionados, setPermisosSeleccionados] = useState<string[]>([]);
+  const todosLosPermisos = [
+    "Casilleros",
+    "Operaciones",
+    "Tracking",
+    "Reportes",
+    "Seguridad",
+    "Configuracion",
+    "Perfil",
+  ];
 
   const permisosPorRol: Record<string, string[]> = {
     admin: [
@@ -86,15 +95,35 @@ export default function CrearUsuario() {
       "Operaciones",
       "Operación Logística",
       "Validación",
-      "Agencias",
-      "Operativo Origen",
-      "Operativo Destino",
-      "Contabilidad",
-      "Servicio al Cliente",
+      "Tracking",
+      "Reportes",
+      "Seguridad",
+      "Configuracion",
+      "Perfil",
       "Control Facturación",
     ],
-    usuario: ["Casilleros", "Operaciones", "Servicio al Cliente"],
+    usuario: ["Casilleros", "Operaciones", "Tracking", "Perfil"],
     cliente: [],
+  };
+
+  const obtenerPermisosPorRol = (rol: string) => {
+    if (rol === "admin") {
+      return [
+        "Casilleros",
+        "Operaciones",
+        "Tracking",
+        "Reportes",
+        "Seguridad",
+        "Configuracion",
+        "Perfil",
+      ];
+    }
+
+    if (rol === "usuario") {
+      return ["Casilleros", "Operaciones", "Tracking", "Perfil"];
+    }
+
+    return permisosPorRol[rol] || [];
   };
 
   const handleInputChange = (
@@ -114,7 +143,7 @@ export default function CrearUsuario() {
   const handleRolChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const tipo = e.target.value;
     setFormData({ ...formData, tipo });
-    setPermisosSeleccionados(permisosPorRol[tipo] || []);
+    setPermisosSeleccionados(obtenerPermisosPorRol(tipo));
   };
 
   const togglePermiso = (permiso: string) => {
@@ -371,7 +400,7 @@ export default function CrearUsuario() {
             <div className="rounded-[28px] border border-slate-200 bg-slate-950/5 p-5 shadow-sm">
               <h3 className="font-semibold text-slate-900 mb-3">Permisos del usuario</h3>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {permisosPorRol[formData.tipo]?.map((permiso) => (
+                {todosLosPermisos.map((permiso) => (
                   <label
                     key={permiso}
                     className="flex justify-between items-center rounded-2xl border border-slate-200 bg-white/90 p-3 transition hover:border-green-600"

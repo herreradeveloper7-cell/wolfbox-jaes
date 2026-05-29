@@ -7,12 +7,14 @@ export const buildUsuarioLoginResponse = (usuario) => ({
   tipo: usuario.tipo_usuario,
   genero: usuario.genero,
   fecha_creacion: usuario.fecha_creacion,
+  permisos: Array.isArray(usuario.permisos) ? usuario.permisos : [],
 });
 
 export const buildUsuarioTokenPayload = (usuario) => ({
   id: usuario.id,
   email: usuario.correo,
   tipo: usuario.tipo_usuario,
+  permisos: Array.isArray(usuario.permisos) ? usuario.permisos : [],
 });
 
 export const buildClienteLoginResponse = (cliente) => ({

@@ -18,6 +18,7 @@ export const autenticarToken = (req, res, next) => {
   if (tipo !== "Bearer" || !token) {
     return res.status(401).json({
       ok: false,
+      mensaje: "Token de autenticacion requerido",
       message: "Token de autenticacion requerido",
     });
   }
@@ -28,6 +29,7 @@ export const autenticarToken = (req, res, next) => {
   } catch (error) {
     return res.status(401).json({
       ok: false,
+      mensaje: "Token invalido o expirado",
       message: "Token invalido o expirado",
     });
   }
@@ -40,11 +42,38 @@ export const autorizarRoles = (...rolesPermitidos) => {
     if (!rol || !rolesPermitidos.includes(rol)) {
       return res.status(403).json({
         ok: false,
+        mensaje: "No tienes permisos para realizar esta accion",
         message: "No tienes permisos para realizar esta accion",
       });
     }
 
     return next();
+  };
+};
+
+export const autorizarPermisos = (...permisosPermitidos) => {
+  return (req, res, next) => {
+    const rol = req.usuario?.tipo;
+
+    if (rol === "admin") return next();
+
+    const permisosUsuario = Array.isArray(req.usuario?.permisos)
+      ? req.usuario.permisos
+      : [];
+
+    const tienePermiso = permisosPermitidos.some((permiso) =>
+      permisosUsuario.includes(permiso)
+    );
+
+    if (rol === "usuario" && tienePermiso) {
+      return next();
+    }
+
+    return res.status(403).json({
+      ok: false,
+      mensaje: "No tienes permisos para realizar esta accion",
+      message: "No tienes permisos para realizar esta accion",
+    });
   };
 };
 
@@ -57,6 +86,7 @@ export const autorizarClientePropio = (obtenerValor, campoToken = "id") => {
     if (req.usuario?.tipo !== "cliente") {
       return res.status(403).json({
         ok: false,
+        mensaje: "No tienes permisos para realizar esta accion",
         message: "No tienes permisos para realizar esta accion",
       });
     }
@@ -67,6 +97,7 @@ export const autorizarClientePropio = (obtenerValor, campoToken = "id") => {
     if (!valorRequest || valorRequest !== valorToken) {
       return res.status(403).json({
         ok: false,
+        mensaje: "No puedes acceder a informacion de otro cliente",
         message: "No puedes acceder a informacion de otro cliente",
       });
     }

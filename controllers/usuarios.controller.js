@@ -73,6 +73,54 @@ const enviarCorreoAperturaUsuario = async ({ email, nombre, tipo }) => {
   });
 };
 
+const permisosPorRol = {
+  admin: [
+    "Casilleros",
+    "Operaciones",
+    "Tracking",
+    "Reportes",
+    "Seguridad",
+    "Configuracion",
+    "Perfil",
+  ],
+  usuario: ["Casilleros", "Operaciones", "Tracking", "Perfil"],
+};
+
+const todosLosPermisos = [
+  "Casilleros",
+  "Operaciones",
+  "Tracking",
+  "Reportes",
+  "Seguridad",
+  "Configuracion",
+  "Perfil",
+];
+
+const obtenerPermisosPorRol = (rol) => permisosPorRol[rol] || [];
+
+const normalizarPermisosUsuario = (rol, permisos) => {
+  const permisosRecibidos = Array.isArray(permisos) ? permisos : [];
+  const permisosValidos = permisosRecibidos.filter((permiso) =>
+    todosLosPermisos.includes(permiso)
+  );
+
+  return permisosValidos.length > 0 ? permisosValidos : obtenerPermisosPorRol(rol);
+};
+
+const guardarPermisosUsuario = async (pool, usuarioId, rol, permisosSeleccionados) => {
+  const permisos = normalizarPermisosUsuario(rol, permisosSeleccionados);
+
+  for (const permiso of permisos) {
+    await pool.request()
+      .input("usuario_id", sql.Int, usuarioId)
+      .input("permiso", sql.VarChar, permiso)
+      .query(`
+        INSERT INTO permisos_usuario (usuario_id, permiso)
+        VALUES (@usuario_id, @permiso)
+      `);
+  }
+};
+
 export const crearUsuario = async (req, res) => {
   try {
     const { nombre, email, password, tipo, permisos, genero } = req.body;
@@ -102,17 +150,7 @@ export const crearUsuario = async (req, res) => {
 
     const usuarioId = insertUser.recordset[0].id;
 
-    if (Array.isArray(permisos) && permisos.length > 0) {
-      for (const permiso of permisos) {
-        await pool.request()
-          .input("usuario_id", sql.Int, usuarioId)
-          .input("permiso", sql.VarChar, permiso)
-          .query(`
-            INSERT INTO permisos_usuario (usuario_id, permiso)
-            VALUES (@usuario_id, @permiso)
-          `);
-      }
-    }
+    await guardarPermisosUsuario(pool, usuarioId, tipo, permisos);
 
     enviarCorreoAperturaUsuario({
       email,
@@ -257,17 +295,7 @@ export const actualizarUsuario = async (req, res) => {
       .input("usuario_id", sql.Int, id)
       .query(`DELETE FROM permisos_usuario WHERE usuario_id = @usuario_id`);
 
-    if (Array.isArray(permisos) && permisos.length > 0) {
-      for (const permiso of permisos) {
-        await pool.request()
-          .input("usuario_id", sql.Int, id)
-          .input("permiso", sql.VarChar, permiso)
-          .query(`
-            INSERT INTO permisos_usuario (usuario_id, permiso)
-            VALUES (@usuario_id, @permiso)
-          `);
-      }
-    }
+    await guardarPermisosUsuario(pool, id, tipo_usuario, permisos);
 
     return res.json({ mensaje: "✅ Usuario actualizado correctamente" });
 
@@ -331,17 +359,7 @@ export const editarUsuario = async (req, res) => {
       .input("usuario_id", sql.Int, id)
       .query(`DELETE FROM permisos_usuario WHERE usuario_id=@usuario_id`);
 
-    if (Array.isArray(permisos) && permisos.length > 0) {
-      for (const permiso of permisos) {
-        await pool.request()
-          .input("usuario_id", sql.Int, id)
-          .input("permiso", sql.VarChar, permiso)
-          .query(`
-            INSERT INTO permisos_usuario(usuario_id, permiso)
-            VALUES (@usuario_id, @permiso)
-          `);
-      }
-    }
+    await guardarPermisosUsuario(pool, id, tipo_usuario, permisos);
 
     return res.json({ mensaje: "✅ Usuario actualizado correctamente" });
 

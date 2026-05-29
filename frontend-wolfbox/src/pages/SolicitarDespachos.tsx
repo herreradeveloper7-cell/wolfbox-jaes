@@ -197,13 +197,67 @@ export default function SolicitarDespachos() {
     setMostrarModal(true);
   };
 
+  const obtenerMensajeErrorSolicitud = (error: any) => {
+    const data = error?.response?.data;
+    const errores = Array.isArray(data?.errores)
+      ? data.errores
+          .map((item: any) => item?.mensaje)
+          .filter(Boolean)
+          .join("\n")
+      : "";
+
+    return (
+      errores ||
+      data?.mensaje ||
+      data?.message ||
+      error?.message ||
+      "No se pudo crear la solicitud"
+    );
+  };
+
+  const obtenerTituloErrorSolicitud = (error: any) => {
+    const status = error?.response?.status;
+
+    if (status === 401) return "Sesion expirada";
+    if (status === 403) return "Sin permisos";
+    if (status === 400) return "Datos invalidos";
+
+    return "Error";
+  };
+
+  const obtenerUsuarioOperacion = () => {
+    const usuarioGuardado =
+      localStorage.getItem("usuario") || sessionStorage.getItem("usuario");
+
+    if (!usuarioGuardado) return null;
+
+    try {
+      return JSON.parse(usuarioGuardado);
+    } catch {
+      return null;
+    }
+  };
+
 
 
   const confirmarCreacionSolicitud = async (formData: any) => {
     try {
+    const usuarioOperacion = obtenerUsuarioOperacion();
+
+    if (
+      !usuarioOperacion?.id ||
+      !["admin", "usuario"].includes(usuarioOperacion?.tipo)
+    ) {
+      return Swal.fire({
+        icon: "error",
+        title: "Sin permisos",
+        text: "No tienes permisos para crear solicitudes de despacho. Ingresa con un usuario operativo autorizado.",
+      });
+    }
+
     const payload = {
       cliente_id: clienteSeleccionado?.id || clienteSeleccionado?.cliente_id,
-      usuario_id: JSON.parse(localStorage.getItem("usuario")!).id,
+      usuario_id: usuarioOperacion.id,
       paquetes: formData.paquetes.map((p: PaqueteSolicitud) => ({
         id: p.id,
         asegurado: p.asegurado
@@ -229,7 +283,12 @@ export default function SolicitarDespachos() {
       await seleccionarCliente(clienteSeleccionado);
 
     } catch (error) {
-      Swal.fire("Error", "No se pudo crear la solicitud", "error");
+      console.error("Error creando solicitud:", error);
+      Swal.fire({
+        icon: "error",
+        title: obtenerTituloErrorSolicitud(error),
+        text: obtenerMensajeErrorSolicitud(error),
+      });
     }
   };
 

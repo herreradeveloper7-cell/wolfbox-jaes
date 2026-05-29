@@ -23,6 +23,8 @@ type Cliente = {
   nombre: string;
   genero: string;
   codigoReferencia: string;
+  tipo: string;
+  permisos?: string[];
 };
 
 export default function UserDashboardLayout({ children, scrollable = false }: Props) {
@@ -68,6 +70,9 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
   }, []);
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
+  const esAdmin = cliente?.tipo === "admin";
+  const tienePermiso = (permiso: string) =>
+    esAdmin || Boolean(cliente?.permisos?.includes(permiso));
 
   const navegarORecargar = (path: string) => {
     if (location.pathname.toLowerCase() === path.toLowerCase()) {
@@ -87,6 +92,7 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
                       overflow-y-auto scrollbar-hide`}
         >
 
+        {tienePermiso("Casilleros") && (
         <div className="flex flex-col mt-25 gap-2">
           <button
             onClick={() =>{
@@ -139,6 +145,9 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
           </div>
         </div>
 
+        )}
+
+        {tienePermiso("Operaciones") && (
         <div className="flex flex-col mt-2 gap-2">
           <button
             onClick={() => {
@@ -180,7 +189,9 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
             <button onClick={() => navegarORecargar("/armar-despachos")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Armar Despacho</button>
           </div>
         </div>
+        )}
 
+        {tienePermiso("Tracking") && (
         <div className="flex flex-col mt-2 gap-2">
           <button
             onClick={() => {
@@ -222,7 +233,9 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
             <button onClick={() => navegarORecargar("/consultar-tracking")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Consultar Tracking</button>
           </div>
         </div>
+        )}
 
+        {tienePermiso("Reportes") && (
         <div className="flex flex-col mt-2 gap-2">
         <button
           onClick={() => {
@@ -265,7 +278,9 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
             <button onClick={() => navegarORecargar("/reporte-solicitudes")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Solicitudes</button>
           </div>
         </div>
+        )}
 
+        {tienePermiso("Seguridad") && (
         <div className="flex flex-col mt-2 gap-2">
           <button
             onClick={() => {
@@ -307,7 +322,9 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
             <button onClick={() => navegarORecargar("/consultar-usuario")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Consultar Usuario</button>
           </div>
         </div>
+        )}
 
+        {tienePermiso("Configuracion") && (
         <div className="flex flex-col mt-2 gap-2">
           <button
             onClick={() => {
@@ -352,7 +369,9 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
             <button onClick={() => navegarORecargar("/plantilla-comunicacion")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Plantillas Comunicación</button>
           </div>
         </div>
+        )}
 
+        {tienePermiso("Perfil") && (
         <div className="flex flex-col mt-2 gap-2">
         <button
           onClick={() =>{
@@ -389,6 +408,7 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
               onClick={() => {
                 localStorage.removeItem("usuario");
                 localStorage.removeItem("authToken");
+                sessionStorage.removeItem("usuario");
                 sessionStorage.removeItem("authToken");
                 navigate("/login");
               }}
@@ -398,6 +418,7 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
             </button>
           </div>
         </div>
+        )}
 
       </aside>
 
