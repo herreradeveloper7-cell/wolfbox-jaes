@@ -225,13 +225,39 @@ export default function SolicitarDespachos() {
     return "Error";
   };
 
+  const obtenerUsuarioOperacion = () => {
+    const usuarioGuardado =
+      localStorage.getItem("usuario") || sessionStorage.getItem("usuario");
+
+    if (!usuarioGuardado) return null;
+
+    try {
+      return JSON.parse(usuarioGuardado);
+    } catch {
+      return null;
+    }
+  };
+
 
 
   const confirmarCreacionSolicitud = async (formData: any) => {
     try {
+    const usuarioOperacion = obtenerUsuarioOperacion();
+
+    if (
+      !usuarioOperacion?.id ||
+      !["admin", "usuario"].includes(usuarioOperacion?.tipo)
+    ) {
+      return Swal.fire({
+        icon: "error",
+        title: "Sin permisos",
+        text: "No tienes permisos para crear solicitudes de despacho. Ingresa con un usuario operativo autorizado.",
+      });
+    }
+
     const payload = {
       cliente_id: clienteSeleccionado?.id || clienteSeleccionado?.cliente_id,
-      usuario_id: JSON.parse(localStorage.getItem("usuario")!).id,
+      usuario_id: usuarioOperacion.id,
       paquetes: formData.paquetes.map((p: PaqueteSolicitud) => ({
         id: p.id,
         asegurado: p.asegurado
