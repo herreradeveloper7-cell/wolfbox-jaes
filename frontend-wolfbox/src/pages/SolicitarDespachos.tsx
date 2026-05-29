@@ -197,6 +197,34 @@ export default function SolicitarDespachos() {
     setMostrarModal(true);
   };
 
+  const obtenerMensajeErrorSolicitud = (error: any) => {
+    const data = error?.response?.data;
+    const errores = Array.isArray(data?.errores)
+      ? data.errores
+          .map((item: any) => item?.mensaje)
+          .filter(Boolean)
+          .join("\n")
+      : "";
+
+    return (
+      errores ||
+      data?.mensaje ||
+      data?.message ||
+      error?.message ||
+      "No se pudo crear la solicitud"
+    );
+  };
+
+  const obtenerTituloErrorSolicitud = (error: any) => {
+    const status = error?.response?.status;
+
+    if (status === 401) return "Sesion expirada";
+    if (status === 403) return "Sin permisos";
+    if (status === 400) return "Datos invalidos";
+
+    return "Error";
+  };
+
 
 
   const confirmarCreacionSolicitud = async (formData: any) => {
@@ -229,7 +257,12 @@ export default function SolicitarDespachos() {
       await seleccionarCliente(clienteSeleccionado);
 
     } catch (error) {
-      Swal.fire("Error", "No se pudo crear la solicitud", "error");
+      console.error("Error creando solicitud:", error);
+      Swal.fire({
+        icon: "error",
+        title: obtenerTituloErrorSolicitud(error),
+        text: obtenerMensajeErrorSolicitud(error),
+      });
     }
   };
 
