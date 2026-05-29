@@ -37,8 +37,28 @@ export default function EditarUsuario() {
       "Servicio al Cliente",
       "Control Facturacion",
     ],
-    usuario: ["Casilleros", "Operaciones", "Servicio al Cliente"],
+    usuario: ["Casilleros", "Operaciones", "Tracking", "Perfil"],
     cliente: [],
+  };
+
+  const obtenerPermisosPorRol = (rol: string) => {
+    if (rol === "admin") {
+      return [
+        "Casilleros",
+        "Operaciones",
+        "Tracking",
+        "Reportes",
+        "Seguridad",
+        "Configuracion",
+        "Perfil",
+      ];
+    }
+
+    if (rol === "usuario") {
+      return ["Casilleros", "Operaciones", "Tracking", "Perfil"];
+    }
+
+    return permisosPorRol[rol] || [];
   };
 
   const obtenerUsuario = async () => {
@@ -51,7 +71,7 @@ export default function EditarUsuario() {
         password: "",
         tipo_usuario: data.tipo_usuario,
         genero: data.genero,
-        permisos: data.permisos || [],
+        permisos: obtenerPermisosPorRol(data.tipo_usuario),
       });
     } catch {
       Swal.fire("Error", "No se pudo cargar la informacion", "error");
@@ -87,18 +107,9 @@ export default function EditarUsuario() {
     if (name === "tipo_usuario") {
       setFormData((prev) => ({
         ...prev,
-        permisos: permisosPorRol[value] || [],
+        permisos: obtenerPermisosPorRol(value),
       }));
     }
-  };
-
-  const togglePermiso = (permiso: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      permisos: prev.permisos.includes(permiso)
-        ? prev.permisos.filter((p) => p !== permiso)
-        : [...prev.permisos, permiso],
-    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -308,8 +319,8 @@ export default function EditarUsuario() {
                         </div>
 
                         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                          {permisosPorRol[formData.tipo_usuario]?.map((permiso) => {
-                            const checked = formData.permisos.includes(permiso);
+                          {obtenerPermisosPorRol(formData.tipo_usuario).map((permiso) => {
+                            const checked = true;
 
                             return (
                               <label
@@ -325,7 +336,8 @@ export default function EditarUsuario() {
                                 <input
                                   type="checkbox"
                                   checked={checked}
-                                  onChange={() => togglePermiso(permiso)}
+                                  readOnly
+                                  disabled
                                   className="h-4 w-4 cursor-pointer accent-red-900"
                                 />
                               </label>

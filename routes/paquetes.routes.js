@@ -30,6 +30,7 @@ router.get("/tracking/hawb/:hawb", validar({ params: textParam("hawb") }), obten
 router.use(autenticarToken);
 
 const soloOperacion = autorizarRoles("admin", "usuario");
+const soloAdmin = autorizarRoles("admin");
 const autenticados = autorizarRoles("admin", "usuario", "cliente");
 
 router.post("/registrar", soloOperacion, validar({ body: paqueteSchemas.registrar }), registrarPaquete);
@@ -40,8 +41,8 @@ router.put("/editar/:id", soloOperacion, validar({ params: idParam(), body: paqu
 router.put("/editar-basico/:id", soloOperacion, validar({ params: idParam(), body: paqueteSchemas.editarBasico }), editarCamposBasicos);
 
 router.post("/buscar", soloOperacion, validar({ body: paqueteSchemas.buscar }), buscarPaquetesFiltrados);
-router.get("/reporte-estado-guia", soloOperacion, validar({ query: paqueteSchemas.reporteEstadoGuia }), reporteEstadoGuia);
-router.get("/reporte", soloOperacion, generarReporteCSV);
+router.get("/reporte-estado-guia", soloAdmin, validar({ query: paqueteSchemas.reporteEstadoGuia }), reporteEstadoGuia);
+router.get("/reporte", soloAdmin, generarReporteCSV);
 
 router.post("/tracking/estado", soloOperacion, validar({ body: paqueteSchemas.estadoTracking }), crearEstadoTracking);   
 router.put("/tracking/estado/historial/:id", soloOperacion, validar({ params: idParam(), body: paqueteSchemas.editarEstado }), editarEstadoHistorial);

@@ -10,9 +10,9 @@ import {
 } from "../controllers/plantillasComunicacion.controller.js";
 
 const router = express.Router();
-const soloOperacion = autorizarRoles("admin", "usuario");
+const soloAdmin = autorizarRoles("admin");
 
-router.use(autenticarToken, soloOperacion);
+router.use(autenticarToken, soloAdmin);
 
 router.get("/", listarPlantillasComunicacion);
 router.get("/logs", listarLogsEmail);
