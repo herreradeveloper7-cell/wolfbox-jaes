@@ -38,6 +38,14 @@ import Transportadoras from './pages/usuario/configuracion/Transportadoras';
 import PlantillaComunicacion from './pages/usuario/configuracion/PlantillaComunicacion';
 
 type RolInterno = "admin" | "usuario";
+type PermisoModulo =
+  | "Casilleros"
+  | "Operaciones"
+  | "Tracking"
+  | "Reportes"
+  | "Seguridad"
+  | "Configuracion"
+  | "Perfil";
 
 const obtenerUsuarioInterno = () => {
   const stored =
@@ -55,9 +63,11 @@ const obtenerUsuarioInterno = () => {
 function RutaInterna({
   children,
   roles = ["admin", "usuario"],
+  permiso,
 }: {
   children: ReactNode;
   roles?: RolInterno[];
+  permiso?: PermisoModulo;
 }) {
   const token =
     localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
@@ -67,18 +77,30 @@ function RutaInterna({
     return <Navigate to="/login" replace />;
   }
 
+  const permisos = Array.isArray(usuario.permisos) ? usuario.permisos : [];
+
   if (!roles.includes(usuario.tipo)) {
+    return <Navigate to="/dashboardUsuario" replace />;
+  }
+
+  if (
+    usuario.tipo !== "admin" &&
+    permiso &&
+    !permisos.includes(permiso)
+  ) {
     return <Navigate to="/dashboardUsuario" replace />;
   }
 
   return <>{children}</>;
 }
 
-const interna = (children: ReactNode, roles?: RolInterno[]) => (
-  <RutaInterna roles={roles}>{children}</RutaInterna>
+const interna = (
+  children: ReactNode,
+  permiso?: PermisoModulo,
+  roles?: RolInterno[]
+) => (
+  <RutaInterna roles={roles} permiso={permiso}>{children}</RutaInterna>
 );
-
-const soloAdmin: RolInterno[] = ["admin"];
 
 
 
@@ -95,33 +117,33 @@ function App() {
         <Route path="/dashboardCliente" element={<DashboardClientePage />} />
         <Route path="/dashboardUsuario" element={interna(<DashboardUsuarioPage />)} />
         <Route path="/editar-perfil" element={<EditarPerfilCliente />} />
-        <Route path="/digitacion-paquetes" element={interna(<DigitacionPaquetes />)} />
-        <Route path ="/crear-tracking" element={interna(<CrearTracking/>)} />
-        <Route path ="/consultar-tracking" element={interna(<ConsultarTracking/>)} />
-        <Route path ="/consultar-guia" element={interna(<ConsultarGuia/>)} />
-        <Route path="/perfil" element={interna(<VerPerfil />)} />
-        <Route path="/crear-usuario" element={interna(<CrearUsuario />, soloAdmin)} />
-        <Route path="/consultar-usuario" element={interna(<ConsultarUsuarios />, soloAdmin)} />
-        <Route path="/usuarios/editar/:id" element={interna(<EditarUsuario />, soloAdmin)} />
-        <Route path="/solicitar-despachos" element={interna(<SolicitarDespacho />)} />
-        <Route path="/destinatarios-casilleros" element={interna(<DestinatariosCasilleros />)} />
-        <Route path="/config-trm" element={interna(<ConfigTRM />, soloAdmin)} />
-        <Route path="/conciliacion-pagos" element={interna(<ConciliacionPago />)} />
-        <Route path="/config-tarifas" element={interna(<ConfigTarifas />, soloAdmin)} />
-        <Route path="/agrupar-paquetes" element={interna(<AgruparPaquetes />)} />
-        <Route path="/crear-despachos" element={interna(<CrearDespachos />)} />
-        <Route path="/armar-despachos" element={interna(<ArmarDespachos />)} />
-        <Route path="/armar-despachos/:id" element={interna(<ArmarDespachos />)} />
-        <Route path="/reporte-estado-guia" element={interna(<ReporteEstadoGuia />, soloAdmin)} />
-        <Route path="/reporte-clientes-casilleros" element={interna(<ReporteClientesCasilleros />, soloAdmin)} />
-        <Route path="/reporte-solicitudes" element={interna(<ReporteSolicitudes />, soloAdmin)} />
-        <Route path="/transportadoras" element={interna(<Transportadoras />, soloAdmin)} />
-        <Route path="/plantilla-comunicacion" element={interna(<PlantillaComunicacion />, soloAdmin)} />
+        <Route path="/digitacion-paquetes" element={interna(<DigitacionPaquetes />, "Casilleros")} />
+        <Route path ="/crear-tracking" element={interna(<CrearTracking/>, "Tracking")} />
+        <Route path ="/consultar-tracking" element={interna(<ConsultarTracking/>, "Tracking")} />
+        <Route path ="/consultar-guia" element={interna(<ConsultarGuia/>, "Casilleros")} />
+        <Route path="/perfil" element={interna(<VerPerfil />, "Perfil")} />
+        <Route path="/crear-usuario" element={interna(<CrearUsuario />, "Seguridad")} />
+        <Route path="/consultar-usuario" element={interna(<ConsultarUsuarios />, "Seguridad")} />
+        <Route path="/usuarios/editar/:id" element={interna(<EditarUsuario />, "Seguridad")} />
+        <Route path="/solicitar-despachos" element={interna(<SolicitarDespacho />, "Casilleros")} />
+        <Route path="/destinatarios-casilleros" element={interna(<DestinatariosCasilleros />, "Casilleros")} />
+        <Route path="/config-trm" element={interna(<ConfigTRM />, "Configuracion")} />
+        <Route path="/conciliacion-pagos" element={interna(<ConciliacionPago />, "Casilleros")} />
+        <Route path="/config-tarifas" element={interna(<ConfigTarifas />, "Configuracion")} />
+        <Route path="/agrupar-paquetes" element={interna(<AgruparPaquetes />, "Casilleros")} />
+        <Route path="/crear-despachos" element={interna(<CrearDespachos />, "Operaciones")} />
+        <Route path="/armar-despachos" element={interna(<ArmarDespachos />, "Operaciones")} />
+        <Route path="/armar-despachos/:id" element={interna(<ArmarDespachos />, "Operaciones")} />
+        <Route path="/reporte-estado-guia" element={interna(<ReporteEstadoGuia />, "Reportes")} />
+        <Route path="/reporte-clientes-casilleros" element={interna(<ReporteClientesCasilleros />, "Reportes")} />
+        <Route path="/reporte-solicitudes" element={interna(<ReporteSolicitudes />, "Reportes")} />
+        <Route path="/transportadoras" element={interna(<Transportadoras />, "Configuracion")} />
+        <Route path="/plantilla-comunicacion" element={interna(<PlantillaComunicacion />, "Configuracion")} />
         <Route
           path="/dashboardUsuario/agrupar-solicitud/:id"
-          element={interna(<AgruparSolicitud />)}
+          element={interna(<AgruparSolicitud />, "Casilleros")}
         />
-        <Route path="/Clientes" element={interna(<VerClientes />)} />
+        <Route path="/Clientes" element={interna(<VerClientes />, "Casilleros")} />
 
       </Routes>
       <InactivityWatcher />

@@ -40,6 +40,15 @@ export default function EditarUsuario() {
     usuario: ["Casilleros", "Operaciones", "Tracking", "Perfil"],
     cliente: [],
   };
+  const todosLosPermisos = [
+    "Casilleros",
+    "Operaciones",
+    "Tracking",
+    "Reportes",
+    "Seguridad",
+    "Configuracion",
+    "Perfil",
+  ];
 
   const obtenerPermisosPorRol = (rol: string) => {
     if (rol === "admin") {
@@ -71,7 +80,9 @@ export default function EditarUsuario() {
         password: "",
         tipo_usuario: data.tipo_usuario,
         genero: data.genero,
-        permisos: obtenerPermisosPorRol(data.tipo_usuario),
+        permisos: Array.isArray(data.permisos) && data.permisos.length
+          ? data.permisos
+          : obtenerPermisosPorRol(data.tipo_usuario),
       });
     } catch {
       Swal.fire("Error", "No se pudo cargar la informacion", "error");
@@ -110,6 +121,15 @@ export default function EditarUsuario() {
         permisos: obtenerPermisosPorRol(value),
       }));
     }
+  };
+
+  const togglePermiso = (permiso: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      permisos: prev.permisos.includes(permiso)
+        ? prev.permisos.filter((p) => p !== permiso)
+        : [...prev.permisos, permiso],
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -319,8 +339,8 @@ export default function EditarUsuario() {
                         </div>
 
                         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                          {obtenerPermisosPorRol(formData.tipo_usuario).map((permiso) => {
-                            const checked = true;
+                          {todosLosPermisos.map((permiso) => {
+                            const checked = formData.permisos.includes(permiso);
 
                             return (
                               <label
@@ -336,8 +356,7 @@ export default function EditarUsuario() {
                                 <input
                                   type="checkbox"
                                   checked={checked}
-                                  readOnly
-                                  disabled
+                                  onChange={() => togglePermiso(permiso)}
                                   className="h-4 w-4 cursor-pointer accent-red-900"
                                 />
                               </label>

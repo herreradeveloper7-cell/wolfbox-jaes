@@ -79,6 +79,15 @@ export default function CrearUsuario() {
   };
 
   const [permisosSeleccionados, setPermisosSeleccionados] = useState<string[]>([]);
+  const todosLosPermisos = [
+    "Casilleros",
+    "Operaciones",
+    "Tracking",
+    "Reportes",
+    "Seguridad",
+    "Configuracion",
+    "Perfil",
+  ];
 
   const permisosPorRol: Record<string, string[]> = {
     admin: [
@@ -135,6 +144,14 @@ export default function CrearUsuario() {
     const tipo = e.target.value;
     setFormData({ ...formData, tipo });
     setPermisosSeleccionados(obtenerPermisosPorRol(tipo));
+  };
+
+  const togglePermiso = (permiso: string) => {
+    setPermisosSeleccionados((prev) =>
+      prev.includes(permiso)
+        ? prev.filter((p) => p !== permiso)
+        : [...prev, permiso]
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -383,7 +400,7 @@ export default function CrearUsuario() {
             <div className="rounded-[28px] border border-slate-200 bg-slate-950/5 p-5 shadow-sm">
               <h3 className="font-semibold text-slate-900 mb-3">Permisos del usuario</h3>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {obtenerPermisosPorRol(formData.tipo).map((permiso) => (
+                {todosLosPermisos.map((permiso) => (
                   <label
                     key={permiso}
                     className="flex justify-between items-center rounded-2xl border border-slate-200 bg-white/90 p-3 transition hover:border-green-600"
@@ -395,8 +412,7 @@ export default function CrearUsuario() {
                         type="checkbox"
                         className="sr-only"
                         checked={permisosSeleccionados.includes(permiso)}
-                        readOnly
-                        disabled
+                        onChange={() => togglePermiso(permiso)}
                       />
                       <span
                         className={`w-11 h-6 flex items-center rounded-full p-1 duration-300 ${

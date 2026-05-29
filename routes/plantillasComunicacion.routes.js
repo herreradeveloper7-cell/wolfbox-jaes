@@ -1,5 +1,5 @@
 import express from "express";
-import { autenticarToken, autorizarRoles } from "../middleware/auth.middleware.js";
+import { autenticarToken, autorizarPermisos } from "../middleware/auth.middleware.js";
 import {
   actualizarPlantillaComunicacion,
   crearPlantillaComunicacion,
@@ -10,9 +10,9 @@ import {
 } from "../controllers/plantillasComunicacion.controller.js";
 
 const router = express.Router();
-const soloAdmin = autorizarRoles("admin");
+const configuracion = autorizarPermisos("Configuracion");
 
-router.use(autenticarToken, soloAdmin);
+router.use(autenticarToken, configuracion);
 
 router.get("/", listarPlantillasComunicacion);
 router.get("/logs", listarLogsEmail);

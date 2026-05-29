@@ -33,7 +33,30 @@ export default function ModalDetalleUsuario({
     }, 280);
   };
 
-  const permisos = Array.isArray(usuario?.permisos) ? usuario.permisos : [];
+  const obtenerModulosPorRol = (rol?: string) => {
+    if (rol === "admin") {
+      return [
+        "Casilleros",
+        "Operaciones",
+        "Tracking",
+        "Reportes",
+        "Seguridad",
+        "Configuracion",
+        "Perfil",
+      ];
+    }
+
+    if (rol === "usuario") {
+      return ["Casilleros", "Operaciones", "Tracking", "Perfil"];
+    }
+
+    return [];
+  };
+
+  const permisos =
+    Array.isArray(usuario?.permisos) && usuario.permisos.length
+      ? usuario.permisos
+      : obtenerModulosPorRol(usuario?.tipo_usuario);
   const esAdmin = usuario?.tipo_usuario === "admin";
 
   return (
@@ -116,7 +139,7 @@ export default function ModalDetalleUsuario({
                           Accesos
                         </p>
                         <h4 className="mt-0.5 text-sm font-black text-gray-700">
-                          Permisos asignados
+                          Modulos permitidos
                         </h4>
                       </div>
                       <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-slate-500 shadow-sm">

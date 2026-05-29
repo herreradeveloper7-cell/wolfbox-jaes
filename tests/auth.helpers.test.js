@@ -31,6 +31,7 @@ test("buildUsuarioLoginResponse no expone contrasena ni campos internos", () => 
     tipo: "admin",
     genero: "femenino",
     fecha_creacion: "2026-01-01",
+    permisos: [],
   });
   assert.equal("contrasena" in response, false);
 });
@@ -46,6 +47,7 @@ test("buildUsuarioTokenPayload usa rol real del usuario", () => {
       id: 5,
       email: "ops@jaes.com",
       tipo: "usuario",
+      permisos: [],
     }
   );
 });
