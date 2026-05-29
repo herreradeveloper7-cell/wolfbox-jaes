@@ -86,15 +86,35 @@ export default function CrearUsuario() {
       "Operaciones",
       "Operación Logística",
       "Validación",
-      "Agencias",
-      "Operativo Origen",
-      "Operativo Destino",
-      "Contabilidad",
-      "Servicio al Cliente",
+      "Tracking",
+      "Reportes",
+      "Seguridad",
+      "Configuracion",
+      "Perfil",
       "Control Facturación",
     ],
-    usuario: ["Casilleros", "Operaciones", "Servicio al Cliente"],
+    usuario: ["Casilleros", "Operaciones", "Tracking", "Perfil"],
     cliente: [],
+  };
+
+  const obtenerPermisosPorRol = (rol: string) => {
+    if (rol === "admin") {
+      return [
+        "Casilleros",
+        "Operaciones",
+        "Tracking",
+        "Reportes",
+        "Seguridad",
+        "Configuracion",
+        "Perfil",
+      ];
+    }
+
+    if (rol === "usuario") {
+      return ["Casilleros", "Operaciones", "Tracking", "Perfil"];
+    }
+
+    return permisosPorRol[rol] || [];
   };
 
   const handleInputChange = (
@@ -114,15 +134,7 @@ export default function CrearUsuario() {
   const handleRolChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const tipo = e.target.value;
     setFormData({ ...formData, tipo });
-    setPermisosSeleccionados(permisosPorRol[tipo] || []);
-  };
-
-  const togglePermiso = (permiso: string) => {
-    setPermisosSeleccionados((prev) =>
-      prev.includes(permiso)
-        ? prev.filter((p) => p !== permiso)
-        : [...prev, permiso]
-    );
+    setPermisosSeleccionados(obtenerPermisosPorRol(tipo));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -371,7 +383,7 @@ export default function CrearUsuario() {
             <div className="rounded-[28px] border border-slate-200 bg-slate-950/5 p-5 shadow-sm">
               <h3 className="font-semibold text-slate-900 mb-3">Permisos del usuario</h3>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {permisosPorRol[formData.tipo]?.map((permiso) => (
+                {obtenerPermisosPorRol(formData.tipo).map((permiso) => (
                   <label
                     key={permiso}
                     className="flex justify-between items-center rounded-2xl border border-slate-200 bg-white/90 p-3 transition hover:border-green-600"
@@ -383,7 +395,8 @@ export default function CrearUsuario() {
                         type="checkbox"
                         className="sr-only"
                         checked={permisosSeleccionados.includes(permiso)}
-                        onChange={() => togglePermiso(permiso)}
+                        readOnly
+                        disabled
                       />
                       <span
                         className={`w-11 h-6 flex items-center rounded-full p-1 duration-300 ${

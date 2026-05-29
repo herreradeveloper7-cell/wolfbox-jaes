@@ -15,6 +15,7 @@ import {
 
 
 const router = express.Router();
+const soloAdmin = autorizarRoles("admin");
 const soloOperacion = autorizarRoles("admin", "usuario");
 
 router.post('/validar', validar({ body: clienteSchemas.validar }), validarClienteExistente);
@@ -23,7 +24,7 @@ router.post('/login', validar({ body: clienteSchemas.login }), loginCliente);
 
 router.use(autenticarToken);
 
-router.get("/reporte-casilleros", soloOperacion, validar({ query: clienteSchemas.reporteCasilleros }), reporteClientesCasilleros);
+router.get("/reporte-casilleros", soloAdmin, validar({ query: clienteSchemas.reporteCasilleros }), reporteClientesCasilleros);
 router.get("/buscar/:valor", soloOperacion, validar({ params: textParam("valor") }), buscarCliente);
 router.get("/buscar-destinatarios/:texto", soloOperacion, validar({ params: textParam("texto") }), buscarClienteDestinatarios);
 router.put(

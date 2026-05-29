@@ -52,12 +52,13 @@
   });
 
   const upload = multer({ storage });
+  const soloAdmin = autorizarRoles("admin");
   const soloOperacion = autorizarRoles("admin", "usuario");
 
   router.use(autenticarToken, soloOperacion);
 
   router.post("/crear", validar({ body: solicitudSchemas.crear }), crearSolicitud);
-  router.get("/reporte", validar({ query: solicitudSchemas.reporte }), reporteSolicitudes);
+  router.get("/reporte", soloAdmin, validar({ query: solicitudSchemas.reporte }), reporteSolicitudes);
   router.get("/listar", obtenerSolicitudes);
   router.get("/detalle/:id", validar({ params: idParam() }), obtenerDetalleSolicitud);
 
