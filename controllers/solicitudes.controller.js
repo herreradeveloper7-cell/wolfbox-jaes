@@ -835,14 +835,50 @@ export const reporteSolicitudes = async (req, res) => {
     }
 
     const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
-    const havingClause =
+    const filtroDesbloqueo =
       desbloqueo === "desbloqueadas"
-        ? "HAVING MAX(CASE WHEN LOWER(ISNULL(ec.nombre, '')) = 'desbloqueado' THEN 1 ELSE 0 END) = 1"
+        ? "AND pt.desbloqueada = 1"
         : desbloqueo === "sin_desbloquear"
-          ? "HAVING MAX(CASE WHEN LOWER(ISNULL(ec.nombre, '')) = 'desbloqueado' THEN 1 ELSE 0 END) = 0"
+          ? "AND pt.desbloqueada = 0"
           : "";
 
     const result = await request.query(`
+      WITH paquetes_solicitud AS (
+        SELECT
+          p.solicitud_id,
+          ISNULL(SUM(
+            CASE
+              WHEN p.hawb NOT LIKE '%G' THEN 1
+              ELSE 0
+            END
+          ), 0) AS cantidad_paquetes,
+          ISNULL(SUM(
+            CASE
+              WHEN p.hawb NOT LIKE '%G' THEN CAST(ISNULL(p.peso, 0) AS DECIMAL(10,2))
+              ELSE 0
+            END
+          ), 0) AS peso_total,
+          ISNULL(SUM(
+            CASE
+              WHEN p.hawb NOT LIKE '%G' THEN CAST(ISNULL(p.asegurado, 0) AS DECIMAL(10,2))
+              ELSE 0
+            END
+          ), 0) AS asegurado_total,
+          STRING_AGG(CAST(p.hawb AS NVARCHAR(MAX)), CHAR(10)) AS hawbs,
+          MAX(CASE WHEN LOWER(ISNULL(ec.nombre, '')) = 'desbloqueado' THEN 1 ELSE 0 END) AS desbloqueada
+        FROM paquetes p
+        LEFT JOIN estados_catalogo ec ON ec.id = p.estado_id
+        WHERE p.solicitud_id IS NOT NULL
+        GROUP BY p.solicitud_id
+      ),
+      cargos_solicitud AS (
+        SELECT
+          solicitud_id,
+          ISNULL(SUM(CAST(ISNULL(valor_usd, 0) AS DECIMAL(10,2))), 0) AS cargos_usd,
+          ISNULL(SUM(CAST(ISNULL(valor_cop, 0) AS DECIMAL(18,2))), 0) AS cargos_cop
+        FROM cargos_adicionales
+        GROUP BY solicitud_id
+      )
       SELECT
         s.id,
         CONVERT(varchar, s.fecha, 120) AS fecha,
@@ -885,6 +921,7 @@ export const reporteSolicitudes = async (req, res) => {
         srv.tarifa_minima_usd,
         srv.aplica_peso_maximo,
         srv.peso_maximo,
+<<<<<<< HEAD
         ISNULL(SUM(
           CASE
             WHEN p.id IS NOT NULL AND p.hawb NOT LIKE '%G' THEN 1
@@ -909,10 +946,20 @@ export const reporteSolicitudes = async (req, res) => {
         ISNULL(MAX(cargos.detalle_cargos), '') AS detalle_cargos,
         STRING_AGG(CAST(p.hawb AS NVARCHAR(MAX)), CHAR(10)) AS hawbs,
         MAX(CASE WHEN LOWER(ISNULL(ec.nombre, '')) = 'desbloqueado' THEN 1 ELSE 0 END) AS desbloqueada
+=======
+        pt.cantidad_paquetes,
+        pt.peso_total,
+        pt.asegurado_total,
+        pt.hawbs,
+        pt.desbloqueada,
+        ISNULL(cs.cargos_usd, 0) AS cargos_usd,
+        ISNULL(cs.cargos_cop, 0) AS cargos_cop
+>>>>>>> feature/developer
       FROM solicitudes s
       INNER JOIN clientes c ON c.id = s.cliente_id
       LEFT JOIN destinatarios d ON d.id = s.destinatario
       LEFT JOIN servicios srv ON srv.id = s.servicio_id
+<<<<<<< HEAD
       LEFT JOIN paquetes p ON p.solicitud_id = s.id
       LEFT JOIN estados_catalogo ec ON ec.id = p.estado_id
       OUTER APPLY (
@@ -935,39 +982,12 @@ export const reporteSolicitudes = async (req, res) => {
         FROM cargos_adicionales ca
         WHERE ca.solicitud_id = s.id
       ) cargos
+=======
+      INNER JOIN paquetes_solicitud pt ON pt.solicitud_id = s.id
+      LEFT JOIN cargos_solicitud cs ON cs.solicitud_id = s.id
+>>>>>>> feature/developer
       ${whereClause}
-      GROUP BY
-        s.id,
-        s.fecha,
-        s.estado,
-        s.medio_pago,
-        s.observaciones,
-        s.valor_estimado_usd,
-        s.valor_moneda_local,
-        c.codigo_referencia,
-        c.tipo_cliente,
-        c.nombre_empresa,
-        c.primer_nombre,
-        c.segundo_nombre,
-        c.primer_apellido,
-        c.segundo_apellido,
-        d.nombre,
-        srv.nombre,
-        srv.codigo,
-        srv.tipo,
-        srv.tarifa_fija_1lb,
-        srv.tarifa_fija_2a5,
-        srv.tarifa_fija_6a10,
-        srv.tarifa_por_libra_extra,
-        srv.tarifa_por_libra_cc,
-        srv.porcentaje_seguro,
-        srv.seguro_minimo_usd,
-        srv.aplica_minimo,
-        srv.peso_minimo,
-        srv.tarifa_minima_usd,
-        srv.aplica_peso_maximo,
-        srv.peso_maximo
-      ${havingClause}
+      ${whereClause ? filtroDesbloqueo : filtroDesbloqueo.replace(/^AND /, "WHERE ")}
       ORDER BY s.fecha DESC
     `);
 
@@ -998,17 +1018,33 @@ export const reporteSolicitudes = async (req, res) => {
 
       return {
         ...data,
-        trm_liquidacion:
-          Number(data.valor_estimado_usd || 0) > 0
-            ? Number(
-                (
-                  Number(data.valor_moneda_local || 0) /
-                  Number(data.valor_estimado_usd || 0)
-                ).toFixed(2)
-              )
-            : 0,
+        trm_liquidacion: (() => {
+          const valorUSDGuardado = Number(data.valor_estimado_usd || 0);
+          const valorCOPGuardado = Number(data.valor_moneda_local || 0);
+          return valorUSDGuardado > 0
+            ? Number((valorCOPGuardado / valorUSDGuardado).toFixed(2))
+            : 0;
+        })(),
         flete_usd: calculoFlete.ok ? Number(calculoFlete.fleteUSD.toFixed(2)) : 0,
         seguro_usd: Number(seguroUSD.toFixed(2)),
+        valor_estimado_usd: Number(
+          (
+            (calculoFlete.ok ? Number(calculoFlete.fleteUSD || 0) : 0) +
+            seguroUSD +
+            Number(data.cargos_usd || 0)
+          ).toFixed(2)
+        ),
+        valor_moneda_local: Number(
+          (
+            (() => {
+              const valorUSDGuardado = Number(data.valor_estimado_usd || 0);
+              const valorCOPGuardado = Number(data.valor_moneda_local || 0);
+              const trm = valorUSDGuardado > 0 ? valorCOPGuardado / valorUSDGuardado : 0;
+              const baseUSD = (calculoFlete.ok ? Number(calculoFlete.fleteUSD || 0) : 0) + seguroUSD;
+              return baseUSD * trm + Number(data.cargos_cop || 0);
+            })()
+          ).toFixed(2)
+        ),
       };
     });
 
@@ -1046,12 +1082,17 @@ export const actualizarEstadoSolicitud = async (req, res) => {
 
 export const eliminarSolicitud = async (req, res) => {
   const { id } = req.params;
+  let transaction;
+  let transactionStarted = false;
 
   try {
     const pool = await poolPromise;
+    transaction = new sql.Transaction(pool);
+    await transaction.begin();
+    transactionStarted = true;
+    const request = () => new sql.Request(transaction);
 
-    const check = await pool
-      .request()
+    const check = await request()
       .input("id", sql.Int, id)
       .query(`
         SELECT id 
@@ -1060,6 +1101,9 @@ export const eliminarSolicitud = async (req, res) => {
       `);
 
     if (check.recordset.length === 0) {
+      await transaction.rollback();
+      transactionStarted = false;
+
       return res.status(404).json({
         ok: false,
         mensaje: "Solicitud no encontrada."
@@ -1067,8 +1111,7 @@ export const eliminarSolicitud = async (req, res) => {
     }
 
     // 🔴 VALIDAR SI YA TIENE PROCESO LOGÍSTICO
-    const validacion = await pool
-      .request()
+    const validacion = await request()
       .input("id", sql.Int, id)
       .query(`
         SELECT 
@@ -1089,6 +1132,9 @@ export const eliminarSolicitud = async (req, res) => {
     );
 
     if (tieneGuiaPadre || tieneFacturado) {
+      await transaction.rollback();
+      transactionStarted = false;
+
       return res.status(400).json({
         ok: false,
         mensaje:
@@ -1097,8 +1143,7 @@ export const eliminarSolicitud = async (req, res) => {
     }
 
     // ✅ LIBERAR PAQUETES
-    await pool
-      .request()
+    await request()
       .input("solicitud_id", sql.Int, id)
       .query(`
         UPDATE paquetes
@@ -1107,13 +1152,22 @@ export const eliminarSolicitud = async (req, res) => {
       `);
 
     // ✅ ELIMINAR SOLICITUD
-    await pool
-      .request()
+    await request()
+      .input("solicitud_id", sql.Int, id)
+      .query(`
+        DELETE FROM cargos_adicionales
+        WHERE solicitud_id = @solicitud_id
+      `);
+
+    await request()
       .input("id", sql.Int, id)
       .query(`
         DELETE FROM solicitudes
         WHERE id = @id
       `);
+
+    await transaction.commit();
+    transactionStarted = false;
 
     return res.json({
       ok: true,
@@ -1121,6 +1175,13 @@ export const eliminarSolicitud = async (req, res) => {
     });
 
   } catch (error) {
+    if (transactionStarted) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error("Error revirtiendo eliminarSolicitud:", rollbackError);
+      }
+    }
     console.error("❌ Error eliminando solicitud:", error);
 
     return res.status(500).json({
@@ -1664,14 +1725,19 @@ export const editarSolicitudCompleta = async (req, res) => {
   let transactionStarted = false;
 
   // ✅ ahora recibe destinatario
-  const { paquetes, cargos, destinatario } = req.body;
+  const { paquetes, cargos, destinatario, trm_liquidacion } = req.body;
 
   // ✅ permitir que paquetes/cargos vengan vacíos o no vengan
   const paquetesArr = Array.isArray(paquetes) ? paquetes : [];
   const cargosArr = Array.isArray(cargos) ? cargos : [];
 
   // ✅ si no envían nada, tampoco tiene sentido
-  if (paquetes === undefined && cargos === undefined && destinatario === undefined) {
+  if (
+    paquetes === undefined &&
+    cargos === undefined &&
+    destinatario === undefined &&
+    trm_liquidacion === undefined
+  ) {
     return res.status(400).json({
       ok: false,
       mensaje: "No se enviaron datos para actualizar.",
@@ -1684,6 +1750,19 @@ export const editarSolicitudCompleta = async (req, res) => {
     await transaction.begin();
     transactionStarted = true;
     const request = () => new sql.Request(transaction);
+    const trmSolicitud =
+      trm_liquidacion !== undefined && trm_liquidacion !== null && trm_liquidacion !== ""
+        ? Number(trm_liquidacion)
+        : null;
+
+    if (trmSolicitud !== null && (!Number.isFinite(trmSolicitud) || trmSolicitud <= 0)) {
+      await transaction.rollback();
+      transactionStarted = false;
+      return res.status(400).json({
+        ok: false,
+        mensaje: "La TRM de la solicitud debe ser mayor a cero.",
+      });
+    }
 
     if (destinatario !== undefined && destinatario !== null && destinatario !== "") {
       await request()
@@ -1732,12 +1811,16 @@ export const editarSolicitudCompleta = async (req, res) => {
       }
 
       for (const c of cargosArr) {
+        const valorUSD = Number(c.valor_usd || 0);
+        const valorCOP =
+          trmSolicitud !== null ? Number((valorUSD * trmSolicitud).toFixed(2)) : Number(c.valor_cop || 0);
+
         if (!c.id) {
           await request()
             .input("solicitud_id", sql.Int, id)
             .input("tipo_cargo", sql.VarChar(100), c.tipo_cargo)
-            .input("valor_usd", sql.Decimal(10, 2), c.valor_usd)
-            .input("valor_cop", sql.Decimal(18, 2), c.valor_cop)
+            .input("valor_usd", sql.Decimal(10, 2), valorUSD)
+            .input("valor_cop", sql.Decimal(18, 2), valorCOP)
             .query(`
               INSERT INTO cargos_adicionales (solicitud_id, tipo_cargo, valor_usd, valor_cop)
               VALUES (@solicitud_id, @tipo_cargo, @valor_usd, @valor_cop)
@@ -1746,8 +1829,8 @@ export const editarSolicitudCompleta = async (req, res) => {
           await request()
             .input("id", sql.Int, c.id)
             .input("tipo_cargo", sql.VarChar(100), c.tipo_cargo)
-            .input("valor_usd", sql.Decimal(10, 2), c.valor_usd)
-            .input("valor_cop", sql.Decimal(18, 2), c.valor_cop)
+            .input("valor_usd", sql.Decimal(10, 2), valorUSD)
+            .input("valor_cop", sql.Decimal(18, 2), valorCOP)
             .query(`
               UPDATE cargos_adicionales
               SET tipo_cargo = @tipo_cargo,
@@ -1758,6 +1841,116 @@ export const editarSolicitudCompleta = async (req, res) => {
         }
       }
     }
+
+    if (trmSolicitud !== null) {
+      await request()
+        .input("id", sql.Int, id)
+        .input("trm", sql.Decimal(18, 2), trmSolicitud)
+        .query(`
+          UPDATE cargos_adicionales
+          SET valor_cop = CAST(ISNULL(valor_usd, 0) AS DECIMAL(18,2)) * @trm
+          WHERE solicitud_id = @id
+        `);
+    }
+
+    const solicitudTotales = await request()
+      .input("id", sql.Int, id)
+      .query(`
+        SELECT
+          s.valor_estimado_usd,
+          s.valor_moneda_local,
+          srv.nombre AS servicio_nombre,
+          srv.codigo,
+          srv.tipo,
+          srv.tarifa_fija_1lb,
+          srv.tarifa_fija_2a5,
+          srv.tarifa_fija_6a10,
+          srv.tarifa_por_libra_extra,
+          srv.tarifa_por_libra_cc,
+          srv.porcentaje_seguro,
+          srv.seguro_minimo_usd,
+          srv.aplica_minimo,
+          srv.peso_minimo,
+          srv.tarifa_minima_usd,
+          srv.aplica_peso_maximo,
+          srv.peso_maximo,
+          ISNULL(SUM(
+            CASE
+              WHEN p.hawb NOT LIKE '%G' THEN CAST(ISNULL(p.peso, 0) AS DECIMAL(10,2))
+              ELSE 0
+            END
+          ), 0) AS peso_total,
+          ISNULL(SUM(
+            CASE
+              WHEN p.hawb NOT LIKE '%G' THEN CAST(ISNULL(p.asegurado, 0) AS DECIMAL(10,2))
+              ELSE 0
+            END
+          ), 0) AS asegurado_total
+        FROM solicitudes s
+        LEFT JOIN servicios srv ON srv.id = s.servicio_id
+        LEFT JOIN paquetes p ON p.solicitud_id = s.id
+        WHERE s.id = @id
+        GROUP BY
+          s.valor_estimado_usd,
+          s.valor_moneda_local,
+          srv.nombre,
+          srv.codigo,
+          srv.tipo,
+          srv.tarifa_fija_1lb,
+          srv.tarifa_fija_2a5,
+          srv.tarifa_fija_6a10,
+          srv.tarifa_por_libra_extra,
+          srv.tarifa_por_libra_cc,
+          srv.porcentaje_seguro,
+          srv.seguro_minimo_usd,
+          srv.aplica_minimo,
+          srv.peso_minimo,
+          srv.tarifa_minima_usd,
+          srv.aplica_peso_maximo,
+          srv.peso_maximo
+      `);
+
+    const datosTotales = solicitudTotales.recordset[0];
+
+    if (!datosTotales) {
+      const error = new Error("Solicitud no encontrada.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const calculoFlete = calcularFleteServicio(datosTotales, Number(datosTotales.peso_total || 0));
+
+    if (!calculoFlete.ok) {
+      const error = new Error(calculoFlete.mensaje);
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const porcentaje = Number(datosTotales.porcentaje_seguro || 0) / 100;
+    const seguroMinimoUSD = Number(datosTotales.seguro_minimo_usd || 0);
+    const seguroCalculadoUSD = Number(datosTotales.asegurado_total || 0) * porcentaje;
+    const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
+    const valorEstimadoUSD = Number((Number(calculoFlete.fleteUSD || 0) + seguroUSD).toFixed(2));
+    const valorUSDAnterior = Number(datosTotales.valor_estimado_usd || 0);
+    const valorCOPAnterior = Number(datosTotales.valor_moneda_local || 0);
+    const trmLiquidacion =
+      trmSolicitud !== null
+        ? trmSolicitud
+        : valorUSDAnterior > 0
+          ? valorCOPAnterior / valorUSDAnterior
+          : 0;
+    const valorMonedaLocal = Number((valorEstimadoUSD * trmLiquidacion).toFixed(2));
+
+    await request()
+      .input("id", sql.Int, id)
+      .input("valor_estimado_usd", sql.Decimal(10, 2), valorEstimadoUSD)
+      .input("valor_moneda_local", sql.Decimal(18, 2), valorMonedaLocal)
+      .query(`
+        UPDATE solicitudes
+        SET valor_estimado_usd = @valor_estimado_usd,
+            valor_moneda_local = @valor_moneda_local
+        WHERE id = @id
+      `);
 
     await transaction.commit();
     transactionStarted = false;
@@ -1776,9 +1969,9 @@ export const editarSolicitudCompleta = async (req, res) => {
     }
 
     console.error("❌ Error en editarSolicitudCompleta:", error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       ok: false,
-      mensaje: "Error actualizando solicitud.",
+      mensaje: error.statusCode ? error.message : "Error actualizando solicitud.",
     });
   }
 };

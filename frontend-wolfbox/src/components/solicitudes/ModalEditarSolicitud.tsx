@@ -120,6 +120,22 @@ export default function ModalEditarSolicitud({
     setCargos(updated);
   };
 
+  const cambiarTRM = (valor: string) => {
+    if (!/^\d*\.?\d*$/.test(valor) && valor !== "") return;
+
+    const nuevaTRM = Number(valor || 0);
+    setTrm(nuevaTRM);
+    setCargos((prev) =>
+      prev.map((cargo) => ({
+        ...cargo,
+        valor_cop:
+          nuevaTRM > 0
+            ? Number((Number(cargo.valor_usd || 0) * nuevaTRM).toFixed(2))
+            : 0,
+      }))
+    );
+  };
+
   const esHawbPadre = (p: any) => {
     return (
       p.es_padre === true ||
@@ -139,6 +155,11 @@ export default function ModalEditarSolicitud({
       return;
     }
 
+    if (!Number.isFinite(Number(trm)) || Number(trm) <= 0) {
+      Swal.fire("Atencion", "La TRM de la solicitud debe ser mayor a cero.", "warning");
+      return;
+    }
+
     try {
       await axios.put(
         `/api/solicitudes/editar/${solicitud.id}`,
@@ -147,6 +168,7 @@ export default function ModalEditarSolicitud({
           cargos,
           // ✅ este nombre debe coincidir con backend
           destinatario: destinatarioSeleccionado,
+          trm_liquidacion: Number(trm),
         }
       );
 
@@ -376,9 +398,19 @@ export default function ModalEditarSolicitud({
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-100">
                 Tasa representativa del mercado
               </p>
-              <p className="text-3xl font-semibold mt-1 tracking-tight">
-                {trm.toLocaleString("es-CO", { minimumFractionDigits: 2 })}
-                <span className="text-lg font-semibold ml-2 text-red-100">COP/USD</span>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={trm || ""}
+                  onChange={(e) => cambiarTRM(e.target.value)}
+                  onBlur={() => setTrm(Number(Number(trm || 0).toFixed(2)))}
+                  className="h-12 w-full max-w-[220px] rounded-xl border border-white/20 bg-white/95 px-4 text-2xl font-semibold tracking-tight text-red-950 outline-none transition focus:ring-4 focus:ring-white/20"
+                />
+                <span className="text-lg font-semibold text-red-100">COP/USD</span>
+              </div>
+              <p className="mt-2 text-xs font-semibold text-red-100/80">
+                Esta TRM se guardara solo para esta solicitud.
               </p>
             </div>
           </div>
