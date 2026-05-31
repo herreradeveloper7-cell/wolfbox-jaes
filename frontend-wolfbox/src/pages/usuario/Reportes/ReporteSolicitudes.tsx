@@ -20,6 +20,8 @@ type SolicitudReporte = {
   trm_liquidacion?: number | string | null;
   flete_usd?: number | string | null;
   seguro_usd?: number | string | null;
+  cargos_usd?: number | string | null;
+  cargos_cop?: number | string | null;
   codigo_casillero?: string | null;
   cliente?: string | null;
   destinatario?: string | null;
@@ -87,8 +89,10 @@ export default function ReporteSolicitudes() {
         "Peso total": Number(Number(solicitud.peso_total || 0).toFixed(2)),
         "Flete USD": Number(Number(solicitud.flete_usd || 0).toFixed(2)),
         "Seguro USD": Number(Number(solicitud.seguro_usd || 0).toFixed(2)),
+        "Cargos USD": Number(Number(solicitud.cargos_usd || 0).toFixed(2)),
         "Valor USD": Number(Number(solicitud.valor_estimado_usd || 0).toFixed(2)),
         "TRM liquidacion": Number(Number(solicitud.trm_liquidacion || 0).toFixed(2)),
+        "Cargos COP": Number(Number(solicitud.cargos_cop || 0).toFixed(2)),
         "Valor COP": Number(Number(solicitud.valor_moneda_local || 0).toFixed(2)),
         HAWB: solicitud.hawbs || "-",
         Observaciones: solicitud.observaciones || "-",
@@ -122,7 +126,9 @@ export default function ReporteSolicitudes() {
         { wch: 14 },
         { wch: 14 },
         { wch: 14 },
+        { wch: 14 },
         { wch: 18 },
+        { wch: 14 },
         { wch: 16 },
         { wch: 42 },
         { wch: 42 },
