@@ -1649,14 +1649,19 @@ export const editarSolicitudCompleta = async (req, res) => {
   let transactionStarted = false;
 
   // ✅ ahora recibe destinatario
-  const { paquetes, cargos, destinatario } = req.body;
+  const { paquetes, cargos, destinatario, trm_liquidacion } = req.body;
 
   // ✅ permitir que paquetes/cargos vengan vacíos o no vengan
   const paquetesArr = Array.isArray(paquetes) ? paquetes : [];
   const cargosArr = Array.isArray(cargos) ? cargos : [];
 
   // ✅ si no envían nada, tampoco tiene sentido
-  if (paquetes === undefined && cargos === undefined && destinatario === undefined) {
+  if (
+    paquetes === undefined &&
+    cargos === undefined &&
+    destinatario === undefined &&
+    trm_liquidacion === undefined
+  ) {
     return res.status(400).json({
       ok: false,
       mensaje: "No se enviaron datos para actualizar.",
@@ -1669,6 +1674,19 @@ export const editarSolicitudCompleta = async (req, res) => {
     await transaction.begin();
     transactionStarted = true;
     const request = () => new sql.Request(transaction);
+    const trmSolicitud =
+      trm_liquidacion !== undefined && trm_liquidacion !== null && trm_liquidacion !== ""
+        ? Number(trm_liquidacion)
+        : null;
+
+    if (trmSolicitud !== null && (!Number.isFinite(trmSolicitud) || trmSolicitud <= 0)) {
+      await transaction.rollback();
+      transactionStarted = false;
+      return res.status(400).json({
+        ok: false,
+        mensaje: "La TRM de la solicitud debe ser mayor a cero.",
+      });
+    }
 
     if (destinatario !== undefined && destinatario !== null && destinatario !== "") {
       await request()
@@ -1717,12 +1735,16 @@ export const editarSolicitudCompleta = async (req, res) => {
       }
 
       for (const c of cargosArr) {
+        const valorUSD = Number(c.valor_usd || 0);
+        const valorCOP =
+          trmSolicitud !== null ? Number((valorUSD * trmSolicitud).toFixed(2)) : Number(c.valor_cop || 0);
+
         if (!c.id) {
           await request()
             .input("solicitud_id", sql.Int, id)
             .input("tipo_cargo", sql.VarChar(100), c.tipo_cargo)
-            .input("valor_usd", sql.Decimal(10, 2), c.valor_usd)
-            .input("valor_cop", sql.Decimal(18, 2), c.valor_cop)
+            .input("valor_usd", sql.Decimal(10, 2), valorUSD)
+            .input("valor_cop", sql.Decimal(18, 2), valorCOP)
             .query(`
               INSERT INTO cargos_adicionales (solicitud_id, tipo_cargo, valor_usd, valor_cop)
               VALUES (@solicitud_id, @tipo_cargo, @valor_usd, @valor_cop)
@@ -1731,8 +1753,8 @@ export const editarSolicitudCompleta = async (req, res) => {
           await request()
             .input("id", sql.Int, c.id)
             .input("tipo_cargo", sql.VarChar(100), c.tipo_cargo)
-            .input("valor_usd", sql.Decimal(10, 2), c.valor_usd)
-            .input("valor_cop", sql.Decimal(18, 2), c.valor_cop)
+            .input("valor_usd", sql.Decimal(10, 2), valorUSD)
+            .input("valor_cop", sql.Decimal(18, 2), valorCOP)
             .query(`
               UPDATE cargos_adicionales
               SET tipo_cargo = @tipo_cargo,
@@ -1742,6 +1764,17 @@ export const editarSolicitudCompleta = async (req, res) => {
             `);
         }
       }
+    }
+
+    if (trmSolicitud !== null) {
+      await request()
+        .input("id", sql.Int, id)
+        .input("trm", sql.Decimal(18, 2), trmSolicitud)
+        .query(`
+          UPDATE cargos_adicionales
+          SET valor_cop = CAST(ISNULL(valor_usd, 0) AS DECIMAL(18,2)) * @trm
+          WHERE solicitud_id = @id
+        `);
     }
 
     const solicitudTotales = await request()
@@ -1824,7 +1857,12 @@ export const editarSolicitudCompleta = async (req, res) => {
     const valorEstimadoUSD = Number((Number(calculoFlete.fleteUSD || 0) + seguroUSD).toFixed(2));
     const valorUSDAnterior = Number(datosTotales.valor_estimado_usd || 0);
     const valorCOPAnterior = Number(datosTotales.valor_moneda_local || 0);
-    const trmLiquidacion = valorUSDAnterior > 0 ? valorCOPAnterior / valorUSDAnterior : 0;
+    const trmLiquidacion =
+      trmSolicitud !== null
+        ? trmSolicitud
+        : valorUSDAnterior > 0
+          ? valorCOPAnterior / valorUSDAnterior
+          : 0;
     const valorMonedaLocal = Number((valorEstimadoUSD * trmLiquidacion).toFixed(2));
 
     await request()

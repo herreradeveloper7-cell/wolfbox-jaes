@@ -307,8 +307,13 @@ export const solicitudSchemas = {
       valor_cop: optionalNumber,
     }).passthrough()).optional(),
     destinatario: optionalNumber,
+    trm_liquidacion: optionalNumber,
   }).passthrough().refine(
-    (data) => data.paquetes !== undefined || data.cargos !== undefined || data.destinatario !== undefined,
+    (data) =>
+      data.paquetes !== undefined ||
+      data.cargos !== undefined ||
+      data.destinatario !== undefined ||
+      data.trm_liquidacion !== undefined,
     "No se enviaron datos para actualizar"
   ),
   agrupar: z.object({
