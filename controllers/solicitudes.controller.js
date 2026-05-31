@@ -921,32 +921,6 @@ export const reporteSolicitudes = async (req, res) => {
         srv.tarifa_minima_usd,
         srv.aplica_peso_maximo,
         srv.peso_maximo,
-<<<<<<< HEAD
-        ISNULL(SUM(
-          CASE
-            WHEN p.id IS NOT NULL AND p.hawb NOT LIKE '%G' THEN 1
-            ELSE 0
-          END
-        ), 0) AS cantidad_paquetes,
-        ISNULL(SUM(
-          CASE
-            WHEN p.hawb NOT LIKE '%G' THEN CAST(ISNULL(p.peso, 0) AS DECIMAL(10,2))
-            ELSE 0
-          END
-        ), 0) AS peso_total,
-        ISNULL(SUM(
-          CASE
-            WHEN p.hawb NOT LIKE '%G' THEN CAST(ISNULL(p.asegurado, 0) AS DECIMAL(10,2))
-            ELSE 0
-          END
-        ), 0) AS asegurado_total,
-        ISNULL(MAX(cargos.cantidad_cargos), 0) AS cantidad_cargos,
-        ISNULL(MAX(cargos.total_cargos_usd), 0) AS total_cargos_usd,
-        ISNULL(MAX(cargos.total_cargos_cop), 0) AS total_cargos_cop,
-        ISNULL(MAX(cargos.detalle_cargos), '') AS detalle_cargos,
-        STRING_AGG(CAST(p.hawb AS NVARCHAR(MAX)), CHAR(10)) AS hawbs,
-        MAX(CASE WHEN LOWER(ISNULL(ec.nombre, '')) = 'desbloqueado' THEN 1 ELSE 0 END) AS desbloqueada
-=======
         pt.cantidad_paquetes,
         pt.peso_total,
         pt.asegurado_total,
@@ -954,38 +928,12 @@ export const reporteSolicitudes = async (req, res) => {
         pt.desbloqueada,
         ISNULL(cs.cargos_usd, 0) AS cargos_usd,
         ISNULL(cs.cargos_cop, 0) AS cargos_cop
->>>>>>> feature/developer
       FROM solicitudes s
       INNER JOIN clientes c ON c.id = s.cliente_id
       LEFT JOIN destinatarios d ON d.id = s.destinatario
       LEFT JOIN servicios srv ON srv.id = s.servicio_id
-<<<<<<< HEAD
-      LEFT JOIN paquetes p ON p.solicitud_id = s.id
-      LEFT JOIN estados_catalogo ec ON ec.id = p.estado_id
-      OUTER APPLY (
-        SELECT
-          COUNT(ca.id) AS cantidad_cargos,
-          SUM(CAST(ISNULL(ca.valor_usd, 0) AS DECIMAL(18,2))) AS total_cargos_usd,
-          SUM(CAST(ISNULL(ca.valor_cop, 0) AS DECIMAL(18,2))) AS total_cargos_cop,
-          CAST(
-            STRING_AGG(
-              CONCAT(
-                ca.tipo_cargo,
-                ': USD ',
-                CONVERT(VARCHAR(32), CAST(ISNULL(ca.valor_usd, 0) AS DECIMAL(18,2))),
-                ' / COP ',
-                CONVERT(VARCHAR(32), CAST(ISNULL(ca.valor_cop, 0) AS DECIMAL(18,2)))
-              ),
-              CHAR(10)
-            ) AS NVARCHAR(4000)
-          ) AS detalle_cargos
-        FROM cargos_adicionales ca
-        WHERE ca.solicitud_id = s.id
-      ) cargos
-=======
       INNER JOIN paquetes_solicitud pt ON pt.solicitud_id = s.id
       LEFT JOIN cargos_solicitud cs ON cs.solicitud_id = s.id
->>>>>>> feature/developer
       ${whereClause}
       ${whereClause ? filtroDesbloqueo : filtroDesbloqueo.replace(/^AND /, "WHERE ")}
       ORDER BY s.fecha DESC
@@ -2509,6 +2457,7 @@ export const generarEtiquetaHawbPadre = async (req, res) => {
     res.status(500).json({ mensaje: "Error generando etiqueta" });
   }
 };
+
 
 
 
