@@ -32,6 +32,8 @@ type SolicitudReporte = {
   desbloqueada?: number | boolean | null;
 };
 
+const REPORTE_SOLICITUDES_VERSION = "solicitudes-main-20260604-2";
+
 const limpiarNombreArchivo = (valor: string) =>
   valor.replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, "_");
 
@@ -107,6 +109,7 @@ export default function ReporteSolicitudes() {
       }));
       const resumen = [
         ["Reporte", "Solicitudes"],
+        ["Version reporte", REPORTE_SOLICITUDES_VERSION],
         ["Filtro", resumenFiltro],
         ["Fecha inicial", fechaDesde || "Sin filtro"],
         ["Fecha final", fechaHasta || "Sin filtro"],
@@ -151,7 +154,7 @@ export default function ReporteSolicitudes() {
       XLSX.utils.book_append_sheet(workbook, solicitudesSheet, "Solicitudes");
       XLSX.writeFile(
         workbook,
-        `Reporte_Solicitudes_${limpiarNombreArchivo(desbloqueo)}_${new Date().toISOString().slice(0, 10)}.xlsx`
+        `Reporte_Solicitudes_${limpiarNombreArchivo(desbloqueo)}_${REPORTE_SOLICITUDES_VERSION}_${new Date().toISOString().slice(0, 10)}.xlsx`
       );
 
       Swal.fire("Listo", "Reporte descargado correctamente", "success");
