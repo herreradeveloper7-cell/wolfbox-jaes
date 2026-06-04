@@ -112,8 +112,8 @@ export default function ReporteSolicitudes() {
         ["Fecha final", fechaHasta || "Sin filtro"],
         ["Total solicitudes", solicitudes.length],
         ["Peso total", Number(totalPeso.toFixed(2))],
-        ["Total cargos extras USD", Number(totalCargosUsd.toFixed(2))],
-        ["Total cargos extras COP", Number(totalCargosCop.toFixed(2))],
+        ["Total cargos USD", Number(totalCargosUsd.toFixed(2))],
+        ["Total cargos COP", Number(totalCargosCop.toFixed(2))],
         ["Generado", new Date().toLocaleString("es-CO")],
       ];
       const workbook = XLSX.utils.book_new();
