@@ -4,6 +4,7 @@
   import { fileURLToPath } from "url";
   import { autenticarToken, autorizarPermisos, autorizarRoles } from "../middleware/auth.middleware.js";
   import { validar } from "../middleware/validate.middleware.js";
+  import { azureStorageDisponible } from "../utils/storage.service.js";
   import { idParam, solicitudSchemas, textParam } from "../validators/api.schemas.js";
 
   import {
@@ -25,6 +26,7 @@
     eliminarComprobantePago,
     agruparSolicitud,
     generarEtiquetaHawbPadre,
+    generarPDFSolicitudCobro,
     enviarCobroSolicitud,
     reporteSolicitudes
   } from "../controllers/solicitudes.controller.js";
@@ -51,7 +53,23 @@
     }
   });
 
-  const upload = multer({ storage });
+  const tiposComprobantePermitidos = new Set([
+    "image/jpeg",
+    "image/png",
+    "application/pdf",
+  ]);
+
+  const upload = multer({
+    storage: azureStorageDisponible() ? multer.memoryStorage() : storage,
+    limits: { fileSize: 8 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+      if (tiposComprobantePermitidos.has(file.mimetype)) {
+        return cb(null, true);
+      }
+
+      return cb(new Error("Solo se permiten archivos JPG, PNG o PDF."));
+    },
+  });
   const soloAdmin = autorizarRoles("admin");
   const soloOperacion = autorizarRoles("admin", "usuario");
   const reportes = autorizarPermisos("Reportes");
@@ -63,6 +81,7 @@
   router.get("/listar", obtenerSolicitudes);
   router.get("/detalle/:id", validar({ params: idParam() }), obtenerDetalleSolicitud);
 
+  router.get("/pdf/:id", validar({ params: idParam() }), generarPDFSolicitudCobro);
   router.get("/pdf-data/:id", validar({ params: idParam() }), obtenerDatosPDFSolicitud);
   router.post("/enviar-cobro/:id", validar({ params: idParam() }), enviarCobroSolicitud);
 
@@ -83,7 +102,15 @@
   router.post(
     "/comprobante/:id",
     validar({ params: idParam() }),
-    upload.single("comprobante"),
+    (req, res, next) => {
+      upload.single("comprobante")(req, res, (error) => {
+        if (!error) return next();
+
+        return res.status(400).json({
+          mensaje: error.message || "Archivo no valido.",
+        });
+      });
+    },
     subirComprobantePago
   );
 
