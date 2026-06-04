@@ -6,7 +6,7 @@ import iconSearch from "../../assets/search-alt-svgrepo-com.svg";
 import iconCancel from "../../assets/cancel-svgrepo-com.svg";
 import TablaConciliacionPagos from "../../components/conciliacionPagos/TablaConciliacionPagos";
 import Swal from "sweetalert2";
-import { generarPdfSolicitud } from "../../utils/generarPdfSolicitud";
+import { openAuthenticatedPdf } from "../../utils/openAuthenticatedPdf";
 import axios from "axios";
 
 export default function ConciliacionPago() {
@@ -68,13 +68,10 @@ export default function ConciliacionPago() {
     const handleImprimir = async (sol:any) => {
 
         try {
-
-            const { data } = await axios.get(
-            `/api/solicitudes/pdf-data/${sol.solicitud_id}`
+            await openAuthenticatedPdf(
+                `/api/solicitudes/pdf/${sol.solicitud_id}`,
+                `Solicitud_${sol.solicitud_id}.pdf`
             );
-
-            generarPdfSolicitud(data.solicitud);
-
         } catch (error) {
 
             console.error(error);

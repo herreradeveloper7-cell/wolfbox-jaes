@@ -10,6 +10,14 @@ import {
   enviarEmailDesdePlantilla,
   obtenerPlantillaEmailPorEvento,
 } from "../utils/email.service.js";
+import {
+  azureStorageDisponible,
+  crearUrlTemporalLectura,
+  descargarArchivoPrivado,
+  eliminarArchivoPrivado,
+  nombreSeguroArchivo,
+  subirArchivoPrivado,
+} from "../utils/storage.service.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -113,6 +121,27 @@ const formatCOP = (value) =>
   });
 
 const formatUSD = (value) => `$${Number(value || 0).toFixed(2)}`;
+
+const esBlobPrivado = (valor) =>
+  Boolean(valor && String(valor).startsWith("azure://"));
+
+const blobNameDesdeValor = (valor) =>
+  esBlobPrivado(valor) ? String(valor).replace(/^azure:\/\//, "") : null;
+
+const rutaLocalDesdeValor = (valor) =>
+  String(valor || "").replace(/^https?:\/\/[^/]+/i, "");
+
+const eliminarArchivoLocalComprobante = (rutaRelativa) => {
+  const ruta = rutaLocalDesdeValor(rutaRelativa);
+
+  if (!ruta || !ruta.startsWith("/uploads/comprobantes/")) return;
+
+  const filePath = path.join(__dirname, "..", ruta);
+
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+};
 
 const crearPlantillaFallbackSolicitudFacturada = () => ({
   id: null,
@@ -1441,6 +1470,45 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
   }
 };
 
+export const generarPDFSolicitudCobro = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const solicitudId = Number(req.params.id);
+
+    if (!solicitudId) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: "Solicitud no valida.",
+      });
+    }
+
+    const solicitud = await obtenerSolicitudParaCobro(pool, solicitudId);
+
+    if (!solicitud) {
+      return res.status(404).json({
+        ok: false,
+        mensaje: "Solicitud no encontrada.",
+      });
+    }
+
+    const pdfBuffer = await generarPdfCobroSolicitud(solicitud);
+    const fileName = `Solicitud_${solicitud.id}.pdf`;
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
+
+    return res.send(pdfBuffer);
+  } catch (error) {
+    console.error("Error generando PDF de solicitud:", error);
+    return res.status(error.statusCode || 500).json({
+      ok: false,
+      mensaje: error.statusCode ? error.message : "Error generando PDF de solicitud.",
+    });
+  }
+};
+
 export const enviarCobroSolicitud = async (req, res) => {
   try {
     const pool = await poolPromise;
@@ -1981,51 +2049,75 @@ export const subirComprobantePago = async (req, res) => {
     const solicitudId = req.params.id;
 
     if (!req.file) {
-      return res.status(400).json({ ok: false, mensaje: "No se envió ningún archivo." });
+      return res.status(400).json({ ok: false, mensaje: "No se envio ningun archivo." });
     }
 
-    const nuevoPath = `/uploads/comprobantes/${req.file.filename}`;
     const pool = await poolPromise;
 
-    // Obtener comprobante actual
     const solicitud = await pool.request()
       .input("id", sql.Int, solicitudId)
-      .query(`SELECT comprobante_pago_url FROM solicitudes WHERE id = @id`);
+      .query(`SELECT comprobante_pago_url, comprobante FROM solicitudes WHERE id = @id`);
 
     if (solicitud.recordset.length === 0) {
+      if (req.file.filename) {
+        eliminarArchivoLocalComprobante(`/uploads/comprobantes/${req.file.filename}`);
+      }
       return res.status(404).json({ ok: false, mensaje: "Solicitud no encontrada." });
     }
 
-    const comprobanteActual = solicitud.recordset[0].comprobante_pago_url;
+    const comprobanteActual =
+      solicitud.recordset[0].comprobante_pago_url || solicitud.recordset[0].comprobante;
 
-    // Si existe un archivo anterior, borrarlo
     if (comprobanteActual) {
-      const rutaFisica = path.join(__dirname, "..", comprobanteActual);
-      if (fs.existsSync(rutaFisica)) fs.unlinkSync(rutaFisica);
+      const blobAnterior = blobNameDesdeValor(comprobanteActual);
+
+      if (blobAnterior) {
+        eliminarArchivoPrivado(blobAnterior).catch((error) => {
+          console.error("Error eliminando comprobante anterior en Azure:", error);
+        });
+      } else {
+        eliminarArchivoLocalComprobante(comprobanteActual);
+      }
     }
 
-    // Actualizar nuevo comprobante
-    await request()
+    let rutaArchivo = `/uploads/comprobantes/${req.file.filename}`;
+
+    if (azureStorageDisponible()) {
+      const nombreSeguro = nombreSeguroArchivo(req.file.originalname || req.file.filename);
+      const blobName = `comprobantes/solicitud-${solicitudId}/${Date.now()}-${nombreSeguro}`;
+      const resultadoStorage = await subirArchivoPrivado({
+        buffer: req.file.buffer,
+        blobName,
+        contentType: req.file.mimetype,
+      });
+
+      rutaArchivo = `azure://${resultadoStorage.blobName}`;
+
+      if (req.file.filename) {
+        eliminarArchivoLocalComprobante(`/uploads/comprobantes/${req.file.filename}`);
+      }
+    }
+
+    await pool.request()
       .input("id", sql.Int, solicitudId)
-      .input("url", sql.NVarChar, nuevoPath)
+      .input("url", sql.NVarChar, rutaArchivo)
       .query(`
-        UPDATE solicitudes 
-        SET comprobante_pago_url = @url 
+        UPDATE solicitudes
+        SET comprobante_pago_url = @url,
+            comprobante = @url
         WHERE id = @id
       `);
 
-    res.json({
+    return res.json({
       ok: true,
       mensaje: "Comprobante actualizado correctamente",
-      url: nuevoPath
+      url: rutaArchivo,
     });
-
   } catch (error) {
-    console.error("❌ Error en subirComprobantePago:", error);
-    res.status(500).json({ ok: false, mensaje: "Error al subir comprobante" });
+    console.error("Error en subirComprobantePago:", error);
+    return res.status(500).json({ ok: false, mensaje: "Error al subir comprobante" });
   }
 };
-
 
 export const obtenerComprobantePago = async (req, res) => {
   try {
@@ -2035,8 +2127,8 @@ export const obtenerComprobantePago = async (req, res) => {
     const result = await pool.request()
       .input("id", sql.Int, solicitudId)
       .query(`
-        SELECT comprobante_pago_url 
-        FROM solicitudes 
+        SELECT comprobante_pago_url, comprobante
+        FROM solicitudes
         WHERE id = @id
       `);
 
@@ -2044,18 +2136,49 @@ export const obtenerComprobantePago = async (req, res) => {
       return res.status(404).json({ mensaje: "Solicitud no encontrada" });
     }
 
-    const url = result.recordset[0].comprobante_pago_url;
+    const comprobante = result.recordset[0].comprobante_pago_url || result.recordset[0].comprobante;
 
-    if (!url) {
+    if (!comprobante) {
       return res.status(404).json({ mensaje: "La solicitud no tiene comprobante cargado." });
     }
 
-    const filePath = path.join(__dirname, "..", url);
-    res.sendFile(filePath);
+    const blobName = blobNameDesdeValor(comprobante);
 
+    if (blobName) {
+      const urlTemporal = await crearUrlTemporalLectura(blobName);
+
+      if (urlTemporal) {
+        return res.redirect(urlTemporal);
+      }
+
+      const descarga = await descargarArchivoPrivado(blobName);
+
+      if (!descarga?.readableStreamBody) {
+        return res.status(404).json({ mensaje: "No se encontro el archivo del comprobante." });
+      }
+
+      res.setHeader("Content-Disposition", `inline; filename="${path.basename(blobName)}"`);
+      res.setHeader("Content-Type", descarga.contentType || "application/octet-stream");
+      return descarga.readableStreamBody.pipe(res);
+    }
+
+    const rutaRelativa = rutaLocalDesdeValor(comprobante);
+
+    if (!rutaRelativa.startsWith("/uploads/comprobantes/")) {
+      return res.status(400).json({ mensaje: "Ruta de comprobante no valida." });
+    }
+
+    const filePath = path.join(__dirname, "..", rutaRelativa);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ mensaje: "No se encontro el archivo del comprobante." });
+    }
+
+    res.setHeader("Content-Disposition", `inline; filename="${path.basename(filePath)}"`);
+    return res.sendFile(filePath);
   } catch (error) {
-    console.error("❌ Error obteniendo comprobante:", error);
-    res.status(500).json({ mensaje: "Error interno" });
+    console.error("Error obteniendo comprobante:", error);
+    return res.status(500).json({ mensaje: "Error interno" });
   }
 };
 
@@ -2067,8 +2190,8 @@ export const eliminarComprobantePago = async (req, res) => {
     const solicitud = await pool.request()
       .input("id", sql.Int, solicitudId)
       .query(`
-        SELECT comprobante_pago_url 
-        FROM solicitudes 
+        SELECT comprobante_pago_url, comprobante
+        FROM solicitudes
         WHERE id = @id
       `);
 
@@ -2076,29 +2199,33 @@ export const eliminarComprobantePago = async (req, res) => {
       return res.status(404).json({ mensaje: "Solicitud no encontrada" });
     }
 
-    const comprobante = solicitud.recordset[0].comprobante_pago_url;
+    const comprobante = solicitud.recordset[0].comprobante_pago_url || solicitud.recordset[0].comprobante;
 
     if (comprobante) {
-      const filePath = path.join(__dirname, "..", comprobante);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      const blobName = blobNameDesdeValor(comprobante);
+
+      if (blobName) {
+        await eliminarArchivoPrivado(blobName);
+      } else {
+        eliminarArchivoLocalComprobante(comprobante);
+      }
     }
 
     await pool.request()
       .input("id", sql.Int, solicitudId)
       .query(`
-        UPDATE solicitudes 
-        SET comprobante_pago_url = NULL
+        UPDATE solicitudes
+        SET comprobante_pago_url = NULL,
+            comprobante = NULL
         WHERE id = @id
       `);
 
-    res.json({ ok: true, mensaje: "Comprobante eliminado correctamente." });
-
+    return res.json({ ok: true, mensaje: "Comprobante eliminado correctamente." });
   } catch (error) {
-    console.error("❌ Error eliminando comprobante:", error);
-    res.status(500).json({ mensaje: "Error interno" });
+    console.error("Error eliminando comprobante:", error);
+    return res.status(500).json({ mensaje: "Error interno" });
   }
 };
-
 export const agruparSolicitud = async (req, res) => {
 
   const { id } = req.params;

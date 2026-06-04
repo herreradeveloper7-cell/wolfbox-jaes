@@ -1,6 +1,6 @@
 import printIcon from "../../assets/print2-svgrepo-com.svg";
 import Swal from "sweetalert2";
-import { Download, RefreshCcw, Upload } from "lucide-react";
+import { Eye, RefreshCcw, Upload } from "lucide-react";
 
 interface SolicitudConciliacion {
   solicitud_id: number;
@@ -53,40 +53,63 @@ export default function TablaConciliacionPagos({
     return new Date(fecha).toLocaleDateString("es-CO");
   };
 
-  const descargarComprobante = async (solicitudId: number) => {
+  const verComprobante = async (solicitudId: number) => {
+    const pendingWindow = window.open("about:blank", "_blank");
+
+    pendingWindow?.document.write(`
+      <html>
+        <head><title>Comprobante</title></head>
+        <body style="font-family: Arial, sans-serif; display: grid; min-height: 100vh; place-items: center; color: #334155;">
+          <div style="text-align: center;">
+            <strong>Abriendo comprobante...</strong>
+            <p>Estamos preparando el archivo de forma segura.</p>
+          </div>
+        </body>
+      </html>
+    `);
+
     try {
+      const urlResponse = await fetch(`/api/conciliacion/comprobante/${solicitudId}?url=1`, {
+        headers: { Accept: "application/json" },
+      });
+      const urlPayload = urlResponse.headers
+        .get("content-type")
+        ?.includes("application/json")
+        ? await urlResponse.json().catch(() => null)
+        : null;
+
+      if (urlResponse.ok && urlPayload?.url) {
+        if (pendingWindow) {
+          pendingWindow.location.href = urlPayload.url;
+        } else {
+          window.open(urlPayload.url, "_blank");
+        }
+        return;
+      }
+
       const response = await fetch(`/api/conciliacion/comprobante/${solicitudId}`);
 
       if (!response.ok) {
+        pendingWindow?.close();
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.mensaje || "No se pudo descargar el comprobante");
+        throw new Error(data.mensaje || "No se pudo abrir el comprobante");
       }
 
       const blob = await response.blob();
-      const contentDisposition = response.headers.get("content-disposition") || "";
-      const match = contentDisposition.match(/filename="?([^"]+)"?/i);
-      const fileName = match?.[1] || `comprobante-${solicitudId}`;
       const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
 
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      if (pendingWindow) {
+        pendingWindow.location.href = url;
+      } else {
+        window.open(url, "_blank");
+      }
 
-      Swal.fire({
-        icon: "success",
-        title: "Comprobante descargado",
-        text: "El comprobante de pago se descargó correctamente.",
-        confirmButtonColor: "#14532d",
-      });
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (error: any) {
-      Swal.fire("Error", error.message || "No se pudo descargar el comprobante", "error");
+      pendingWindow?.close();
+      Swal.fire("Error", error.message || "No se pudo abrir el comprobante", "error");
     }
   };
-
   const validarArchivo = (file?: File) => {
     if (!file) return;
 
@@ -261,11 +284,11 @@ export default function TablaConciliacionPagos({
                     {sol.comprobante ? (
                       <div className="flex items-center justify-center gap-2">
                         <button
-                          onClick={() => descargarComprobante(sol.solicitud_id)}
+                          onClick={() => verComprobante(sol.solicitud_id)}
                           title="Ver comprobante"
                           className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-green-900 text-white shadow-md shadow-green-900/20 transition hover:-translate-y-0.5 hover:bg-green-800 hover:shadow-lg"
                         >
-                          <Download size={17} />
+                          <Eye size={17} />
                         </button>
 
                         <button
@@ -330,3 +353,4 @@ export default function TablaConciliacionPagos({
     </div>
   );
 }
+
