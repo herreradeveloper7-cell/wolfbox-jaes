@@ -3,6 +3,7 @@ import { buildConciliacionQuery } from "../utils/conciliacion.helpers.js";
 import { crearNotificacionUsuarios } from "../utils/notificaciones.service.js";
 import {
   azureStorageDisponible,
+  crearUrlTemporalLectura,
   descargarArchivoPrivado,
   eliminarArchivoPrivado,
   nombreSeguroArchivo,
@@ -397,6 +398,16 @@ export const descargarComprobante = async (req, res) => {
     const blobName = blobNameDesdeValor(comprobante);
 
     if (blobName) {
+      const urlTemporal = await crearUrlTemporalLectura(blobName);
+
+      if (req.query.url === "1" && urlTemporal) {
+        return res.json({ ok: true, url: urlTemporal });
+      }
+
+      if (urlTemporal) {
+        return res.redirect(urlTemporal);
+      }
+
       const descarga = await descargarArchivoPrivado(blobName);
 
       if (!descarga?.readableStreamBody) {

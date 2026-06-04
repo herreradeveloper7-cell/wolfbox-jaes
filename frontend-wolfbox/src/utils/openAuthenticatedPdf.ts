@@ -3,10 +3,10 @@ export const openAuthenticatedPdf = async (url: string, fileName = "rotulo.pdf")
 
   pendingWindow?.document.write(`
     <html>
-      <head><title>Generando rotulo</title></head>
+      <head><title>Generando PDF</title></head>
       <body style="font-family: Arial, sans-serif; display: grid; min-height: 100vh; place-items: center; color: #334155;">
         <div style="text-align: center;">
-          <strong>Generando rotulo...</strong>
+          <strong>Generando PDF...</strong>
           <p>Estamos preparando el PDF de forma segura.</p>
         </div>
       </body>
@@ -27,10 +27,10 @@ export const openAuthenticatedPdf = async (url: string, fileName = "rotulo.pdf")
 
     if (contentType.includes("application/json")) {
       const payload = await response.json();
-      throw new Error(payload.message || payload.mensaje || "No se pudo generar el rotulo.");
+      throw new Error(payload.message || payload.mensaje || "No se pudo generar el PDF.");
     }
 
-    throw new Error("No se pudo generar el rotulo.");
+    throw new Error("No se pudo generar el PDF.");
   }
 
   if (!contentType.includes("application/pdf")) {

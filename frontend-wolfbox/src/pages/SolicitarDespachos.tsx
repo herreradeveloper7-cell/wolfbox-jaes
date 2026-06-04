@@ -7,7 +7,7 @@ import SolicitudesRealizadasTabla from "../components/solicitudes/SolicitudesRea
 import { Solicitud } from "../types/solicitudes";
 import ModalCrearSolicitud from "../components/solicitudes/ModalCrearSolicitud";
 import ModalVerDetalleSolicitud from "../components/solicitudes/ModalVerDetalleSolicitud";
-import { generarPdfSolicitud } from "../utils/generarPdfSolicitud";
+import { openAuthenticatedPdf } from "../utils/openAuthenticatedPdf";
 
 import { useNavigate } from "react-router-dom";
 import ModalEditarSolicitud from "../components/solicitudes/ModalEditarSolicitud";
@@ -52,12 +52,10 @@ export default function SolicitarDespachos() {
 
   const handleImprimirSolicitud = async (solicitud: Solicitud) => {
     try {
-      const { data } = await axios.get(
-        `/api/solicitudes/pdf-data/${solicitud.id}`
+      await openAuthenticatedPdf(
+        `/api/solicitudes/pdf/${solicitud.id}`,
+        `Solicitud_${solicitud.id}.pdf`
       );
-
-      generarPdfSolicitud(data.solicitud);
-
     } catch (err) {
       console.error(err);
       Swal.fire("Error", "No se pudo generar el PDF", "error");
