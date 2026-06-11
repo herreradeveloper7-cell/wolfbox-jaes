@@ -19,6 +19,7 @@ import ConsultarUsuarios from './pages/usuario/ConsultarUsuarios';
 import EditarUsuario from "./pages/usuario/EditarUsuario";
 import SolicitarDespacho from "./pages/SolicitarDespachos";
 import DestinatariosCasilleros from './pages/DestinatariosCasilleros'; 
+import RastreoPaquetesCliente from './pages/cliente/RastreoPaquetesCliente';
 import ConfigTRM from './pages/usuario/ConfigTRM';
 import ConciliacionPago from './pages/usuario/ConciliacionPagos';
 import ConfigTarifas from './pages/usuario/ConfigTarifas';
@@ -50,6 +51,19 @@ type PermisoModulo =
 const obtenerUsuarioInterno = () => {
   const stored =
     localStorage.getItem("usuario") || sessionStorage.getItem("usuario");
+
+  if (!stored) return null;
+
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return null;
+  }
+};
+
+const obtenerClienteSesion = () => {
+  const stored =
+    localStorage.getItem("cliente") || sessionStorage.getItem("cliente");
 
   if (!stored) return null;
 
@@ -102,6 +116,45 @@ const interna = (
   <RutaInterna roles={roles} permiso={permiso}>{children}</RutaInterna>
 );
 
+function RutaCasilleroCompartida({ children }: { children: ReactNode }) {
+  const token =
+    localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+  const usuario = obtenerUsuarioInterno();
+  const cliente = obtenerClienteSesion();
+
+  if (!token || (!usuario && !cliente)) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (cliente) return <>{children}</>;
+
+  return (
+    <RutaInterna permiso="Casilleros">
+      {children}
+    </RutaInterna>
+  );
+}
+
+function RutaCliente({ children }: { children: ReactNode }) {
+  const token =
+    localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+  const cliente = obtenerClienteSesion();
+
+  if (!token || !cliente) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+const casilleroCompartido = (children: ReactNode) => (
+  <RutaCasilleroCompartida>{children}</RutaCasilleroCompartida>
+);
+
+const clienteProtegido = (children: ReactNode) => (
+  <RutaCliente>{children}</RutaCliente>
+);
+
 
 
 function App() {
@@ -125,8 +178,9 @@ function App() {
         <Route path="/crear-usuario" element={interna(<CrearUsuario />, "Seguridad")} />
         <Route path="/consultar-usuario" element={interna(<ConsultarUsuarios />, "Seguridad")} />
         <Route path="/usuarios/editar/:id" element={interna(<EditarUsuario />, "Seguridad")} />
-        <Route path="/solicitar-despachos" element={interna(<SolicitarDespacho />, "Casilleros")} />
-        <Route path="/destinatarios-casilleros" element={interna(<DestinatariosCasilleros />, "Casilleros")} />
+        <Route path="/solicitar-despachos" element={casilleroCompartido(<SolicitarDespacho />)} />
+        <Route path="/destinatarios-casilleros" element={casilleroCompartido(<DestinatariosCasilleros />)} />
+        <Route path="/rastreo-paquetes" element={clienteProtegido(<RastreoPaquetesCliente />)} />
         <Route path="/config-trm" element={interna(<ConfigTRM />, "Configuracion")} />
         <Route path="/conciliacion-pagos" element={interna(<ConciliacionPago />, "Casilleros")} />
         <Route path="/config-tarifas" element={interna(<ConfigTarifas />, "Configuracion")} />

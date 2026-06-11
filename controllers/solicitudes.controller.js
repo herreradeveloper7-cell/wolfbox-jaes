@@ -504,7 +504,6 @@ export const crearSolicitud = async (req, res) => {
 
     if (
       !cliente_id ||
-      !usuario_id ||
       !Array.isArray(paquetes) ||
       paquetes.length === 0
     ) {
@@ -657,7 +656,7 @@ export const crearSolicitud = async (req, res) => {
 
     const resultSolicitud = await request()
       .input("cliente_id", sql.Int, cliente_id)
-      .input("usuario_id", sql.Int, usuario_id)
+      .input("usuario_id", sql.Int, usuario_id || null)
       .input("destinatario", sql.Int, destinatario)
       .input("medio_pago", sql.NVarChar(50), medio_pago)
       .input("observaciones", sql.NVarChar(255), observaciones || "")
@@ -726,8 +725,9 @@ export const obtenerSolicitudes = async (req, res) => {
   try {
     const { usuario_id, codigo } = req.query;
     const pool = await poolPromise;
+    const request = pool.request();
 
-  let query = `
+    let query = `
     SELECT  
       s.id,
       s.cliente_id,
@@ -783,16 +783,17 @@ export const obtenerSolicitudes = async (req, res) => {
       FROM solicitudes s
       INNER JOIN clientes c ON s.cliente_id = c.id
       LEFT JOIN destinatarios d ON d.id = s.destinatario
-      INNER JOIN paquetes p ON p.solicitud_id = s.id
+      LEFT JOIN paquetes p ON p.solicitud_id = s.id
       WHERE 1 = 1
   `;
 
 
-    // 🔎 Filtros
     if (codigo) {
-      query += ` AND c.codigo_referencia = '${codigo}'`;
+      query += ` AND c.codigo_referencia = @codigo`;
+      request.input("codigo", sql.NVarChar(50), codigo);
     } else if (usuario_id) {
-      query += ` AND s.usuario_id = ${usuario_id}`;
+      query += ` AND s.usuario_id = @usuario_id`;
+      request.input("usuario_id", sql.Int, usuario_id);
     }
 
     query += `
@@ -813,7 +814,7 @@ export const obtenerSolicitudes = async (req, res) => {
       ORDER BY s.fecha DESC
     `;
 
-    const result = await pool.request().query(query);
+    const result = await request.query(query);
     res.json(result.recordset);
 
   } catch (error) {

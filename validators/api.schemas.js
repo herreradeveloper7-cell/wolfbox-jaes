@@ -271,7 +271,7 @@ export const solicitudSchemas = {
   }).passthrough(),
   crear: z.object({
     cliente_id: requiredNumber("Cliente").int().positive("Cliente invalido"),
-    usuario_id: requiredNumber("Usuario").int().positive("Usuario invalido"),
+    usuario_id: optionalNumber,
     paquetes: z.array(paqueteSolicitud).min(1, "Debe seleccionar al menos un paquete"),
     destinatario: requiredNumber("Destinatario").int().positive("Destinatario invalido"),
     medio_pago: optionalString,

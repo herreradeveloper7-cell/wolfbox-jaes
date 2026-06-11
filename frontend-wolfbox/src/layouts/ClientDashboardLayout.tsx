@@ -85,13 +85,22 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
               ${casilleroOpen && sidebarOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}
             `}
           >
-            <button className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition duration-200 cursor-pointer">
+            <button
+              onClick={() => navigate("/solicitar-despachos")}
+              className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition duration-200 cursor-pointer"
+            >
               Solicitar despachos
             </button>
-            <button className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition duration-200 cursor-pointer">
+            <button
+              onClick={() => navigate("/destinatarios-casilleros")}
+              className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition duration-200 cursor-pointer"
+            >
               Destinatarios casilleros
             </button>
-            <button className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition duration-200 cursor-pointer">
+            <button
+              onClick={() => navigate("/rastreo-paquetes")}
+              className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition duration-200 cursor-pointer"
+            >
               Rastreo de Paquetes
             </button>
           </div>
@@ -138,6 +147,7 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
               onClick={() => {
                 localStorage.removeItem("cliente");
                 localStorage.removeItem("authToken");
+                sessionStorage.removeItem("cliente");
                 sessionStorage.removeItem("authToken");
                 navigate("/login");
               }}

@@ -12,6 +12,7 @@ interface Props {
   onVerDetalle?: (solicitud: Solicitud) => void;
   onImprimir?: (solicitud: Solicitud) => void;
   onEditar?: (solicitud: Solicitud) => void;
+  modoCliente?: boolean;
 }
 
 export default function SolicitudesRealizadasTabla({
@@ -20,6 +21,7 @@ export default function SolicitudesRealizadasTabla({
   onVerDetalle,
   onImprimir,
   onEditar,
+  modoCliente = false,
 }: Props) {
   const listaSegura = Array.isArray(solicitudes) ? solicitudes : [];
 
@@ -86,7 +88,7 @@ export default function SolicitudesRealizadasTabla({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-950">
-              Historial operativo
+              {modoCliente ? "Mis solicitudes" : "Historial operativo"}
             </p>
             <h3 className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
               Solicitudes realizadas
@@ -135,45 +137,53 @@ export default function SolicitudesRealizadasTabla({
                 <tr key={s.id} className="transition-all duration-200 hover:bg-red-50/50">
                   <td className="px-3 py-3 text-center align-middle">
                     <div className="flex items-center justify-center gap-1.5">
-                      <button
-                        onClick={() => confirmarEliminacion(s)}
-                        title="Eliminar solicitud"
-                        className={`${actionButton} hover:border-red-200 hover:bg-red-50`}
-                      >
-                        <img src={iconTrash} alt="Eliminar" className="h-3.5 w-3.5 opacity-80" />
-                      </button>
+                      {onEliminar && (
+                        <button
+                          onClick={() => confirmarEliminacion(s)}
+                          title="Eliminar solicitud"
+                          className={`${actionButton} hover:border-red-200 hover:bg-red-50`}
+                        >
+                          <img src={iconTrash} alt="Eliminar" className="h-3.5 w-3.5 opacity-80" />
+                        </button>
+                      )}
 
-                      <button
-                        onClick={() => onVerDetalle && onVerDetalle(s)}
-                        title="Ver detalle"
-                        className={`${actionButton} hover:border-slate-300 hover:bg-slate-50`}
-                      >
-                        <img src={iconOptions} alt="Ver detalle" className="h-3.5 w-3.5 opacity-80" />
-                      </button>
+                      {onVerDetalle && (
+                        <button
+                          onClick={() => onVerDetalle(s)}
+                          title="Ver detalle"
+                          className={`${actionButton} hover:border-slate-300 hover:bg-slate-50`}
+                        >
+                          <img src={iconOptions} alt="Ver detalle" className="h-3.5 w-3.5 opacity-80" />
+                        </button>
+                      )}
 
-                      <button
-                        onClick={() => {
-                          if (!s.id) {
-                            console.error("La solicitud no tiene ID. El PDF no puede generarse.", s);
-                            Swal.fire("Error", "La solicitud no tiene ID valido", "error");
-                            return;
-                          }
+                      {onImprimir && (
+                        <button
+                          onClick={() => {
+                            if (!s.id) {
+                              console.error("La solicitud no tiene ID. El PDF no puede generarse.", s);
+                              Swal.fire("Error", "La solicitud no tiene ID valido", "error");
+                              return;
+                            }
 
-                          if (onImprimir) onImprimir(s);
-                        }}
-                        title="Imprimir preliquidacion"
-                        className={`${actionButton} hover:border-blue-200 hover:bg-blue-50`}
-                      >
-                        <img src={iconPrinter} alt="Imprimir" className="h-3.5 w-3.5 opacity-80" />
-                      </button>
+                            onImprimir(s);
+                          }}
+                          title="Imprimir preliquidacion"
+                          className={`${actionButton} hover:border-blue-200 hover:bg-blue-50`}
+                        >
+                          <img src={iconPrinter} alt="Imprimir" className="h-3.5 w-3.5 opacity-80" />
+                        </button>
+                      )}
 
-                      <button
-                        onClick={() => onEditar && onEditar(s)}
-                        title="Editar solicitud"
-                        className={`${actionButton} hover:border-amber-200 hover:bg-amber-50`}
-                      >
-                        <img src={iconEdit} alt="Editar" className="h-3.5 w-3.5 opacity-80" />
-                      </button>
+                      {onEditar && (
+                        <button
+                          onClick={() => onEditar(s)}
+                          title="Editar solicitud"
+                          className={`${actionButton} hover:border-amber-200 hover:bg-amber-50`}
+                        >
+                          <img src={iconEdit} alt="Editar" className="h-3.5 w-3.5 opacity-80" />
+                        </button>
+                      )}
                     </div>
                   </td>
 
