@@ -187,6 +187,8 @@ const obtenerSolicitudParaCobro = async (pool, solicitudId) => {
         END AS cliente_nombre,
         c.correo AS cliente_correo,
         c.codigo_referencia AS codigoCasillero,
+        c.direccion AS cliente_direccion,
+        c.ciudad AS cliente_ciudad,
         d.nombre AS destinatario_nombre,
         d.ciudad AS destinatario_ciudad,
         d.direccion AS destinatario_direccion,
@@ -333,7 +335,7 @@ const generarPdfCobroSolicitud = (solicitud) =>
       );
 
     doc
-      .roundedRect(38, 132, contentWidth, 98, 10)
+      .roundedRect(38, 132, contentWidth, 122, 10)
       .lineWidth(1)
       .strokeColor("#E5E7EB")
       .stroke();
@@ -353,17 +355,26 @@ const generarPdfCobroSolicitud = (solicitud) =>
       .text(`Codigo casillero: ${solicitud.codigoCasillero || "-"}`, 54, 186, {
         width: 210,
       })
+      .text(`Direccion: ${solicitud.cliente_direccion || "-"}`, 54, 202, {
+        width: 210,
+      })
+      .text(`Ciudad: ${solicitud.cliente_ciudad || "-"}`, 54, 218, {
+        width: 210,
+      })
       .text(`Nombre: ${solicitud.destinatario_nombre || "-"}`, 300, 170, {
         width: 220,
       })
       .text(`Ciudad: ${solicitud.destinatario_ciudad || "-"}`, 300, 186, {
         width: 220,
       })
-      .text(`Telefono: ${solicitud.destinatario_telefono || "-"}`, 300, 202, {
+      .text(`Direccion: ${solicitud.destinatario_direccion || "-"}`, 300, 202, {
+        width: 220,
+      })
+      .text(`Telefono: ${solicitud.destinatario_telefono || "-"}`, 300, 218, {
         width: 220,
       });
 
-    let y = 260;
+    let y = 284;
     doc.fillColor(red).font("Helvetica-Bold").fontSize(10).text("DETALLE DE PAQUETES", 38, y);
     y += 18;
 
@@ -1321,6 +1332,8 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
           s.servicio_id,
           CONCAT(c.primer_nombre, ' ', c.primer_apellido) AS cliente_nombre,
           c.codigo_referencia AS codigoCasillero,
+          c.direccion AS cliente_direccion,
+          c.ciudad AS cliente_ciudad,
           d.nombre AS destinatario_nombre,
           d.ciudad AS destinatario_ciudad,
           d.direccion AS destinatario_direccion,

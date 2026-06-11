@@ -26,6 +26,8 @@ export interface SolicitudPDFData {
   // Cliente
   cliente_nombre: string;
   codigoCasillero: string;
+  cliente_direccion?: string;
+  cliente_ciudad?: string;
 
   // Destinatario
   destinatario_nombre: string;
