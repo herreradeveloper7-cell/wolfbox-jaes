@@ -2,7 +2,7 @@ import sql from "mssql";
 
 const config = {
   server: process.env.DB_SERVER,
-  database: process.env.DB_NAME,
+  database: process.env.DB_NAME || process.env.DB_DATABASE,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   port: Number(process.env.DB_PORT) || 1433,
@@ -95,7 +95,11 @@ export const warmUpDatabase = async () => {
 export const iniciarDbKeepAlive = ({
   intervaloMs = Number(process.env.DB_KEEPALIVE_INTERVAL_MS) || 240000,
 } = {}) => {
-  if (keepAliveStarted || process.env.NODE_ENV === "test") return;
+  if (
+    keepAliveStarted ||
+    process.env.NODE_ENV === "test" ||
+    process.env.DB_KEEPALIVE_DISABLED === "true"
+  ) return;
 
   keepAliveStarted = true;
 
