@@ -72,35 +72,55 @@
   });
   const soloAdmin = autorizarRoles("admin");
   const soloOperacion = autorizarRoles("admin", "usuario");
+  const autenticados = autorizarRoles("admin", "usuario", "cliente");
   const reportes = autorizarPermisos("Reportes");
+  const limitarClienteASuCasillero = (req, res, next) => {
+    if (req.usuario?.tipo !== "cliente") return next();
 
-  router.use(autenticarToken, soloOperacion);
+    req.query.codigo = req.usuario.codigoReferencia;
+    return next();
+  };
+  const limitarCreacionCliente = (req, res, next) => {
+    if (req.usuario?.tipo !== "cliente") return next();
 
-  router.post("/crear", validar({ body: solicitudSchemas.crear }), crearSolicitud);
-  router.get("/reporte", reportes, validar({ query: solicitudSchemas.reporte }), reporteSolicitudes);
-  router.get("/listar", obtenerSolicitudes);
-  router.get("/detalle/:id", validar({ params: idParam() }), obtenerDetalleSolicitud);
+    if (Number(req.body?.cliente_id) !== Number(req.usuario.id)) {
+      return res.status(403).json({
+        ok: false,
+        mensaje: "No puedes crear solicitudes para otro cliente",
+      });
+    }
 
-  router.get("/pdf/:id", validar({ params: idParam() }), generarPDFSolicitudCobro);
-  router.get("/pdf-data/:id", validar({ params: idParam() }), obtenerDatosPDFSolicitud);
-  router.post("/enviar-cobro/:id", validar({ params: idParam() }), enviarCobroSolicitud);
+    return next();
+  };
 
-  router.put("/estado/:id", validar({ params: idParam(), body: solicitudSchemas.estado }), actualizarEstadoSolicitud);
-  router.delete("/eliminar/:id", validar({ params: idParam() }), eliminarSolicitud);
-  router.put("/editar/:id", validar({ params: idParam(), body: solicitudSchemas.editarCompleta }), editarSolicitudCompleta);
+  router.use(autenticarToken);
 
-  router.get("/cargos/:id", validar({ params: idParam() }), obtenerCargosAdicionales);
-  router.get("/catalogo/cargos", obtenerCatalogoCargos);
-  router.post("/cargos/:id", validar({ params: idParam(), body: solicitudSchemas.cargo }), agregarCargoAdicional);
+  router.post("/crear", autenticados, limitarCreacionCliente, validar({ body: solicitudSchemas.crear }), crearSolicitud);
+  router.get("/reporte", soloOperacion, reportes, validar({ query: solicitudSchemas.reporte }), reporteSolicitudes);
+  router.get("/listar", autenticados, limitarClienteASuCasillero, obtenerSolicitudes);
+  router.get("/detalle/:id", autenticados, validar({ params: idParam() }), obtenerDetalleSolicitud);
 
-  router.put("/paquete/actualizar/:paquete_id", validar({ params: idParam("paquete_id"), body: solicitudSchemas.actualizarPaquete }), actualizarPaqueteSolicitud);
-  router.put("/paquete/remover/:paquete_id", validar({ params: idParam("paquete_id") }), removerPaqueteDeSolicitud);
-  router.put("/paquete/agregar/:solicitud_id", validar({ params: idParam("solicitud_id"), body: solicitudSchemas.agregarPaquete }), agregarPaqueteASolicitud);
+  router.get("/pdf/:id", autenticados, validar({ params: idParam() }), generarPDFSolicitudCobro);
+  router.get("/pdf-data/:id", autenticados, validar({ params: idParam() }), obtenerDatosPDFSolicitud);
+  router.post("/enviar-cobro/:id", soloOperacion, validar({ params: idParam() }), enviarCobroSolicitud);
 
-  router.post("/agrupar/:id", validar({ params: idParam(), body: solicitudSchemas.agrupar }), agruparSolicitud);
+  router.put("/estado/:id", soloOperacion, validar({ params: idParam(), body: solicitudSchemas.estado }), actualizarEstadoSolicitud);
+  router.delete("/eliminar/:id", soloOperacion, validar({ params: idParam() }), eliminarSolicitud);
+  router.put("/editar/:id", soloOperacion, validar({ params: idParam(), body: solicitudSchemas.editarCompleta }), editarSolicitudCompleta);
+
+  router.get("/cargos/:id", autenticados, validar({ params: idParam() }), obtenerCargosAdicionales);
+  router.get("/catalogo/cargos", autenticados, obtenerCatalogoCargos);
+  router.post("/cargos/:id", soloOperacion, validar({ params: idParam(), body: solicitudSchemas.cargo }), agregarCargoAdicional);
+
+  router.put("/paquete/actualizar/:paquete_id", soloOperacion, validar({ params: idParam("paquete_id"), body: solicitudSchemas.actualizarPaquete }), actualizarPaqueteSolicitud);
+  router.put("/paquete/remover/:paquete_id", soloOperacion, validar({ params: idParam("paquete_id") }), removerPaqueteDeSolicitud);
+  router.put("/paquete/agregar/:solicitud_id", soloOperacion, validar({ params: idParam("solicitud_id"), body: solicitudSchemas.agregarPaquete }), agregarPaqueteASolicitud);
+
+  router.post("/agrupar/:id", soloOperacion, validar({ params: idParam(), body: solicitudSchemas.agrupar }), agruparSolicitud);
 
   router.post(
     "/comprobante/:id",
+    autenticados,
     validar({ params: idParam() }),
     (req, res, next) => {
       upload.single("comprobante")(req, res, (error) => {
@@ -114,9 +134,9 @@
     subirComprobantePago
   );
 
-  router.get("/comprobante/:id", validar({ params: idParam() }), obtenerComprobantePago);
-  router.get("/etiqueta/:hawbPadre", validar({ params: textParam("hawbPadre") }), generarEtiquetaHawbPadre);
+  router.get("/comprobante/:id", autenticados, validar({ params: idParam() }), obtenerComprobantePago);
+  router.get("/etiqueta/:hawbPadre", soloOperacion, validar({ params: textParam("hawbPadre") }), generarEtiquetaHawbPadre);
 
-  router.delete("/comprobante/:id", validar({ params: idParam() }), eliminarComprobantePago);
+  router.delete("/comprobante/:id", autenticados, validar({ params: idParam() }), eliminarComprobantePago);
 
   export default router;
