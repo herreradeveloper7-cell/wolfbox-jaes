@@ -128,6 +128,12 @@ const formatFecha = (fecha: any) => {
             <p>
               <strong>Código Casillero:</strong> {solicitud.codigoCasillero}
             </p>
+            <p>
+              <strong>Dirección:</strong> {solicitud.cliente_direccion || "-"}
+            </p>
+            <p>
+              <strong>Ciudad:</strong> {solicitud.cliente_ciudad || "-"}
+            </p>
           </div>
 
           <div style={{ width: "48%" }}>
@@ -138,7 +144,7 @@ const formatFecha = (fecha: any) => {
               <strong>Nombre:</strong> {solicitud.destinatario_nombre}
             </p>
             <p>
-              <strong>País/Ciudad:</strong> {solicitud.destinatario_ciudad}
+              <strong>Ciudad:</strong> {solicitud.destinatario_ciudad}
             </p>
             <p>
               <strong>Dirección:</strong> {solicitud.destinatario_direccion}
