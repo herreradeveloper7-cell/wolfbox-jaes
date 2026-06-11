@@ -334,47 +334,76 @@ const generarPdfCobroSolicitud = (solicitud) =>
         { align: "right", width: 260 }
       );
 
+    const infoBoxY = 132;
+    const infoBoxX = 38;
+    const infoPaddingX = 18;
+    const infoTop = infoBoxY + 18;
+    const columnWidth = 224;
+    const rightColumnX = 306;
+    const lineOptions = { width: columnWidth, lineGap: 1 };
+    const clienteLineas = [
+      ["Nombre", solicitud.cliente_nombre],
+      ["Codigo casillero", solicitud.codigoCasillero],
+      ["Direccion", solicitud.cliente_direccion],
+      ["Ciudad", solicitud.cliente_ciudad],
+    ];
+    const destinatarioLineas = [
+      ["Nombre", solicitud.destinatario_nombre],
+      ["Ciudad", solicitud.destinatario_ciudad],
+      ["Direccion", solicitud.destinatario_direccion],
+      ["Telefono", solicitud.destinatario_telefono],
+    ];
+
+    const medirColumnaInfo = (lineas) => {
+      doc.font("Helvetica").fontSize(8.7);
+
+      return lineas.reduce((alto, [label, value]) => {
+        const texto = `${label}: ${value || "-"}`;
+        return alto + doc.heightOfString(texto, lineOptions) + 5;
+      }, 21);
+    };
+
+    const infoBoxHeight = Math.max(
+      122,
+      medirColumnaInfo(clienteLineas) + 32,
+      medirColumnaInfo(destinatarioLineas) + 32
+    );
+
     doc
-      .roundedRect(38, 132, contentWidth, 122, 10)
+      .roundedRect(infoBoxX, infoBoxY, contentWidth, infoBoxHeight, 10)
       .lineWidth(1)
       .strokeColor("#E5E7EB")
       .stroke();
 
-    doc
-      .fillColor(red)
-      .font("Helvetica-Bold")
-      .fontSize(9)
-      .text("CLIENTE", 54, 150)
-      .text("DESTINATARIO", 300, 150);
+    const dibujarColumnaInfo = (titulo, x, lineas) => {
+      let currentY = infoTop;
 
-    doc
-      .fillColor("#222222")
-      .font("Helvetica")
-      .fontSize(9)
-      .text(`Nombre: ${solicitud.cliente_nombre || "-"}`, 54, 170, { width: 210 })
-      .text(`Codigo casillero: ${solicitud.codigoCasillero || "-"}`, 54, 186, {
-        width: 210,
-      })
-      .text(`Direccion: ${solicitud.cliente_direccion || "-"}`, 54, 202, {
-        width: 210,
-      })
-      .text(`Ciudad: ${solicitud.cliente_ciudad || "-"}`, 54, 218, {
-        width: 210,
-      })
-      .text(`Nombre: ${solicitud.destinatario_nombre || "-"}`, 300, 170, {
-        width: 220,
-      })
-      .text(`Ciudad: ${solicitud.destinatario_ciudad || "-"}`, 300, 186, {
-        width: 220,
-      })
-      .text(`Direccion: ${solicitud.destinatario_direccion || "-"}`, 300, 202, {
-        width: 220,
-      })
-      .text(`Telefono: ${solicitud.destinatario_telefono || "-"}`, 300, 218, {
-        width: 220,
+      doc
+        .fillColor(red)
+        .font("Helvetica-Bold")
+        .fontSize(9)
+        .text(titulo, x, currentY, { width: columnWidth });
+
+      currentY += 21;
+
+      lineas.forEach(([label, value]) => {
+        const texto = `${label}: ${value || "-"}`;
+        const alto = doc.heightOfString(texto, lineOptions);
+
+        doc
+          .fillColor("#222222")
+          .font("Helvetica")
+          .fontSize(8.7)
+          .text(texto, x, currentY, lineOptions);
+
+        currentY += alto + 5;
       });
+    };
 
-    let y = 284;
+    dibujarColumnaInfo("CLIENTE", infoBoxX + infoPaddingX, clienteLineas);
+    dibujarColumnaInfo("DESTINATARIO", rightColumnX, destinatarioLineas);
+
+    let y = infoBoxY + infoBoxHeight + 30;
     doc.fillColor(red).font("Helvetica-Bold").fontSize(10).text("DETALLE DE PAQUETES", 38, y);
     y += 18;
 
