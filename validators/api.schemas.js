@@ -178,6 +178,21 @@ export const trmSchemas = {
   }).passthrough(),
 };
 
+export const prealertaSchemas = {
+  listar: z.object({
+    cliente_id: optionalNumber,
+  }).passthrough(),
+  crear: z.object({
+    cliente_id: optionalNumber,
+    tracking: requiredString("Tracking"),
+    peso_lbs: requiredNumber("Peso en libras").positive("Peso en libras debe ser mayor a cero"),
+    contenido: requiredString("Contenido"),
+    valor_declarado: requiredNumber("Valor declarado").nonnegative("Valor declarado no puede ser negativo"),
+    valor_asegurado: requiredNumber("Valor asegurado").nonnegative("Valor asegurado no puede ser negativo"),
+    observaciones: optionalString,
+  }).passthrough(),
+};
+
 export const paqueteSchemas = {
   registrar: z.object({
     tracking: requiredString("Tracking"),

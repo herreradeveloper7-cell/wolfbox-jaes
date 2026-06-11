@@ -82,7 +82,7 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
 
           <div
             className={`transition-all duration-500 ease-in-out overflow-hidden bg-[#2d0101] w-full
-              ${casilleroOpen && sidebarOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}
+              ${casilleroOpen && sidebarOpen ? "max-h-52 opacity-100" : "max-h-0 opacity-0"}
             `}
           >
             <button
@@ -102,6 +102,12 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
               className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition duration-200 cursor-pointer"
             >
               Rastreo de Paquetes
+            </button>
+            <button
+              onClick={() => navigate("/prealertas")}
+              className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition duration-200 cursor-pointer"
+            >
+              Prealertas
             </button>
           </div>
         </div>
