@@ -412,8 +412,8 @@ export const promocionesSchemas = {
     imagen_url: z.preprocess(emptyToUndefined, z.string().trim().url("URL de imagen inválida").optional()),
     fecha_inicio: requiredString("Fecha inicial"),
     fecha_fin: requiredString("Fecha final"),
-    publicada: z.union([z.boolean(), z.enum(["true", "false"])]),
-    destacada: z.union([z.boolean(), z.enum(["true", "false"])]),
+    publicada: z.union([z.boolean(), z.enum(["true", "false"])]).optional(),
+    destacada: z.union([z.boolean(), z.enum(["true", "false"])]).optional(),
     orden: optionalNumber,
   }).passthrough().refine((data) => new Date(data.fecha_fin) > new Date(data.fecha_inicio), {
     message: "La fecha final debe ser posterior a la fecha inicial",

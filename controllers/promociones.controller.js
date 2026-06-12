@@ -149,11 +149,11 @@ export const crearPromocion = async (req, res) => {
       .input("evento", sql.NVarChar(100), req.body.evento || null)
       .input("url_destino", sql.NVarChar(1000), req.body.url_destino)
       .input("imagen_blob", sql.NVarChar(500), imagenBlob)
-      .input("imagen_url", sql.NVarChar(1000), req.body.imagen_url || null)
+      .input("imagen_url", sql.NVarChar(1000), null)
       .input("fecha_inicio", sql.DateTime2, new Date(req.body.fecha_inicio))
       .input("fecha_fin", sql.DateTime2, new Date(req.body.fecha_fin))
-      .input("publicada", sql.Bit, req.body.publicada === "true" || req.body.publicada === true)
-      .input("destacada", sql.Bit, req.body.destacada === "true" || req.body.destacada === true)
+      .input("publicada", sql.Bit, true)
+      .input("destacada", sql.Bit, false)
       .input("orden", sql.Int, Number(req.body.orden) || 0)
       .input("creado_por", sql.Int, req.usuario.id)
       .query(`
@@ -180,7 +180,7 @@ export const actualizarPromocion = async (req, res) => {
     const pool = await poolPromise;
     await asegurarTabla(pool);
     const actual = await pool.request().input("id", sql.Int, req.params.id)
-      .query("SELECT TOP 1 imagen_blob FROM promociones_tiendas WHERE id = @id");
+      .query("SELECT TOP 1 imagen_blob, imagen_url FROM promociones_tiendas WHERE id = @id");
     if (!actual.recordset.length) return res.status(404).json({ ok: false, mensaje: "Promoción no encontrada" });
 
     nuevoBlob = await guardarImagen(req.file);
@@ -193,11 +193,11 @@ export const actualizarPromocion = async (req, res) => {
       .input("evento", sql.NVarChar(100), req.body.evento || null)
       .input("url_destino", sql.NVarChar(1000), req.body.url_destino)
       .input("imagen_blob", sql.NVarChar(500), nuevoBlob || actual.recordset[0].imagen_blob)
-      .input("imagen_url", sql.NVarChar(1000), req.body.imagen_url || null)
+      .input("imagen_url", sql.NVarChar(1000), nuevoBlob ? null : actual.recordset[0].imagen_url)
       .input("fecha_inicio", sql.DateTime2, new Date(req.body.fecha_inicio))
       .input("fecha_fin", sql.DateTime2, new Date(req.body.fecha_fin))
-      .input("publicada", sql.Bit, req.body.publicada === "true" || req.body.publicada === true)
-      .input("destacada", sql.Bit, req.body.destacada === "true" || req.body.destacada === true)
+      .input("publicada", sql.Bit, true)
+      .input("destacada", sql.Bit, false)
       .input("orden", sql.Int, Number(req.body.orden) || 0)
       .query(`UPDATE promociones_tiendas SET tienda=@tienda, titulo=@titulo, descripcion=@descripcion,
         categoria=@categoria, evento=@evento, url_destino=@url_destino, imagen_blob=@imagen_blob,
