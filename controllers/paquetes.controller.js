@@ -337,6 +337,19 @@ export const registrarPaqueteConDeps = async (req, res, deps) => {
       )
     `);
 
+    await requestTx()
+      .input("cliente_id", dbSql.Int, cliente_id)
+      .input("tracking", dbSql.NVarChar, tracking)
+      .query(`
+        IF OBJECT_ID('dbo.prealertas', 'U') IS NOT NULL
+        BEGIN
+          UPDATE prealertas
+          SET estado = 'Digitado'
+          WHERE cliente_id = @cliente_id
+            AND UPPER(LTRIM(RTRIM(tracking))) = UPPER(LTRIM(RTRIM(@tracking)))
+        END
+      `);
+
 
     await requestTx()
       .input("hawb", dbSql.NVarChar, hawb)

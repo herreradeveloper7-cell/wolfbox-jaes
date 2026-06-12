@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
-import { BellPlus, ChevronDown, ClipboardList, PackagePlus, Plus, X } from "lucide-react";
+import { BellPlus, ChevronDown, ClipboardList, PackagePlus, Pencil, Plus, Trash2, X } from "lucide-react";
 import ClientDashboardLayout from "../../layouts/ClientDashboardLayout";
+import ModalEditarPrealerta, { PrealertaEditable } from "../../components/prealertas/ModalEditarPrealerta";
 
 type Cliente = {
   id: number;
@@ -58,6 +59,7 @@ export default function PrealertasCliente() {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [prealertaEditar, setPrealertaEditar] = useState<Prealerta | null>(null);
   const [form, setForm] = useState(initialForm);
 
   useEffect(() => {
@@ -145,6 +147,42 @@ export default function PrealertasCliente() {
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const editarPrealerta = async (datos: Omit<PrealertaEditable, "id">) => {
+    if (!prealertaEditar) return;
+    setSaving(true);
+    try {
+      await axios.put(`/api/prealertas/${prealertaEditar.id}`, datos);
+      setPrealertaEditar(null);
+      await cargarPrealertas();
+      Swal.fire("Actualizada", "La prealerta fue actualizada correctamente.", "success");
+    } catch (error: any) {
+      Swal.fire("Error", error.response?.data?.mensaje || "No se pudo actualizar la prealerta", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const eliminarPrealerta = async (prealerta: Prealerta) => {
+    const confirmacion = await Swal.fire({
+      title: "¿Eliminar prealerta?",
+      text: `Se eliminará el tracking ${prealerta.tracking}.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#5a0c0c",
+    });
+    if (!confirmacion.isConfirmed) return;
+
+    try {
+      await axios.delete(`/api/prealertas/${prealerta.id}`);
+      await cargarPrealertas();
+      Swal.fire("Eliminada", "La prealerta fue eliminada correctamente.", "success");
+    } catch (error: any) {
+      Swal.fire("Error", error.response?.data?.mensaje || "No se pudo eliminar la prealerta", "error");
     }
   };
 
@@ -254,18 +292,19 @@ export default function PrealertasCliente() {
                   <th className="px-4 py-3 text-right">Vl. asegurado</th>
                   <th className="px-4 py-3 text-center">Estado</th>
                   <th className="px-4 py-3 text-left">Fecha</th>
+                  <th className="px-4 py-3 text-center">Opciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-sm font-semibold text-gray-500">
+                    <td colSpan={8} className="py-12 text-center text-sm font-semibold text-gray-500">
                       Cargando prealertas...
                     </td>
                   </tr>
                 ) : prealertas.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-sm font-semibold text-gray-500">
+                    <td colSpan={8} className="py-12 text-center text-sm font-semibold text-gray-500">
                       No tienes prealertas registradas
                     </td>
                   </tr>
@@ -278,11 +317,17 @@ export default function PrealertasCliente() {
                       <td className="px-4 py-3 text-right font-semibold text-gray-700">{formatearUSD(prealerta.valor_declarado)}</td>
                       <td className="px-4 py-3 text-right font-semibold text-gray-700">{formatearUSD(prealerta.valor_asegurado)}</td>
                       <td className="px-4 py-3 text-center">
-                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-800">
+                        <span className={`rounded-full border px-3 py-1 text-xs font-black ${prealerta.estado === "Digitado" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
                           {prealerta.estado}
                         </span>
                       </td>
                       <td className="px-4 py-3 font-semibold text-gray-600">{formatearFecha(prealerta.fecha_creacion)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-2">
+                          <button type="button" title="Editar prealerta" onClick={() => setPrealertaEditar(prealerta)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-red-950 shadow-sm transition hover:bg-red-50"><Pencil size={16} /></button>
+                          <button type="button" title="Eliminar prealerta" onClick={() => eliminarPrealerta(prealerta)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-800 shadow-sm transition hover:bg-red-100"><Trash2 size={16} /></button>
+                        </div>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -290,6 +335,7 @@ export default function PrealertasCliente() {
             </table>
           </div>
         </section>
+        <ModalEditarPrealerta prealerta={prealertaEditar} guardando={saving} onClose={() => setPrealertaEditar(null)} onSave={editarPrealerta} />
       </div>
     </ClientDashboardLayout>
   );
