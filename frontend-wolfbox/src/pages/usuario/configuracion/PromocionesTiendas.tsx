@@ -202,6 +202,31 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
 function Estado({ estado }: { estado: Promocion["estado"] }) { const estilos = estado === "Activa" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : estado === "Programada" ? "bg-blue-50 text-blue-700 border-blue-200" : estado === "Finalizada" ? "bg-gray-100 text-gray-600 border-gray-200" : "bg-amber-50 text-amber-700 border-amber-200"; return <span className={`rounded-full border px-3 py-1 text-xs font-black ${estilos}`}>{estado}</span>; }
 
 function ModalPromocion({ form, setForm, preview, setPreview, setImagen, saving, editando, onClose, onSubmit }: any) {
+  const [tiendasCatalogo, setTiendasCatalogo] = useState<string[]>([]);
+  const [mostrarTiendas, setMostrarTiendas] = useState(false);
+
+  const tiendasSugeridas = tiendasCatalogo
+    .filter((tienda) => tienda.toLowerCase().includes(form.tienda.trim().toLowerCase()))
+    .slice(0, 8);
+
+  useEffect(() => {
+    let activo = true;
+
+    axios.get("/api/guias/tiendas")
+      .then(({ data }) => {
+        if (!activo || !data.ok) return;
+        const unicas = new Map<string, string>();
+        (data.tiendas || []).forEach((item: { tienda?: string }) => {
+          const tienda = item.tienda?.trim();
+          if (tienda) unicas.set(tienda.toLowerCase(), tienda);
+        });
+        setTiendasCatalogo(Array.from(unicas.values()));
+      })
+      .catch((error) => console.error("Error cargando tiendas sugeridas:", error));
+
+    return () => { activo = false; };
+  }, []);
+
   useEffect(() => {
     const overflowAnterior = document.body.style.overflow;
     const cerrarConEscape = (event: KeyboardEvent) => {
@@ -252,7 +277,46 @@ function ModalPromocion({ form, setForm, preview, setPreview, setImagen, saving,
 
         <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
           <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto overscroll-contain p-5 md:grid-cols-2 sm:p-6">
-            <Campo label="Tienda"><input required value={form.tienda} onChange={(e) => setForm({ ...form, tienda: e.target.value })} className={inputClase} /></Campo>
+            <label>
+              <span className="text-sm font-bold text-gray-700">Tienda</span>
+              <div className="relative">
+                <input
+                  required
+                  autoComplete="off"
+                  value={form.tienda}
+                  onChange={(e) => {
+                    setForm({ ...form, tienda: e.target.value });
+                    setMostrarTiendas(true);
+                  }}
+                  onFocus={() => setMostrarTiendas(true)}
+                  onBlur={() => window.setTimeout(() => setMostrarTiendas(false), 150)}
+                  className={inputClase}
+                  placeholder="Escribe o selecciona una tienda"
+                />
+                {mostrarTiendas && tiendasSugeridas.length > 0 && (
+                  <div className="absolute left-0 top-full z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl">
+                    <div className="sticky top-0 border-b border-gray-100 bg-gray-50 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-red-900">
+                      Tiendas registradas
+                    </div>
+                    {tiendasSugeridas.map((tienda) => (
+                      <button
+                        type="button"
+                        key={tienda}
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          setForm({ ...form, tienda });
+                          setMostrarTiendas(false);
+                        }}
+                        className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm font-semibold text-gray-800 transition hover:bg-red-50 hover:text-red-900"
+                      >
+                        <span className="truncate">{tienda}</span>
+                        <span className="rounded-full bg-red-900/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-900">BD</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
             <Campo label="Título"><input required maxLength={180} value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} className={inputClase} /></Campo>
             <Campo label="Categoría"><input value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })} className={inputClase} placeholder="Tecnología, hogar, moda..." /></Campo>
             <Campo label="Evento"><input value={form.evento} onChange={(e) => setForm({ ...form, evento: e.target.value })} className={inputClase} placeholder="Black Friday, Mother's Day..." /></Campo>
@@ -261,7 +325,31 @@ function ModalPromocion({ form, setForm, preview, setPreview, setImagen, saving,
             <Campo label="Fecha de inicio"><input required type="datetime-local" value={form.fecha_inicio} onChange={(e) => setForm({ ...form, fecha_inicio: e.target.value })} className={inputClase} /></Campo>
             <Campo label="Fecha de finalización"><input required type="datetime-local" value={form.fecha_fin} onChange={(e) => setForm({ ...form, fecha_fin: e.target.value })} className={inputClase} /></Campo>
             <Campo label="Orden de aparición"><input type="number" min="0" value={form.orden} onChange={(e) => setForm({ ...form, orden: e.target.value })} className={inputClase} /></Campo>
-            <label><span className="text-sm font-bold text-gray-700">Imagen</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => { const file = e.target.files?.[0] || null; setImagen(file); if (file) setPreview(URL.createObjectURL(file)); }} className="mt-2 block w-full text-sm font-semibold text-gray-600 file:mr-4 file:rounded-xl file:border-0 file:bg-red-50 file:px-4 file:py-3 file:font-bold file:text-red-950" /></label>
+            <label>
+              <span className="text-sm font-bold text-gray-700">Imagen</span>
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.webp,image/jpeg,image/webp"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] || null;
+                  if (!file) return;
+                  if (!new Set(["image/jpeg", "image/webp"]).has(file.type)) {
+                    event.target.value = "";
+                    Swal.fire("Formato no permitido", "Selecciona una imagen JPG, JPEG o WEBP.", "warning");
+                    return;
+                  }
+                  if (file.size > 2 * 1024 * 1024) {
+                    event.target.value = "";
+                    Swal.fire("Imagen demasiado pesada", "La imagen debe pesar máximo 2 MB.", "warning");
+                    return;
+                  }
+                  setImagen(file);
+                  setPreview(URL.createObjectURL(file));
+                }}
+                className="mt-2 block w-full text-sm font-semibold text-gray-600 file:mr-4 file:rounded-xl file:border-0 file:bg-red-50 file:px-4 file:py-3 file:font-bold file:text-red-950"
+              />
+              <span className="mt-2 block text-xs font-semibold text-gray-500">JPG, JPEG o WEBP. Máximo 2 MB.</span>
+            </label>
             {preview && <div className="md:col-span-2"><img src={preview} alt="Vista previa" className="h-40 w-full rounded-xl border border-gray-200 object-cover" /></div>}
           </div>
 
