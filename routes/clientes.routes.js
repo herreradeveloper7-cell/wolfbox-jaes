@@ -7,6 +7,7 @@ import {
     validarClienteExistente, 
     loginCliente,
     actualizarPerfilCliente, 
+    obtenerPerfilCliente,
     buscarCliente,
     buscarClienteDestinatarios,
     actualizarClienteAdmin,
@@ -28,6 +29,7 @@ router.use(autenticarToken);
 router.get("/reporte-casilleros", reportes, validar({ query: clienteSchemas.reporteCasilleros }), reporteClientesCasilleros);
 router.get("/buscar/:valor", soloOperacion, validar({ params: textParam("valor") }), buscarCliente);
 router.get("/buscar-destinatarios/:texto", soloOperacion, validar({ params: textParam("texto") }), buscarClienteDestinatarios);
+router.get("/perfil", autorizarRoles("cliente"), obtenerPerfilCliente);
 router.put(
   "/actualizar-perfil",
   autorizarRoles("cliente"),
