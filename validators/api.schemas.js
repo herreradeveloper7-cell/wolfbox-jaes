@@ -185,6 +185,13 @@ export const trmSchemas = {
 export const prealertaSchemas = {
   listar: z.object({
     cliente_id: optionalNumber,
+    tracking: optionalString,
+    cliente: optionalString,
+    contenido: optionalString,
+    fecha_desde: optionalString,
+    fecha_hasta: optionalString,
+    pagina: optionalNumber,
+    limite: optionalNumber,
   }).passthrough(),
   crear: z.object({
     cliente_id: optionalNumber,

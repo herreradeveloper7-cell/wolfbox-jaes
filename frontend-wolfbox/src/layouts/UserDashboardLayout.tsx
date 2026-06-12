@@ -142,6 +142,7 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
             <button onClick={() => navegarORecargar("/conciliacion-pagos")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Conciliación de pago</button>
             <button onClick={() => navegarORecargar("/Clientes")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Clientes</button>
             <button onClick={() => navegarORecargar("/destinatarios-casilleros")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Destinatarios casilleros</button>
+            <button onClick={() => navegarORecargar("/gestion-prealertas")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition cursor-pointer">Prealertas</button>
           </div>
         </div>
 
