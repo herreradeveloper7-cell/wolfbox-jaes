@@ -368,26 +368,128 @@ export const loginCliente = async (req, res) => {
 /* =======================================================
     4) ACTUALIZAR PERFIL
 ======================================================= */
+export const obtenerPerfilCliente = async (req, res) => {
+  try {
+    const clienteId = Number(req.usuario?.id);
+    const pool = await poolPromise;
+
+    const result = await pool.request()
+      .input("cliente_id", sql.Int, clienteId)
+      .query(`
+        SELECT
+          c.id,
+          c.primer_nombre,
+          c.segundo_nombre,
+          c.primer_apellido,
+          c.segundo_apellido,
+          c.nombre_empresa,
+          c.tipo_cliente,
+          c.correo AS email,
+          c.genero,
+          c.direccion,
+          c.ciudad,
+          c.region,
+          c.pais,
+          c.indicativo,
+          c.celular,
+          c.telefono_fijo,
+          c.codigo_referencia AS codigoReferencia,
+          CASE
+            WHEN LOWER(ISNULL(c.tipo_cliente, '')) = 'empresarial'
+              THEN COALESCE(NULLIF(c.nombre_empresa, ''), CONCAT(c.primer_nombre, ' ', c.primer_apellido))
+            ELSE LTRIM(RTRIM(CONCAT(
+              ISNULL(c.primer_nombre, ''), ' ',
+              ISNULL(c.segundo_nombre, ''), ' ',
+              ISNULL(c.primer_apellido, ''), ' ',
+              ISNULL(c.segundo_apellido, '')
+            )))
+          END AS nombre,
+          (
+            SELECT COUNT(*)
+            FROM solicitudes s
+            WHERE s.cliente_id = c.id
+              AND LOWER(LTRIM(RTRIM(ISNULL(s.estado, '')))) <> 'anulado'
+          ) AS solicitudes_creadas,
+          (
+            SELECT COUNT(*)
+            FROM paquetes p
+            LEFT JOIN estados_catalogo e ON e.id = p.estado_id
+            WHERE (p.cliente_id = c.id OR p.codigo_referencia = c.codigo_referencia)
+              AND LOWER(LTRIM(RTRIM(ISNULL(e.nombre, '')))) <> 'anulado'
+          ) AS paquetes_digitados,
+          (
+            SELECT COUNT(*)
+            FROM destinatarios d
+            WHERE d.cliente_id = c.id
+              AND d.activo = 1
+          ) AS destinatarios_creados
+        FROM clientes c
+        WHERE c.id = @cliente_id
+      `);
+
+    const cliente = result.recordset[0];
+
+    if (!cliente) {
+      return res.status(404).json({ ok: false, message: "Cliente no encontrado" });
+    }
+
+    return res.json({
+      ok: true,
+      cliente: {
+        ...cliente,
+        solicitudes_creadas: Number(cliente.solicitudes_creadas || 0),
+        paquetes_digitados: Number(cliente.paquetes_digitados || 0),
+        destinatarios_creados: Number(cliente.destinatarios_creados || 0),
+      },
+    });
+  } catch (error) {
+    console.error("Error obteniendo perfil del cliente:", error);
+    return res.status(500).json({ ok: false, message: "Error obteniendo perfil" });
+  }
+};
+
 export const actualizarPerfilCliente = async (req, res) => {
   try {
-    const { id, nombre, email, genero, direccion, ciudad, region, celular } = req.body;
+    const {
+      primer_nombre,
+      segundo_nombre,
+      primer_apellido,
+      segundo_apellido,
+      nombre_empresa,
+      email,
+      genero,
+      direccion,
+      ciudad,
+      region,
+      celular,
+    } = req.body;
+
+    const id = req.usuario.id;
 
     const pool = await poolPromise;
 
     await pool
       .request()
       .input("id", sql.Int, id)
-      .input("primer_nombre", sql.VarChar, nombre)
-      .input("correo", sql.VarChar, email) // ✅ columna real
-      .input("genero", sql.VarChar, genero)
-      .input("direccion", sql.VarChar, direccion)
-      .input("ciudad", sql.VarChar, ciudad)
-      .input("region", sql.VarChar, region)
-      .input("celular", sql.VarChar, celular)
+      .input("primer_nombre", sql.VarChar(100), primer_nombre || null)
+      .input("segundo_nombre", sql.VarChar(100), segundo_nombre || null)
+      .input("primer_apellido", sql.VarChar(100), primer_apellido || null)
+      .input("segundo_apellido", sql.VarChar(100), segundo_apellido || null)
+      .input("nombre_empresa", sql.VarChar(150), nombre_empresa || null)
+      .input("correo", sql.VarChar(150), email)
+      .input("genero", sql.VarChar, genero || null)
+      .input("direccion", sql.VarChar, direccion || null)
+      .input("ciudad", sql.VarChar, ciudad || null)
+      .input("region", sql.VarChar, region || null)
+      .input("celular", sql.VarChar, celular || null)
       .query(`
         UPDATE clientes
         SET 
           primer_nombre = @primer_nombre,
+          segundo_nombre = @segundo_nombre,
+          primer_apellido = @primer_apellido,
+          segundo_apellido = @segundo_apellido,
+          nombre_empresa = @nombre_empresa,
           correo = @correo,
           genero = @genero,
           direccion = @direccion,

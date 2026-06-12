@@ -116,7 +116,11 @@ export const clienteSchemas = {
   }),
   actualizarPerfil: z.object({
     id: requiredNumber("Cliente"),
-    nombre: requiredString("Nombre"),
+    primer_nombre: optionalString,
+    segundo_nombre: optionalString,
+    primer_apellido: optionalString,
+    segundo_apellido: optionalString,
+    nombre_empresa: optionalString,
     email,
     genero,
     direccion: optionalString,
