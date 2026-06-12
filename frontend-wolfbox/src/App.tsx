@@ -39,6 +39,7 @@ import ReporteClientesCasilleros from './pages/usuario/Reportes/ReporteClientesC
 import ReporteSolicitudes from './pages/usuario/Reportes/ReporteSolicitudes';
 import Transportadoras from './pages/usuario/configuracion/Transportadoras';
 import PlantillaComunicacion from './pages/usuario/configuracion/PlantillaComunicacion';
+import PromocionesTiendas from './pages/usuario/configuracion/PromocionesTiendas';
 
 type RolInterno = "admin" | "usuario";
 type PermisoModulo =
@@ -197,6 +198,7 @@ function App() {
         <Route path="/reporte-solicitudes" element={interna(<ReporteSolicitudes />, "Reportes")} />
         <Route path="/transportadoras" element={interna(<Transportadoras />, "Configuracion")} />
         <Route path="/plantilla-comunicacion" element={interna(<PlantillaComunicacion />, "Configuracion")} />
+        <Route path="/promociones-tiendas" element={interna(<PromocionesTiendas />, "Configuracion", ["admin"])} />
         <Route
           path="/dashboardUsuario/agrupar-solicitud/:id"
           element={interna(<AgruparSolicitud />, "Casilleros")}
