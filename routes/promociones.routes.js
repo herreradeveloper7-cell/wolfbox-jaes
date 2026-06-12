@@ -14,10 +14,10 @@ import {
 const router = express.Router();
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 3 * 1024 * 1024 },
+  limits: { fileSize: 2 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const permitidos = new Set(["image/jpeg", "image/png", "image/webp"]);
-    return permitidos.has(file.mimetype) ? cb(null, true) : cb(new Error("Solo se permiten imágenes JPG, PNG o WEBP."));
+    const permitidos = new Set(["image/jpeg", "image/webp"]);
+    return permitidos.has(file.mimetype) ? cb(null, true) : cb(new Error("Solo se permiten imágenes JPG, JPEG o WEBP."));
   },
 });
 

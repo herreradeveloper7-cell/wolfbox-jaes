@@ -60,6 +60,19 @@ const agregarUrlsImagen = async (promociones) => Promise.all(promociones.map(asy
 
 const guardarImagen = async (file) => {
   if (!file) return null;
+  const esJpeg = file.buffer.length >= 3
+    && file.buffer[0] === 0xff
+    && file.buffer[1] === 0xd8
+    && file.buffer[2] === 0xff;
+  const esWebp = file.buffer.length >= 12
+    && file.buffer.toString("ascii", 0, 4) === "RIFF"
+    && file.buffer.toString("ascii", 8, 12) === "WEBP";
+
+  if (!esJpeg && !esWebp) {
+    const error = new Error("El archivo no es una imagen JPG, JPEG o WEBP válida.");
+    error.status = 400;
+    throw error;
+  }
   if (!azureStorageDisponible()) {
     const error = new Error("Azure Storage debe estar configurado para subir imágenes de promociones.");
     error.status = 503;
