@@ -393,3 +393,30 @@ export const despachoSchemas = {
     responsable: optionalString,
   }).passthrough(),
 };
+
+export const promocionesSchemas = {
+  id: idParam(),
+  listar: z.object({
+    pagina: optionalNumber,
+    limite: optionalNumber,
+    busqueda: optionalString,
+    estado: z.enum(["Todos", "Borrador", "Programada", "Activa", "Finalizada"]).optional(),
+  }).passthrough(),
+  guardar: z.object({
+    tienda: requiredString("Tienda"),
+    titulo: requiredString("Título"),
+    descripcion: requiredString("Descripción"),
+    categoria: optionalString,
+    evento: optionalString,
+    url_destino: z.string().trim().url("URL de destino inválida"),
+    imagen_url: z.preprocess(emptyToUndefined, z.string().trim().url("URL de imagen inválida").optional()),
+    fecha_inicio: requiredString("Fecha inicial"),
+    fecha_fin: requiredString("Fecha final"),
+    publicada: z.union([z.boolean(), z.enum(["true", "false"])]),
+    destacada: z.union([z.boolean(), z.enum(["true", "false"])]),
+    orden: optionalNumber,
+  }).passthrough().refine((data) => new Date(data.fecha_fin) > new Date(data.fecha_inicio), {
+    message: "La fecha final debe ser posterior a la fecha inicial",
+    path: ["fecha_fin"],
+  }),
+};

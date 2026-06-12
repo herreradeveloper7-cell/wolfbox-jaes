@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import {
   BadgePercent,
   Clock3,
+  ExternalLink,
   MapPinned,
   PackageCheck,
   Plane,
@@ -18,6 +20,19 @@ type Cliente = {
   genero?: string;
   codigoReferencia?: string;
   codigo_referencia?: string;
+};
+
+type Promocion = {
+  id: number;
+  tienda: string;
+  titulo: string;
+  descripcion: string;
+  categoria?: string | null;
+  evento?: string | null;
+  url_destino: string;
+  imagen?: string | null;
+  fecha_fin: string;
+  destacada: boolean;
 };
 
 const procesos = [
@@ -48,27 +63,11 @@ const procesos = [
   },
 ];
 
-const promociones = [
-  {
-    tienda: "Amazon",
-    texto: "Espacio reservado para ofertas, categorias destacadas y temporadas especiales.",
-    etiqueta: "Proximamente",
-  },
-  {
-    tienda: "Walmart",
-    texto: "Aqui podremos conectar descuentos de tecnologia, hogar y cuidado personal.",
-    etiqueta: "En preparacion",
-  },
-  {
-    tienda: "Target",
-    texto: "Bloque listo para mostrar promociones activas cuando integremos fuentes externas.",
-    etiqueta: "Pendiente",
-  },
-];
-
 export default function DashboardClients() {
   const navigate = useNavigate();
   const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [promociones, setPromociones] = useState<Promocion[]>([]);
+  const [cargandoPromociones, setCargandoPromociones] = useState(true);
 
   useEffect(() => {
     const stored = localStorage.getItem("cliente") || sessionStorage.getItem("cliente");
@@ -85,6 +84,21 @@ export default function DashboardClients() {
       navigate("/login");
     }
   }, [navigate]);
+
+  useEffect(() => {
+    const cargarPromociones = async () => {
+      try {
+        const { data } = await axios.get("/api/promociones/activas");
+        setPromociones(Array.isArray(data.promociones) ? data.promociones : []);
+      } catch (error) {
+        console.error("Error cargando promociones:", error);
+        setPromociones([]);
+      } finally {
+        setCargandoPromociones(false);
+      }
+    };
+    cargarPromociones();
+  }, []);
 
   const codigoCasillero = useMemo(
     () => cliente?.codigoReferencia || cliente?.codigo_referencia || "No disponible",
@@ -201,20 +215,34 @@ export default function DashboardClients() {
             </div>
 
             <div className="mt-5 space-y-3">
-              {promociones.map((promo) => (
+              {cargandoPromociones ? (
+                <div className="flex h-40 items-center justify-center rounded-2xl border border-gray-100 bg-slate-50 text-sm font-bold text-gray-500">
+                  Cargando promociones...
+                </div>
+              ) : promociones.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-slate-50/80 px-5 py-8 text-center">
+                  <BadgePercent className="mx-auto h-7 w-7 text-gray-300" />
+                  <p className="mt-3 text-sm font-black text-gray-700">No hay ofertas activas</p>
+                  <p className="mt-1 text-xs font-semibold leading-5 text-gray-500">Publicaremos aquí las próximas temporadas y descuentos especiales.</p>
+                </div>
+              ) : promociones.slice(0, 3).map((promo) => (
                 <div
-                  key={promo.tienda}
-                  className="rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-slate-50 p-4"
+                  key={promo.id}
+                  className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-base font-black text-gray-800">{promo.tienda}</h3>
-                    <span className="rounded-full border border-red-900/10 bg-red-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-red-950">
-                      {promo.etiqueta}
-                    </span>
+                  {promo.imagen && <img src={promo.imagen} alt={promo.titulo} loading="lazy" className="h-32 w-full object-cover" />}
+                  <div className="p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-red-950">{promo.tienda}</p>
+                      <span className="rounded-full border border-red-900/10 bg-red-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-red-950">{promo.evento || promo.categoria || "Oferta"}</span>
+                    </div>
+                    <h3 className="mt-2 text-base font-black text-gray-800">{promo.titulo}</h3>
+                    <p className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-gray-500">{promo.descripcion}</p>
+                    <div className="mt-4 flex items-center justify-between gap-3">
+                      <span className="text-[10px] font-bold text-gray-400">Hasta {new Date(promo.fecha_fin).toLocaleDateString("es-CO")}</span>
+                      <a href={promo.url_destino} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-black text-red-950 hover:underline">Ver oferta <ExternalLink size={13} /></a>
+                    </div>
                   </div>
-                  <p className="mt-2 text-sm font-semibold leading-6 text-gray-500">
-                    {promo.texto}
-                  </p>
                 </div>
               ))}
             </div>

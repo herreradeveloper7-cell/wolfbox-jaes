@@ -363,11 +363,12 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
             )}
           </button>
           
-          <div className={`transition-all duration-500 overflow-hidden bg-[#2d0101] w-full ${configuracionOpen && sidebarOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}>
+          <div className={`transition-all duration-500 overflow-hidden bg-[#2d0101] w-full ${configuracionOpen && sidebarOpen ? "max-h-64 opacity-100" : "max-h-0 opacity-0"}`}>
             <button onClick={() => navegarORecargar("/config-trm")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">TRM</button>
             <button onClick={() => navegarORecargar("/config-tarifas")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Tarifas</button>
             <button onClick={() => navegarORecargar("/transportadoras")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Transportadoras</button>
             <button onClick={() => navegarORecargar("/plantilla-comunicacion")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Plantillas Comunicación</button>
+            {esAdmin && <button onClick={() => navegarORecargar("/promociones-tiendas")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Promociones tiendas</button>}
           </div>
         </div>
         )}
