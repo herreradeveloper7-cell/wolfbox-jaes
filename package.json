@@ -1,9 +1,14 @@
 {
   "name": "wolfbox_jaes",
   "version": "1.0.0",
+  "packageManager": "pnpm@11.5.0",
   "type": "module",
   "main": "index.js",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
+    "start": "node index.js",
     "test": "node --test"
   },
   "keywords": [],
