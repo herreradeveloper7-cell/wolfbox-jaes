@@ -535,6 +535,7 @@ export const generarReporteCSV = async (req, res) => {
   const pool = await poolPromise;
 
   try {
+    const request = pool.request();
     let query = `
       SELECT 
         p.id,
@@ -555,16 +556,18 @@ export const generarReporteCSV = async (req, res) => {
     `;
 
     if (fecha) {
-      query += ` AND CONVERT(date, p.fecha_registro) = '${fecha}'`;
+      query += ` AND CONVERT(date, p.fecha_registro) = @fecha`;
+      request.input("fecha", sql.Date, fecha);
     }
 
     if (estado) {
-      query += ` AND p.estado_actual = '${estado}'`;
+      query += ` AND p.estado_actual = @estado`;
+      request.input("estado", sql.NVarChar(100), estado);
     }
 
     query += ` ORDER BY p.fecha_registro DESC`;
 
-    const result = await pool.request().query(query);
+    const result = await request.query(query);
 
     if (result.recordset.length === 0) {
       return res.status(404).json({ mensaje: 'No hay paquetes registrados con esos filtros.' });
@@ -1237,11 +1240,16 @@ export const obtenerPaquetePorHAWB = async (req, res) => {
 
   try {
     const pool = await poolPromise;
+    const consultaCliente = req.usuario?.tipo === "cliente";
+    const requestPaquete = pool.request().input('hawb', sql.NVarChar, hawb);
 
-    const paquete = await pool.request()
-      .input('hawb', sql.NVarChar, hawb)
+    if (consultaCliente) {
+      requestPaquete.input("cliente_id", sql.Int, req.usuario.id);
+    }
+
+    const paquete = await requestPaquete
       .query(`
-        SELECT 
+        SELECT TOP 1
           p.id,
           p.referencia,
           p.hawb,
@@ -1271,21 +1279,24 @@ export const obtenerPaquetePorHAWB = async (req, res) => {
           END AS cliente
 
         FROM paquetes p
-        LEFT JOIN clientes c ON p.cliente_id = c.id
+        LEFT JOIN clientes c
+          ON c.id = p.cliente_id
+          OR (p.cliente_id IS NULL AND c.codigo_referencia = p.codigo_referencia)
         LEFT JOIN estados_catalogo e ON e.id = p.estado_id
         LEFT JOIN puntos_control pc ON pc.id = e.punto_control_id
-        WHERE p.hawb = @hawb
+        WHERE (p.hawb = @hawb OR p.hawb_padre = @hawb)
+          ${consultaCliente ? "AND c.id = @cliente_id" : ""}
+        ORDER BY CASE WHEN p.hawb = @hawb THEN 0 ELSE 1 END, p.id
       `);
 
     if (!paquete.recordset.length) {
       return res.status(404).json([]);
     }
 
-    const datosPaquete = paquete.recordset[0];
-
-    const historial = await pool.request()
-      .input('hawb', sql.NVarChar, hawb)
-      .query(`
+    const cargarHistorial = async (hawbHistorial) => {
+      const historial = await pool.request()
+        .input('hawb', sql.NVarChar, hawbHistorial)
+        .query(`
         SELECT 
           h.id,
           h.hawb,
@@ -1301,28 +1312,72 @@ export const obtenerPaquetePorHAWB = async (req, res) => {
         ORDER BY h.fecha DESC
       `);
 
-    const respuesta = {
-      id: datosPaquete.id,
-      hawb: datosPaquete.hawb,
-      tracking: datosPaquete.tracking,
-      contenido: datosPaquete.contenido,
-      peso: datosPaquete.peso,
-      tienda: datosPaquete.tienda,
-      notas: datosPaquete.notas,
-      cliente: datosPaquete.cliente,
-      codigo_referencia: datosPaquete.codigo_referencia,
-      estado: datosPaquete.estado,
-      punto_control: datosPaquete.punto_control,
-      fecha_registro: datosPaquete.fecha_registro,
-
-      estados: historial.recordset.map(row => ({
+      return historial.recordset.map(row => ({
         id: row.id,
         fecha: row.fecha,
         estado: row.estado,
         punto_control: row.punto_control,
-        observaciones: row.observaciones,
-        responsable: row.responsable
+        observaciones: consultaCliente ? row.observaciones : null,
+        responsable: consultaCliente ? row.responsable : null,
+      }));
+    };
+
+    const datosPaquete = paquete.recordset[0];
+    const historial = await cargarHistorial(datosPaquete.hawb);
+
+    const requestRelacionados = pool.request().input("hawb_padre", sql.NVarChar, hawb);
+    if (consultaCliente) requestRelacionados.input("cliente_id", sql.Int, req.usuario.id);
+
+    const relacionados = await requestRelacionados.query(`
+      SELECT
+        p.id,
+        p.hawb,
+        p.tracking,
+        p.tienda,
+        p.contenido,
+        CAST(p.peso AS FLOAT) AS peso,
+        FORMAT(p.fecha_registro, 'yyyy-MM-dd HH:mm:ss') AS fecha_registro,
+        e.nombre AS estado,
+        pc.nombre AS punto_control
+      FROM paquetes p
+      LEFT JOIN clientes c
+        ON c.id = p.cliente_id
+        OR (p.cliente_id IS NULL AND c.codigo_referencia = p.codigo_referencia)
+      LEFT JOIN estados_catalogo e ON e.id = p.estado_id
+      LEFT JOIN puntos_control pc ON pc.id = e.punto_control_id
+      WHERE p.hawb_padre = @hawb_padre
+        ${consultaCliente ? "AND c.id = @cliente_id" : ""}
+      ORDER BY p.fecha_registro, p.id
+    `);
+
+    const paquetesRelacionados = await Promise.all(
+      relacionados.recordset.map(async (item) => ({
+        ...item,
+        estados: await cargarHistorial(item.hawb),
       }))
+    );
+
+    const esHawbPadre = paquetesRelacionados.length > 0;
+
+    const respuesta = {
+      id: datosPaquete.id,
+      hawb: esHawbPadre ? hawb : datosPaquete.hawb,
+      tracking: datosPaquete.tracking,
+      contenido: datosPaquete.contenido,
+      peso: esHawbPadre
+        ? paquetesRelacionados.reduce((total, item) => total + Number(item.peso || 0), 0)
+        : datosPaquete.peso,
+      tienda: datosPaquete.tienda,
+      notas: consultaCliente ? datosPaquete.notas : null,
+      cliente: consultaCliente ? datosPaquete.cliente : null,
+      codigo_referencia: consultaCliente ? datosPaquete.codigo_referencia : null,
+      estado: datosPaquete.estado,
+      punto_control: datosPaquete.punto_control,
+      fecha_registro: datosPaquete.fecha_registro,
+
+      estados: historial,
+      es_hawb_padre: esHawbPadre,
+      paquetes: esHawbPadre ? paquetesRelacionados : undefined,
     };
 
     res.status(200).json([respuesta]);

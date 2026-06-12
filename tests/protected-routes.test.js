@@ -56,3 +56,37 @@ test("rutas administrativas criticas declaran restricciones por rol", () => {
   assert.match(despachos, /const soloOperacion = autorizarRoles\("admin",\s*"usuario"\)/);
   assert.match(transportadoras, /const soloOperacion = autorizarRoles\("admin",\s*"usuario"\)/);
 });
+
+test("rutas de clientes y solicitudes exigen propiedad o permiso de Casilleros", () => {
+  const solicitudes = readRoute("../routes/solicitudes.routes.js");
+  const destinatarios = readRoute("../routes/destinatarios.routes.js");
+  const clientes = readRoute("../routes/clientes.routes.js");
+  const paquetes = readRoute("../routes/paquetes.routes.js");
+
+  assert.match(solicitudes, /const autorizarSolicitudPropia = async/);
+  assert.match(solicitudes, /"\/detalle\/:id"[\s\S]*autorizarSolicitudPropia/);
+  assert.match(solicitudes, /"\/pdf\/:id"[\s\S]*autorizarSolicitudPropia/);
+  assert.match(solicitudes, /"\/comprobante\/:id"[\s\S]*autorizarSolicitudPropia/);
+  assert.match(solicitudes, /const soloCasilleros = autorizarPermisos\("Casilleros"\)/);
+  assert.match(destinatarios, /autorizarPermisos\("Casilleros"\)/);
+  assert.match(clientes, /const casilleros = autorizarPermisos\("Casilleros"\)/);
+  assert.match(paquetes, /autorizarClientePropio\(\(req\) => req\.params\.referencia/);
+});
+
+test("registro interno y rastreo privado no quedan expuestos publicamente", () => {
+  const auth = readRoute("../routes/auth.routes.js");
+  const paquetes = readRoute("../routes/paquetes.routes.js");
+  const solicitudes = readRoute("../routes/solicitudes.routes.js");
+
+  assert.match(auth, /router\.post\('\/registro', autenticarToken, autorizarRoles\("admin"\)/);
+  assert.match(paquetes, /"\/tracking\/mio\/:hawb"[\s\S]*autorizarRoles\("cliente"\)/);
+  assert.doesNotMatch(solicitudes, /pdf-test/);
+});
+
+test("las consultas internas de guias requieren autenticacion", () => {
+  const source = readRoute("../routes/guias.routes.js");
+
+  assert.match(source, /router\.use\(autenticarToken, autorizarRoles\("admin", "usuario"\)\)/);
+  assert.match(source, /router\.post\("\/buscar", buscarGuias\)/);
+  assert.match(source, /router\.get\("\/consultar-tracking", consultarTrackingFiltrado\)/);
+});

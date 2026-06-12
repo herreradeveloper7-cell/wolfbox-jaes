@@ -170,9 +170,9 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/confirmacion" element={<ConfirmacionPage />} />
         <Route path="/consulta-hawb" element={<ConsultarGuiaHome />} />
-        <Route path="/dashboardCliente" element={<DashboardClientePage />} />
+        <Route path="/dashboardCliente" element={clienteProtegido(<DashboardClientePage />)} />
         <Route path="/dashboardUsuario" element={interna(<DashboardUsuarioPage />)} />
-        <Route path="/editar-perfil" element={<EditarPerfilCliente />} />
+        <Route path="/editar-perfil" element={clienteProtegido(<EditarPerfilCliente />)} />
         <Route path="/digitacion-paquetes" element={interna(<DigitacionPaquetes />, "Casilleros")} />
         <Route path ="/crear-tracking" element={interna(<CrearTracking/>, "Tracking")} />
         <Route path ="/consultar-tracking" element={interna(<ConsultarTracking/>, "Tracking")} />

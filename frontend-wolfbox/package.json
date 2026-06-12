@@ -14,19 +14,19 @@
     "@tailwindcss/vite": "^4.0.17",
     "axios": "^1.8.4",
     "bwip-js": "^4.10.1",
+    "exceljs": "^4.4.0",
     "framer-motion": "^12.23.24",
     "html2canvas": "^1.4.1",
     "jsbarcode": "^3.11.6",
-    "jspdf": "^3.0.1",
-    "jspdf-autotable": "^5.0.2",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.16.0",
     "pdfkit": "^0.18.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.4.1",
-    "sweetalert2": "^11.19.1",
-    "xlsx": "^0.18.5"
+    "sweetalert2": "^11.19.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
@@ -47,5 +47,8 @@
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.24.1",
     "vite": "^6.2.0"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   }
 }

@@ -269,10 +269,9 @@ export const actualizarUsuario = async (req, res) => {
       return res.status(400).json({ mensaje: "Este correo ya pertenece a otro usuario" });
     }
 
-    let queryUpdatePassword = "";
+    let hashedPassword = null;
     if (password && password.trim() !== "") {
-      const hashed = await bcrypt.hash(password, 10);
-      queryUpdatePassword = `, contrasena='${hashed}'`;
+      hashedPassword = await bcrypt.hash(password, 10);
     }
 
     await pool.request()
@@ -281,13 +280,14 @@ export const actualizarUsuario = async (req, res) => {
       .input("correo", sql.VarChar, email)
       .input("tipo_usuario", sql.VarChar, tipo_usuario)
       .input("genero", sql.VarChar, genero)
+      .input("contrasena", sql.VarChar, hashedPassword)
       .query(`
         UPDATE usuarios SET 
           nombre = @nombre,
           correo = @correo,
           tipo_usuario = @tipo_usuario,
-          genero = @genero
-          ${queryUpdatePassword}
+          genero = @genero,
+          contrasena = COALESCE(@contrasena, contrasena)
         WHERE id = @id
       `);
 
