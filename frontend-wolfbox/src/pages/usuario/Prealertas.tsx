@@ -1,20 +1,23 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Swal from "sweetalert2";
 import {
   BellPlus,
   ChevronLeft,
   ChevronRight,
-  ClipboardList,
-  Filter,
   PackagePlus,
+  Pencil,
   Plus,
   RotateCcw,
   Search,
+  Trash2,
   X,
 } from "lucide-react";
 import UserDashboardLayout from "../../layouts/UserDashboardLayout";
 import BuscarClientes from "../../components/clientes/BuscarClientes";
+import iconHome from "../../assets/home-svgrepo-com.svg";
+import ModalEditarPrealerta, { PrealertaEditable } from "../../components/prealertas/ModalEditarPrealerta";
 
 type Cliente = {
   id: number;
@@ -78,6 +81,7 @@ const formatearUSD = (valor: number) =>
   });
 
 export default function Prealertas() {
+  const navigate = useNavigate();
   const [prealertas, setPrealertas] = useState<Prealerta[]>([]);
   const [filtros, setFiltros] = useState(filtrosIniciales);
   const [filtrosAplicados, setFiltrosAplicados] = useState(filtrosIniciales);
@@ -91,6 +95,9 @@ export default function Prealertas() {
   const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
   const [clienteBusqueda, setClienteBusqueda] = useState("");
   const [form, setForm] = useState(formularioInicial);
+  const [prealertaEditar, setPrealertaEditar] = useState<Prealerta | null>(null);
+  const usuarioGuardado = localStorage.getItem("usuario") || sessionStorage.getItem("usuario");
+  const esAdmin = usuarioGuardado ? JSON.parse(usuarioGuardado).tipo === "admin" : false;
 
   const cargarPrealertas = useCallback(async () => {
     setLoading(true);
@@ -167,44 +174,81 @@ export default function Prealertas() {
     }
   };
 
+  const editarPrealerta = async (datos: Omit<PrealertaEditable, "id">) => {
+    if (!prealertaEditar || !esAdmin) return;
+    setSaving(true);
+    try {
+      await axios.put(`/api/prealertas/${prealertaEditar.id}`, datos);
+      setPrealertaEditar(null);
+      await cargarPrealertas();
+      Swal.fire("Actualizada", "La prealerta fue actualizada correctamente.", "success");
+    } catch (error: any) {
+      Swal.fire("Error", error.response?.data?.mensaje || "No se pudo actualizar la prealerta", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const eliminarPrealerta = async (prealerta: Prealerta) => {
+    if (!esAdmin) return;
+    const confirmacion = await Swal.fire({
+      title: "¿Eliminar prealerta?",
+      text: `Se eliminará el tracking ${prealerta.tracking}.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#5a0c0c",
+    });
+    if (!confirmacion.isConfirmed) return;
+
+    try {
+      await axios.delete(`/api/prealertas/${prealerta.id}`);
+      await cargarPrealertas();
+      Swal.fire("Eliminada", "La prealerta fue eliminada correctamente.", "success");
+    } catch (error: any) {
+      Swal.fire("Error", error.response?.data?.mensaje || "No se pudo eliminar la prealerta", "error");
+    }
+  };
+
   const inicio = total === 0 ? 0 : (pagina - 1) * limite + 1;
   const fin = Math.min(pagina * limite, total);
 
   return (
     <UserDashboardLayout scrollable>
-      <div className="mx-auto w-full max-w-[1500px] pb-10 text-gray-800">
-        <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-bold text-gray-500">Casillero &gt; Prealertas</p>
-            <h1 className="mt-2 text-3xl font-black text-red-950">Prealertas</h1>
-            <p className="mt-1 text-sm font-semibold text-gray-500">
-              Consulta y registra los paquetes anunciados por los clientes.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setMostrarFormulario((actual) => !actual)}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-red-950 px-5 text-sm font-black text-white shadow-lg shadow-red-950/15 transition hover:bg-red-900"
-          >
-            {mostrarFormulario ? <X size={17} /> : <Plus size={17} />}
-            {mostrarFormulario ? "Cerrar formulario" : "Crear prealerta"}
+      <div className="overflow-x-hidden px-4 py-4 text-gray-800 animate-fade-in sm:px-6 lg:px-10">
+        <h1 className="mb-2 text-3xl font-bold text-red-900">Prealertas</h1>
+        <p className="mb-6 flex items-center gap-1 text-sm text-gray-500">
+          <img src={iconHome} alt="Inicio" className="h-4 w-4" />
+          <button onClick={() => navigate("/dashboardUsuario")} className="cursor-pointer font-semibold text-gray-700 hover:underline">
+            Dashboard
           </button>
-        </header>
+          &gt; Prealertas
+        </p>
 
         {mostrarFormulario && (
-          <section className="mb-6 border-t-4 border-red-950 bg-white p-6 shadow-lg">
-            <div className="mb-5 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-red-950">
-                <PackagePlus size={20} />
+          <section className="relative mb-8 overflow-hidden rounded-2xl border border-gray-200/80 bg-white/95 shadow-[0_22px_55px_rgba(17,24,39,0.10)]">
+            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-red-950 via-[#8B0D16] to-gray-300" />
+            <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-red-950/5 pointer-events-none" />
+            <div className="relative p-6">
+              <div className="mb-6 flex items-center justify-between border-b border-gray-200/70 pb-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-red-950">
+                    <PackagePlus size={21} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-red-950">Registro manual</p>
+                    <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-700">Nueva prealerta</h2>
+                    <p className="mt-1 text-xs font-semibold text-gray-500">Asocia el paquete prealertado con un cliente registrado.</p>
+                  </div>
+                </div>
+                <button type="button" title="Cerrar formulario" onClick={() => setMostrarFormulario(false)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 shadow-sm transition hover:bg-gray-100 hover:text-red-950">
+                  <X size={18} />
+                </button>
               </div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-red-900">Registro manual</p>
-                <h2 className="text-xl font-black">Nueva prealerta</h2>
-              </div>
-            </div>
 
-            <form onSubmit={crearPrealerta} className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <label className="xl:col-span-3">
+            <form onSubmit={crearPrealerta} className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              <label className="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50/80 p-5 shadow-sm xl:col-span-3">
                 <Etiqueta>Cliente</Etiqueta>
                 <BuscarClientes
                   value={clienteBusqueda}
@@ -222,12 +266,12 @@ export default function Prealertas() {
                   </p>
                 )}
               </label>
-              <Campo label="Tracking" name="tracking" value={form.tracking} onChange={setForm} form={form} required />
-              <Campo label="Peso en lbs" name="peso_lbs" type="number" value={form.peso_lbs} onChange={setForm} form={form} required min="0.01" step="0.01" />
-              <Campo label="Contenido" name="contenido" value={form.contenido} onChange={setForm} form={form} required />
-              <Campo label="Vl. declarado" name="valor_declarado" type="number" value={form.valor_declarado} onChange={setForm} form={form} required min="0" step="0.01" />
-              <Campo label="Vl. asegurado" name="valor_asegurado" type="number" value={form.valor_asegurado} onChange={setForm} form={form} required min="0" step="0.01" />
-              <label>
+              <Campo panel label="Tracking" name="tracking" value={form.tracking} onChange={setForm} form={form} required />
+              <Campo panel label="Peso en lbs" name="peso_lbs" type="number" value={form.peso_lbs} onChange={setForm} form={form} required min="0.01" step="0.01" />
+              <Campo panel label="Contenido" name="contenido" value={form.contenido} onChange={setForm} form={form} required />
+              <Campo panel label="Vl. declarado" name="valor_declarado" type="number" value={form.valor_declarado} onChange={setForm} form={form} required min="0" step="0.01" />
+              <Campo panel label="Vl. asegurado" name="valor_asegurado" type="number" value={form.valor_asegurado} onChange={setForm} form={form} required min="0" step="0.01" />
+              <label className="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50/80 p-5 shadow-sm">
                 <Etiqueta>Observaciones</Etiqueta>
                 <input
                   value={form.observaciones}
@@ -236,56 +280,74 @@ export default function Prealertas() {
                   placeholder="Opcional"
                 />
               </label>
-              <div className="flex justify-end md:col-span-2 xl:col-span-3">
-                <button disabled={saving} className="inline-flex h-11 items-center gap-2 rounded-lg bg-red-950 px-6 text-sm font-black text-white disabled:opacity-60">
+              <div className="flex justify-end border-t border-gray-200/70 pt-5 md:col-span-2 xl:col-span-3">
+                <button disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-950 to-red-900 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-red-950/20 transition hover:scale-[1.02] disabled:opacity-60">
                   <BellPlus size={17} />
                   {saving ? "Guardando..." : "Guardar prealerta"}
                 </button>
               </div>
             </form>
+            </div>
           </section>
         )}
 
-        <section className="mb-6 border-t-4 border-red-950 bg-white p-5 shadow-lg">
-          <div className="mb-4 flex items-center gap-3">
-            <Filter size={19} className="text-red-950" />
-            <h2 className="text-lg font-black">Filtrar prealertas</h2>
-          </div>
-          <form onSubmit={buscar} className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-            <Filtro label="Tracking" value={filtros.tracking} onChange={(valor) => setFiltros({ ...filtros, tracking: valor })} />
-            <Filtro label="Cliente o casillero" value={filtros.cliente} onChange={(valor) => setFiltros({ ...filtros, cliente: valor })} />
-            <Filtro label="Contenido" value={filtros.contenido} onChange={(valor) => setFiltros({ ...filtros, contenido: valor })} />
-            <Filtro label="Fecha desde" type="date" value={filtros.fecha_desde} onChange={(valor) => setFiltros({ ...filtros, fecha_desde: valor })} />
-            <Filtro label="Fecha hasta" type="date" value={filtros.fecha_hasta} onChange={(valor) => setFiltros({ ...filtros, fecha_hasta: valor })} />
-            <div className="flex gap-2 md:col-span-2 xl:col-span-5 xl:justify-end">
-              <button type="button" onClick={limpiarFiltros} className="inline-flex h-10 items-center gap-2 rounded-lg border border-gray-300 px-4 text-sm font-bold text-gray-600 hover:bg-gray-50">
+        <section className="relative mb-8 overflow-hidden rounded-2xl border border-gray-200/80 bg-white/95 shadow-[0_22px_55px_rgba(17,24,39,0.10)]">
+          <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-red-950 via-[#8B0D16] to-gray-300" />
+          <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-red-950/5 pointer-events-none" />
+          <div className="absolute -left-20 bottom-0 h-52 w-52 rounded-full bg-gray-900/5 pointer-events-none" />
+          <div className="relative p-6">
+            <div className="mb-6 flex flex-col gap-3 border-b border-gray-200/70 pb-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-red-950">Módulo de casillero</p>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-700">Filtros de Prealertas</h2>
+                <p className="mt-1 text-xs font-semibold text-gray-500">Consulta por fecha, tracking, cliente, casillero o contenido.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="hidden items-center gap-2 rounded-full border border-gray-200 bg-gray-100 px-4 py-2 md:flex">
+                  <span className="h-2 w-2 rounded-full bg-green-600" />
+                  <span className="text-xs font-semibold text-gray-600">Módulo activo</span>
+                </div>
+                <button type="button" onClick={() => setMostrarFormulario(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-950 to-red-900 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-950/20 transition hover:scale-[1.02]">
+                  <Plus size={17} /> Crear prealerta
+                </button>
+              </div>
+            </div>
+
+          <form onSubmit={buscar} className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
+            <Filtro panel label="Fecha inicial" type="date" value={filtros.fecha_desde} onChange={(valor) => setFiltros({ ...filtros, fecha_desde: valor })} />
+            <Filtro panel label="Fecha final" type="date" value={filtros.fecha_hasta} onChange={(valor) => setFiltros({ ...filtros, fecha_hasta: valor })} />
+            <Filtro panel label="Tracking" value={filtros.tracking} onChange={(valor) => setFiltros({ ...filtros, tracking: valor })} placeholder="Buscar tracking" />
+            <Filtro panel label="Cliente / Casillero" value={filtros.cliente} onChange={(valor) => setFiltros({ ...filtros, cliente: valor })} placeholder="Nombre o código" />
+            <Filtro panel label="Contenido" value={filtros.contenido} onChange={(valor) => setFiltros({ ...filtros, contenido: valor })} placeholder="Contenido del paquete" />
+            <div className="flex gap-3 border-t border-gray-200/70 pt-5 md:col-span-2 xl:col-span-5 xl:justify-end">
+              <button type="button" onClick={limpiarFiltros} className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-100">
                 <RotateCcw size={16} /> Limpiar
               </button>
-              <button className="inline-flex h-10 items-center gap-2 rounded-lg bg-red-950 px-5 text-sm font-black text-white hover:bg-red-900">
+              <button className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-950 to-red-900 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-red-950/20 transition hover:scale-[1.02]">
                 <Search size={16} /> Buscar
               </button>
             </div>
           </form>
+          </div>
         </section>
 
-        <section className="overflow-hidden bg-white shadow-lg">
-          <div className="flex flex-col gap-3 border-t-4 border-red-950 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <ClipboardList size={21} className="text-red-950" />
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-red-900">Resultados</p>
-                <h2 className="text-xl font-black">Prealertas registradas</h2>
-              </div>
+        <section className="relative mt-6 overflow-hidden rounded-2xl border border-gray-200/80 bg-white/95 shadow-[0_22px_55px_rgba(17,24,39,0.10)]">
+          <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-red-950 via-[#8B0D16] to-gray-300" />
+          <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-red-950/5 pointer-events-none" />
+          <div className="flex flex-col gap-3 border-b border-gray-200/70 bg-gradient-to-r from-white via-red-50/40 to-white px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-red-950">Gestión de prealertas</p>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-700">Resultados de prealertas</h2>
             </div>
             <div className="flex items-center gap-3 text-sm font-bold text-gray-500">
-              <span>{total} registros</span>
+              <span className="rounded-full border border-red-900/15 bg-red-50 px-4 py-1.5 text-xs font-semibold text-red-950 shadow-sm">{total} registros</span>
               <select
                 value={limite}
                 onChange={(event) => {
                   setLimite(Number(event.target.value));
                   setPagina(1);
                 }}
-                className="h-9 rounded-lg border border-gray-300 bg-white px-3 font-bold outline-none focus:border-red-950"
+                className="h-9 rounded-xl border border-gray-300 bg-white px-3 text-xs font-bold outline-none focus:border-red-950"
                 aria-label="Registros por pagina"
               >
                 {[10, 20, 50, 100].map((cantidad) => <option key={cantidad} value={cantidad}>{cantidad} por página</option>)}
@@ -294,8 +356,8 @@ export default function Prealertas() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1200px] border-collapse">
-              <thead className="bg-gray-100 text-[10px] font-black uppercase tracking-[0.14em] text-gray-600">
+            <table className="w-full min-w-[1200px] text-sm">
+              <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gradient-to-r from-gray-100 via-white to-gray-50 text-[10px] font-black uppercase tracking-[0.18em] text-gray-600">
                 <tr>
                   <th className="px-4 py-3 text-left">Fecha</th>
                   <th className="px-4 py-3 text-left">Cliente</th>
@@ -305,15 +367,16 @@ export default function Prealertas() {
                   <th className="px-4 py-3 text-right">Declarado</th>
                   <th className="px-4 py-3 text-right">Asegurado</th>
                   <th className="px-4 py-3 text-center">Estado</th>
+                  <th className="px-4 py-3 text-center">Opciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
-                  <tr><td colSpan={8} className="h-40 text-center text-sm font-bold text-gray-500">Cargando prealertas...</td></tr>
+                  <tr><td colSpan={9} className="h-40 text-center text-sm font-bold text-gray-500">Cargando prealertas...</td></tr>
                 ) : prealertas.length === 0 ? (
-                  <tr><td colSpan={8} className="h-40 text-center text-sm font-bold text-gray-500">No se encontraron prealertas</td></tr>
+                  <tr><td colSpan={9} className="px-6 py-12 text-center"><div className="mx-auto flex max-w-md flex-col items-center"><div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-2xl font-semibold text-red-950">!</div><p className="font-semibold text-gray-800">No hay resultados para los filtros seleccionados</p><p className="mt-1 text-sm font-semibold text-gray-500">Ajusta los filtros e intenta nuevamente.</p></div></td></tr>
                 ) : prealertas.map((prealerta) => (
-                  <tr key={prealerta.id} className="text-sm transition hover:bg-red-50/40">
+                  <tr key={prealerta.id} className="transition hover:bg-red-50/40">
                     <td className="whitespace-nowrap px-4 py-3 font-semibold text-gray-600">{formatearFecha(prealerta.fecha_creacion)}</td>
                     <td className="px-4 py-3">
                       <p className="font-black text-gray-800">{prealerta.cliente_nombre || "Cliente"}</p>
@@ -324,14 +387,20 @@ export default function Prealertas() {
                     <td className="px-4 py-3 text-center font-bold">{Number(prealerta.peso_lbs).toFixed(2)} lb</td>
                     <td className="px-4 py-3 text-right font-bold">{formatearUSD(prealerta.valor_declarado)}</td>
                     <td className="px-4 py-3 text-right font-bold">{formatearUSD(prealerta.valor_asegurado)}</td>
-                    <td className="px-4 py-3 text-center"><span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-800">{prealerta.estado}</span></td>
+                    <td className="px-4 py-3 text-center"><span className={`rounded-full border px-3 py-1 text-xs font-black ${prealerta.estado === "Digitado" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>{prealerta.estado}</span></td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-2">
+                        <button type="button" title={esAdmin ? "Editar prealerta" : "Solo los administradores pueden editar"} disabled={!esAdmin} onClick={() => setPrealertaEditar(prealerta)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-red-950 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none"><Pencil size={16} /></button>
+                        <button type="button" title={esAdmin ? "Eliminar prealerta" : "Solo los administradores pueden eliminar"} disabled={!esAdmin} onClick={() => eliminarPrealerta(prealerta)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-800 shadow-sm transition hover:bg-red-100 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none"><Trash2 size={16} /></button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          <div className="flex flex-col gap-3 border-t border-gray-200 px-5 py-4 text-sm font-semibold text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-t border-gray-200 bg-gray-50/60 px-6 py-4 text-sm font-semibold text-gray-500 sm:flex-row sm:items-center sm:justify-between">
             <span>Mostrando {inicio} a {fin} de {total}</span>
             <div className="flex items-center gap-2">
               <button type="button" title="Página anterior" disabled={pagina <= 1 || loading} onClick={() => setPagina((actual) => actual - 1)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 disabled:opacity-40"><ChevronLeft size={17} /></button>
@@ -340,20 +409,21 @@ export default function Prealertas() {
             </div>
           </div>
         </section>
+        <ModalEditarPrealerta prealerta={prealertaEditar} guardando={saving} onClose={() => setPrealertaEditar(null)} onSave={editarPrealerta} />
       </div>
     </UserDashboardLayout>
   );
 }
 
-const inputClase = "h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-800 outline-none transition focus:border-red-950 focus:ring-4 focus:ring-red-950/10";
+const inputClase = "mt-2 h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm outline-none transition-all duration-200 placeholder:text-gray-400 hover:border-gray-400 focus:border-red-950 focus:ring-4 focus:ring-red-950/10";
 
 function Etiqueta({ children }: { children: React.ReactNode }) {
   return <span className="mb-2 block text-xs font-black uppercase tracking-[0.12em] text-gray-500">{children}</span>;
 }
 
-function Campo({ label, name, form, onChange, ...props }: any) {
+function Campo({ label, name, form, onChange, panel, ...props }: any) {
   return (
-    <label>
+    <label className={panel ? "rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50/80 p-5 shadow-sm" : ""}>
       <Etiqueta>{label}</Etiqueta>
       <input
         name={name}
@@ -365,11 +435,11 @@ function Campo({ label, name, form, onChange, ...props }: any) {
   );
 }
 
-function Filtro({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (value: string) => void; type?: string }) {
+function Filtro({ label, value, onChange, type = "text", panel = false, placeholder }: { label: string; value: string; onChange: (value: string) => void; type?: string; panel?: boolean; placeholder?: string }) {
   return (
-    <label>
+    <label className={panel ? "rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50/80 p-5 shadow-sm" : ""}>
       <Etiqueta>{label}</Etiqueta>
-      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} className={inputClase} />
+      <input type={type} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} className={inputClase} />
     </label>
   );
 }

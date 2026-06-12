@@ -27,6 +27,10 @@ const puedeConsultarCliente = (req, clienteId) =>
   ["admin", "usuario"].includes(req.usuario?.tipo) ||
   Number(req.usuario?.id) === Number(clienteId);
 
+const puedeModificarPrealerta = (req, clienteId) =>
+  req.usuario?.tipo === "admin" ||
+  (req.usuario?.tipo === "cliente" && Number(req.usuario.id) === Number(clienteId));
+
 export const listarPrealertas = async (req, res) => {
   try {
     const esCliente = req.usuario?.tipo === "cliente";
@@ -96,7 +100,15 @@ export const listarPrealertas = async (req, res) => {
           p.valor_declarado,
           p.valor_asegurado,
           p.observaciones,
-          p.estado,
+          CASE
+            WHEN EXISTS (
+              SELECT 1
+              FROM paquetes pa
+              WHERE pa.cliente_id = p.cliente_id
+                AND UPPER(LTRIM(RTRIM(pa.tracking))) = UPPER(LTRIM(RTRIM(p.tracking)))
+            ) THEN 'Digitado'
+            ELSE p.estado
+          END AS estado,
           p.fecha_creacion,
           c.codigo_referencia,
           ISNULL(
@@ -211,5 +223,79 @@ export const crearPrealerta = async (req, res) => {
   } catch (error) {
     console.error("Error creando prealerta:", error);
     return res.status(500).json({ ok: false, mensaje: "Error creando prealerta" });
+  }
+};
+
+export const actualizarPrealerta = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    await asegurarTablaPrealertas(pool);
+
+    const existente = await pool.request()
+      .input("id", sql.Int, req.params.id)
+      .query("SELECT TOP 1 cliente_id FROM prealertas WHERE id = @id");
+
+    if (!existente.recordset.length) {
+      return res.status(404).json({ ok: false, mensaje: "Prealerta no encontrada" });
+    }
+
+    const clienteId = existente.recordset[0].cliente_id;
+    if (!puedeModificarPrealerta(req, clienteId)) {
+      return res.status(403).json({ ok: false, mensaje: "No tienes permisos para editar esta prealerta" });
+    }
+
+    const { tracking, peso_lbs, contenido, valor_declarado, valor_asegurado, observaciones } = req.body;
+    const result = await pool.request()
+      .input("id", sql.Int, req.params.id)
+      .input("tracking", sql.NVarChar(100), tracking)
+      .input("peso_lbs", sql.Decimal(10, 2), peso_lbs)
+      .input("contenido", sql.NVarChar(255), contenido)
+      .input("valor_declarado", sql.Decimal(12, 2), valor_declarado)
+      .input("valor_asegurado", sql.Decimal(12, 2), valor_asegurado)
+      .input("observaciones", sql.NVarChar(500), observaciones || null)
+      .query(`
+        UPDATE prealertas
+        SET tracking = @tracking,
+            peso_lbs = @peso_lbs,
+            contenido = @contenido,
+            valor_declarado = @valor_declarado,
+            valor_asegurado = @valor_asegurado,
+            observaciones = @observaciones
+        OUTPUT INSERTED.*
+        WHERE id = @id
+      `);
+
+    return res.json({ ok: true, mensaje: "Prealerta actualizada correctamente", prealerta: result.recordset[0] });
+  } catch (error) {
+    console.error("Error actualizando prealerta:", error);
+    return res.status(500).json({ ok: false, mensaje: "Error actualizando prealerta" });
+  }
+};
+
+export const eliminarPrealerta = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    await asegurarTablaPrealertas(pool);
+
+    const existente = await pool.request()
+      .input("id", sql.Int, req.params.id)
+      .query("SELECT TOP 1 cliente_id FROM prealertas WHERE id = @id");
+
+    if (!existente.recordset.length) {
+      return res.status(404).json({ ok: false, mensaje: "Prealerta no encontrada" });
+    }
+
+    if (!puedeModificarPrealerta(req, existente.recordset[0].cliente_id)) {
+      return res.status(403).json({ ok: false, mensaje: "No tienes permisos para eliminar esta prealerta" });
+    }
+
+    await pool.request()
+      .input("id", sql.Int, req.params.id)
+      .query("DELETE FROM prealertas WHERE id = @id");
+
+    return res.json({ ok: true, mensaje: "Prealerta eliminada correctamente" });
+  } catch (error) {
+    console.error("Error eliminando prealerta:", error);
+    return res.status(500).json({ ok: false, mensaje: "Error eliminando prealerta" });
   }
 };
