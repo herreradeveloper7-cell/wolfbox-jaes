@@ -326,13 +326,13 @@ export const loginCliente = async (req, res) => {
     const cliente = result.recordset[0];
 
     if (!cliente) {
-      return res.status(401).json({ ok: false, message: "Correo no registrado" });
+      return res.status(401).json({ ok: false, message: "Correo o contraseña incorrectos" });
     }
 
     const passwordMatch = await bcrypt.compare(contrasena, cliente.contrasena);
 
     if (!passwordMatch) {
-      return res.status(401).json({ ok: false, message: "Contraseña incorrecta" });
+      return res.status(401).json({ ok: false, message: "Correo o contraseña incorrectos" });
     }
 
     const token = firmarToken({

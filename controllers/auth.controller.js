@@ -193,7 +193,7 @@ export const loginGeneral = async (req, res) => {
       marca("bcrypt usuario");
       
       if (!passwordMatch) {
-        return res.status(401).json({ ok: false, message: "Contraseña incorrecta" });
+        return res.status(401).json({ ok: false, message: "Correo o contraseña incorrectos" });
       }
 
       if (usuario.estado !== "activo") {
@@ -230,7 +230,7 @@ export const loginGeneral = async (req, res) => {
       marca("bcrypt cliente");
 
       if (!passwordMatch) {
-        return res.status(401).json({ ok: false, message: "Contraseña incorrecta" });
+        return res.status(401).json({ ok: false, message: "Correo o contraseña incorrectos" });
       }
 
       const usuarioResponse = buildClienteLoginResponse(cliente);
@@ -244,9 +244,9 @@ export const loginGeneral = async (req, res) => {
       });
     }
 
-    return res.status(404).json({
+    return res.status(401).json({
       ok: false,
-      message: "Correo no encontrado"
+      message: "Correo o contraseña incorrectos"
     });
 
   } catch (error) {

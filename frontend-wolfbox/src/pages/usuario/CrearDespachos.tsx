@@ -3,7 +3,7 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import jsPDF from "jspdf";
 import { autoTable } from "jspdf-autotable";
-import * as XLSX from "xlsx";
+import { exportarExcel, filasDesdeObjetos } from "../../utils/exportarExcel";
 import UserDashboardLayout from "../../layouts/UserDashboardLayout";
 import iconHome from "../../assets/home-svgrepo-com.svg";
 import { useNavigate } from "react-router-dom";
@@ -380,30 +380,16 @@ export default function CrearDespachos() {
           "Agregado por": paquete.agregado_por || "-",
         };
       });
-      const workbook = XLSX.utils.book_new();
-      const resumenSheet = XLSX.utils.aoa_to_sheet(resumenRows);
-      const hawbSheet = XLSX.utils.json_to_sheet(hawbRows);
-
-      resumenSheet["!cols"] = [{ wch: 22 }, { wch: 48 }];
-      hawbSheet["!cols"] = [
-        { wch: 18 },
-        { wch: 28 },
-        { wch: 32 },
-        { wch: 16 },
-        { wch: 45 },
-        { wch: 24 },
-        { wch: 12 },
-        { wch: 12 },
-        { wch: 28 },
-        { wch: 20 },
-        { wch: 24 },
-      ];
-
-      XLSX.utils.book_append_sheet(workbook, resumenSheet, "Resumen");
-      XLSX.utils.book_append_sheet(workbook, hawbSheet, "HAWB");
-      XLSX.writeFile(
-        workbook,
-        `Despacho_${limpiarNombreArchivo(detalle.despacho.codigo)}.xlsx`
+      await exportarExcel(
+        `Despacho_${limpiarNombreArchivo(detalle.despacho.codigo)}.xlsx`,
+        [
+          { nombre: "Resumen", filas: resumenRows, anchos: [22, 48] },
+          {
+            nombre: "HAWB",
+            filas: filasDesdeObjetos(hawbRows),
+            anchos: [18, 28, 32, 16, 45, 24, 12, 12, 28, 20, 24],
+          },
+        ]
       );
     } catch (error: any) {
       console.error("Error generando Excel de despacho:", error);

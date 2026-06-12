@@ -559,26 +559,113 @@ export const crearSolicitud = async (req, res) => {
     transactionStarted = true;
     const request = () => new sql.Request(transaction);
 
-    const paqueteIds = paquetes.map(p => p.id);
+    const paqueteIds = [...new Set(paquetes.map((p) => Number(p.id)))];
+
+    if (paqueteIds.length !== paquetes.length) {
+      const error = new Error("La selección contiene paquetes repetidos.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const clienteResult = await request()
+      .input("cliente_id", sql.Int, cliente_id)
+      .input("destinatario_id", sql.Int, destinatario)
+      .query(`
+        SELECT TOP 1 id, codigo_referencia
+        FROM clientes
+        WHERE id = @cliente_id;
+
+        SELECT TOP 1 id
+        FROM destinatarios
+        WHERE id = @destinatario_id
+          AND cliente_id = @cliente_id
+          AND activo = 1;
+      `);
+
+    const cliente = clienteResult.recordsets[0]?.[0];
+    const destinatarioValido = clienteResult.recordsets[1]?.[0];
+
+    if (!cliente) {
+      const error = new Error("El cliente seleccionado no existe.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (!destinatarioValido) {
+      const error = new Error("El destinatario no pertenece al cliente seleccionado o está inactivo.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const paquetesRequest = request();
+    const placeholders = paqueteIds.map((id, index) => {
+      const nombre = `paquete_${index}`;
+      paquetesRequest.input(nombre, sql.Int, id);
+      return `@${nombre}`;
+    });
+
+    const resultServicios = await paquetesRequest.query(`
+      SELECT
+        p.id,
+        p.cliente_id,
+        p.codigo_referencia,
+        p.servicio_id,
+        p.peso,
+        p.asegurado,
+        p.solicitud_id,
+        p.agrupado_bit,
+        p.hawb_padre,
+        e.nombre AS estado
+      FROM paquetes p
+      LEFT JOIN estados_catalogo e ON e.id = p.estado_id
+      WHERE p.id IN (${placeholders.join(",")})
+    `);
+
+    if (resultServicios.recordset.length !== paqueteIds.length) {
+      const error = new Error("Uno o más paquetes seleccionados no existen.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const paqueteInvalido = resultServicios.recordset.find((paquete) => {
+      const perteneceCliente =
+        Number(paquete.cliente_id) === Number(cliente_id) ||
+        String(paquete.codigo_referencia || "") === String(cliente.codigo_referencia || "");
+      const disponible =
+        !paquete.solicitud_id &&
+        !paquete.agrupado_bit &&
+        !paquete.hawb_padre &&
+        String(paquete.estado || "").trim().toLowerCase() !== "anulado";
+
+      return !perteneceCliente || !disponible;
+    });
+
+    if (paqueteInvalido) {
+      const error = new Error("Uno o más paquetes no pertenecen al cliente o ya no están disponibles.");
+      error.statusCode = 409;
+      throw error;
+    }
 
     for (const p of paquetes) {
       if (p.asegurado !== undefined && p.asegurado !== null) {
         await request()
           .input("id", sql.Int, p.id)
           .input("asegurado", sql.Decimal(10, 2), p.asegurado)
+          .input("cliente_id", sql.Int, cliente_id)
+          .input("codigo_referencia", sql.NVarChar(50), cliente.codigo_referencia)
           .query(`
             UPDATE paquetes
             SET asegurado = @asegurado
             WHERE id = @id
+              AND (cliente_id = @cliente_id OR codigo_referencia = @codigo_referencia)
           `);
+
+        const paqueteActualizado = resultServicios.recordset.find(
+          (paquete) => Number(paquete.id) === Number(p.id)
+        );
+        if (paqueteActualizado) paqueteActualizado.asegurado = p.asegurado;
       }
     }
-
-    const resultServicios = await request().query(`
-      SELECT servicio_id, peso, asegurado
-      FROM paquetes
-      WHERE id IN (${paqueteIds.join(",")})
-    `);
 
     const serviciosEncontrados = [
       ...new Set(resultServicios.recordset.map(r => r.servicio_id))
@@ -719,14 +806,21 @@ export const crearSolicitud = async (req, res) => {
 
 
     for (const p of paquetes) {
-      await request()
+      const asignacion = await request()
         .input("solicitud_id", sql.Int, solicitud_id)
         .input("paquete_id", sql.Int, p.id)
         .query(`
           UPDATE paquetes
           SET solicitud_id = @solicitud_id
           WHERE id = @paquete_id
+            AND solicitud_id IS NULL
         `);
+
+      if (Number(asignacion.rowsAffected?.[0] || 0) !== 1) {
+        const error = new Error("Uno de los paquetes dejó de estar disponible. Actualiza la lista e intenta nuevamente.");
+        error.statusCode = 409;
+        throw error;
+      }
     }
 
     await transaction.commit();
@@ -750,9 +844,9 @@ export const crearSolicitud = async (req, res) => {
     }
 
     console.error("❌ Error en crearSolicitud:", error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       ok: false,
-      mensaje: "Error interno al crear la solicitud"
+      mensaje: error.statusCode ? error.message : "Error interno al crear la solicitud"
     });
   }
 };
@@ -2018,7 +2112,9 @@ export const obtenerDestinatariosPorCliente = async (req, res) => {
   try {
     const pool = await poolPromise;
 
-    const result = await pool.request().query(`
+    const result = await pool.request()
+      .input("codigoCasillero", sql.NVarChar(50), codigoCasillero)
+      .query(`
       SELECT 
         d.id,
         d.nombre,
@@ -2029,7 +2125,7 @@ export const obtenerDestinatariosPorCliente = async (req, res) => {
         d.es_default
       FROM destinatarios d
       INNER JOIN clientes c ON d.cliente_id = c.id
-      WHERE c.codigo_referencia = '${codigoCasillero}'
+      WHERE c.codigo_referencia = @codigoCasillero
       ORDER BY d.nombre
     `);
 
@@ -2275,8 +2371,13 @@ export const agruparSolicitud = async (req, res) => {
     const request = () => new sql.Request(transaction);
 
     // 🔹 Obtener paquetes hijos
-    const paquetes = await request()
-      .input("solicitud_id", sql.Int, id)
+    const paquetesRequest = request().input("solicitud_id", sql.Int, id);
+    const hawbPlaceholders = hawbs.map((hawb, index) => {
+      const nombre = `hawb_${index}`;
+      paquetesRequest.input(nombre, sql.NVarChar(50), hawb);
+      return `@${nombre}`;
+    });
+    const paquetes = await paquetesRequest
       .query(`
         SELECT 
           id,
@@ -2292,10 +2393,10 @@ export const agruparSolicitud = async (req, res) => {
         FROM paquetes
         WHERE solicitud_id = @solicitud_id
           AND ISNULL(agrupado_bit,0) = 0
-          AND hawb IN (${hawbs.map(h => `'${h}'`).join(",")})
+          AND hawb IN (${hawbPlaceholders.join(",")})
       `);
 
-    if (!paquetes.recordset.length) {
+    if (paquetes.recordset.length !== new Set(hawbs).size) {
       await transaction.rollback();
       transactionStarted = false;
       return res.status(400).json({
@@ -2363,13 +2464,18 @@ export const agruparSolicitud = async (req, res) => {
       `);
 
     // 🔹 Marcar hijos
-    await request()
-      .input("padre", sql.NVarChar(50), hawbPadre)
+    const actualizarHijosRequest = request().input("padre", sql.NVarChar(50), hawbPadre);
+    const hawbUpdatePlaceholders = hawbs.map((hawb, index) => {
+      const nombre = `hawb_update_${index}`;
+      actualizarHijosRequest.input(nombre, sql.NVarChar(50), hawb);
+      return `@${nombre}`;
+    });
+    await actualizarHijosRequest
       .query(`
         UPDATE paquetes
         SET agrupado_bit = 1,
             hawb_padre = @padre
-        WHERE hawb IN (${hawbs.map(h => `'${h}'`).join(",")})
+        WHERE hawb IN (${hawbUpdatePlaceholders.join(",")})
       `);
 
     // 🔹 Obtener estado Agrupado

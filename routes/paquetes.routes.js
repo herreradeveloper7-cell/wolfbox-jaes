@@ -34,6 +34,13 @@ const soloAdmin = autorizarRoles("admin");
 const reportes = autorizarPermisos("Reportes");
 const autenticados = autorizarRoles("admin", "usuario", "cliente");
 
+router.get(
+  "/tracking/mio/:hawb",
+  autorizarRoles("cliente"),
+  validar({ params: textParam("hawb") }),
+  obtenerPaquetePorHAWB
+);
+
 router.post("/registrar", soloOperacion, validar({ body: paqueteSchemas.registrar }), registrarPaquete);
 
 router.get("/", soloOperacion, obtenerPaquetes);
@@ -57,6 +64,10 @@ router.get("/pdf/:hawb", soloOperacion, validar({ params: textParam("hawb") }), 
 router.get(
   "/por-cliente/:referencia",
   autenticados,
+  (req, res, next) => {
+    if (req.usuario?.tipo === "cliente") return next();
+    return autorizarPermisos("Casilleros")(req, res, next);
+  },
   validar({ params: textParam("referencia") }),
   autorizarClientePropio((req) => req.params.referencia, "codigoReferencia"),
   obtenerPaquetesPorCliente

@@ -87,11 +87,12 @@ export const autorizarSolicitud = async (req, res) => {
     `);
 
     const estadoId = estado.recordset[0].id;
+    request.input("estado_id", sql.Int, estadoId);
 
     // actualizar paquete
     await request.query(`
       UPDATE paquetes
-      SET estado_id = ${estadoId}
+      SET estado_id = @estado_id
       WHERE solicitud_id = @id
       AND hawb_padre IS NULL
     `);
@@ -108,7 +109,7 @@ export const autorizarSolicitud = async (req, res) => {
       )
       SELECT
         hawb,
-        ${estadoId},
+        @estado_id,
         GETDATE(),
         @responsable,
         'Pago autorizado'
@@ -176,11 +177,12 @@ export const quitarAutorizacionSolicitud = async (req, res) => {
     `);
 
     const estadoId = estado.recordset[0].id;
+    request.input("estado_id", sql.Int, estadoId);
 
     // actualizar paquete
     await request.query(`
       UPDATE paquetes
-      SET estado_id = ${estadoId}
+      SET estado_id = @estado_id
       WHERE solicitud_id = @id
       AND hawb_padre IS NULL
     `);

@@ -1,7 +1,8 @@
 import "./env.js";
 import express from 'express';
 import cors from 'cors';
-import bodyParser from 'body-parser';
+import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
 import fs from "fs";
 import path from "path";
 import authRoutes from './routes/auth.routes.js';
@@ -43,6 +44,8 @@ const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || "")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+app.disable("x-powered-by");
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -53,8 +56,7 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(bodyParser.json());
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 
 app.use((req, res, next) => {
   const startedAt = Date.now();
@@ -72,8 +74,6 @@ app.use((req, res, next) => {
 
   next();
 });
-
-app.use("/uploads", express.static("uploads"));
 
 app.get('/', (req, res) => {
   res.send('Servidor backend funcionando 🎉');
@@ -95,7 +95,18 @@ app.get("/health/db", async (req, res) => {
   }
 });
 
-app.use('/api/auth', authRoutes);
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    ok: false,
+    mensaje: "Demasiados intentos. Espera unos minutos antes de volver a intentar.",
+  },
+});
+
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/paquetes', paquetesRoutes);
 app.use('/api/clientes', clientesRoutes);
 app.use("/api/guias", guiasRoutes);
@@ -119,10 +130,6 @@ app.use("/api/catalogos/paises", paisesRoutes);
 app.use("/api/catalogos/regiones", regionesRoutes);
 app.use("/api/catalogos/ciudades", ciudadesRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-
-
-app.use("/uploads", express.static("uploads"));
-
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_URL = process.env.PUBLIC_URL || "https://api.wolfbox.app";

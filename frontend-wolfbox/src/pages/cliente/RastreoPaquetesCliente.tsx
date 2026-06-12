@@ -97,7 +97,10 @@ export default function RastreoPaquetesCliente() {
     setHawbActivo(null);
 
     try {
-      const response = await fetch(`/api/paquetes/tracking/hawb/${encodeURIComponent(valor)}`);
+      const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+      const response = await fetch(`/api/paquetes/tracking/mio/${encodeURIComponent(valor)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await response.json();
 
       if (!response.ok || !Array.isArray(data) || data.length === 0) {
