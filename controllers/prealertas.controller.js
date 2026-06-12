@@ -29,47 +29,104 @@ const puedeConsultarCliente = (req, clienteId) =>
 
 export const listarPrealertas = async (req, res) => {
   try {
-    const clienteId = req.usuario?.tipo === "cliente"
-      ? req.usuario.id
-      : req.query.cliente_id;
-
-    if (!clienteId) {
-      return res.status(400).json({
-        ok: false,
-        mensaje: "Cliente requerido para consultar prealertas",
-      });
-    }
-
-    if (!puedeConsultarCliente(req, clienteId)) {
-      return res.status(403).json({
-        ok: false,
-        mensaje: "No puedes consultar prealertas de otro cliente",
-      });
-    }
+    const esCliente = req.usuario?.tipo === "cliente";
+    const clienteId = esCliente ? req.usuario.id : req.query.cliente_id;
+    const pagina = Math.max(Number(req.query.pagina) || 1, 1);
+    const limite = Math.min(Math.max(Number(req.query.limite) || (esCliente ? 1000 : 10), 1), 100);
+    const offset = (pagina - 1) * limite;
 
     const pool = await poolPromise;
     await asegurarTablaPrealertas(pool);
 
-    const result = await pool.request()
-      .input("cliente_id", sql.Int, clienteId)
-      .query(`
+    const request = pool.request()
+      .input("offset", sql.Int, offset)
+      .input("limite", sql.Int, limite);
+    const filtros = [];
+
+    if (clienteId) {
+      filtros.push("p.cliente_id = @cliente_id");
+      request.input("cliente_id", sql.Int, clienteId);
+    }
+
+    if (!esCliente && req.query.tracking) {
+      filtros.push("p.tracking LIKE @tracking");
+      request.input("tracking", sql.NVarChar(120), `%${req.query.tracking}%`);
+    }
+
+    if (!esCliente && req.query.contenido) {
+      filtros.push("p.contenido LIKE @contenido");
+      request.input("contenido", sql.NVarChar(275), `%${req.query.contenido}%`);
+    }
+
+    if (!esCliente && req.query.cliente) {
+      filtros.push(`(
+        c.codigo_referencia LIKE @cliente
+        OR c.nombre_empresa LIKE @cliente
+        OR c.primer_nombre LIKE @cliente
+        OR c.segundo_nombre LIKE @cliente
+        OR c.primer_apellido LIKE @cliente
+        OR c.segundo_apellido LIKE @cliente
+      )`);
+      request.input("cliente", sql.NVarChar(170), `%${req.query.cliente}%`);
+    }
+
+    if (!esCliente && req.query.fecha_desde) {
+      filtros.push("CONVERT(date, p.fecha_creacion) >= @fecha_desde");
+      request.input("fecha_desde", sql.Date, req.query.fecha_desde);
+    }
+
+    if (!esCliente && req.query.fecha_hasta) {
+      filtros.push("CONVERT(date, p.fecha_creacion) <= @fecha_hasta");
+      request.input("fecha_hasta", sql.Date, req.query.fecha_hasta);
+    }
+
+    const where = filtros.length ? `WHERE ${filtros.join(" AND ")}` : "";
+    const result = await request.query(`
+        SELECT COUNT_BIG(1) AS total
+        FROM prealertas p
+        INNER JOIN clientes c ON c.id = p.cliente_id
+        ${where};
+
         SELECT
-          id,
-          cliente_id,
-          tracking,
-          peso_lbs,
-          contenido,
-          valor_declarado,
-          valor_asegurado,
-          observaciones,
-          estado,
-          fecha_creacion
-        FROM prealertas
-        WHERE cliente_id = @cliente_id
-        ORDER BY fecha_creacion DESC
+          p.id,
+          p.cliente_id,
+          p.tracking,
+          p.peso_lbs,
+          p.contenido,
+          p.valor_declarado,
+          p.valor_asegurado,
+          p.observaciones,
+          p.estado,
+          p.fecha_creacion,
+          c.codigo_referencia,
+          ISNULL(
+            NULLIF(LTRIM(RTRIM(CONCAT(
+              ISNULL(c.primer_nombre, ''), ' ',
+              ISNULL(c.segundo_nombre, ''), ' ',
+              ISNULL(c.primer_apellido, ''), ' ',
+              ISNULL(c.segundo_apellido, '')
+            ))), ''),
+            c.nombre_empresa
+          ) AS cliente_nombre
+        FROM prealertas p
+        INNER JOIN clientes c ON c.id = p.cliente_id
+        ${where}
+        ORDER BY p.fecha_creacion DESC, p.id DESC
+        OFFSET @offset ROWS FETCH NEXT @limite ROWS ONLY
       `);
 
-    return res.json({ ok: true, prealertas: result.recordset });
+    const total = Number(result.recordsets[0]?.[0]?.total || 0);
+
+    return res.json({
+      ok: true,
+      prealertas: result.recordsets[1] || [],
+      paginacion: {
+        pagina,
+        limite,
+        total,
+        total_paginas: Math.max(Math.ceil(total / limite), 1),
+      },
+    });
   } catch (error) {
     console.error("Error listando prealertas:", error);
     return res.status(500).json({ ok: false, mensaje: "Error listando prealertas" });
@@ -127,7 +184,7 @@ export const crearPrealerta = async (req, res) => {
           observaciones
         )
         OUTPUT INSERTED.*
-        VALUES (
+        SELECT
           @cliente_id,
           @tracking,
           @peso_lbs,
@@ -135,8 +192,16 @@ export const crearPrealerta = async (req, res) => {
           @valor_declarado,
           @valor_asegurado,
           @observaciones
-        )
+        FROM clientes
+        WHERE id = @cliente_id
       `);
+
+    if (!result.recordset.length) {
+      return res.status(404).json({
+        ok: false,
+        mensaje: "El cliente seleccionado no existe",
+      });
+    }
 
     return res.status(201).json({
       ok: true,

@@ -21,6 +21,7 @@ import SolicitarDespacho from "./pages/SolicitarDespachos";
 import DestinatariosCasilleros from './pages/DestinatariosCasilleros'; 
 import RastreoPaquetesCliente from './pages/cliente/RastreoPaquetesCliente';
 import PrealertasCliente from './pages/cliente/PrealertasCliente';
+import Prealertas from './pages/usuario/Prealertas';
 import ConfigTRM from './pages/usuario/ConfigTRM';
 import ConciliacionPago from './pages/usuario/ConciliacionPagos';
 import ConfigTarifas from './pages/usuario/ConfigTarifas';
@@ -183,6 +184,7 @@ function App() {
         <Route path="/destinatarios-casilleros" element={casilleroCompartido(<DestinatariosCasilleros />)} />
         <Route path="/rastreo-paquetes" element={clienteProtegido(<RastreoPaquetesCliente />)} />
         <Route path="/prealertas" element={clienteProtegido(<PrealertasCliente />)} />
+        <Route path="/gestion-prealertas" element={interna(<Prealertas />, "Casilleros")} />
         <Route path="/config-trm" element={interna(<ConfigTRM />, "Configuracion")} />
         <Route path="/conciliacion-pagos" element={interna(<ConciliacionPago />, "Casilleros")} />
         <Route path="/config-tarifas" element={interna(<ConfigTarifas />, "Configuracion")} />
