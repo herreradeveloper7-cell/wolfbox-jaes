@@ -105,10 +105,10 @@ export default function EditarPerfilCliente() {
 
   return (
     <ClientDashboardLayout scrollable>
-      <div className="min-w-0 max-w-full overflow-x-hidden px-4 pb-10 text-gray-800 sm:px-6 lg:px-10">
-        <h1 className="mb-2 text-3xl font-bold text-red-900">Mi Perfil</h1>
+      <div className="min-w-0 max-w-full overflow-x-hidden px-0 pb-10 text-gray-800 sm:px-2 lg:px-4">
+        <h1 className="mb-2 text-2xl font-bold text-red-900 sm:text-3xl">Mi Perfil</h1>
 
-        <p className="mb-6 flex items-center gap-1 text-sm text-gray-500">
+        <p className="mb-6 flex flex-wrap items-center gap-1 text-xs text-gray-500 sm:text-sm">
           <img src={iconHome} alt="Inicio" className="h-4 w-4" />
           <button
             onClick={() => navigate("/dashboardCliente")}
@@ -127,9 +127,9 @@ export default function EditarPerfilCliente() {
           <>
             <section className="relative overflow-hidden rounded-2xl border border-gray-200/80 bg-white/95 shadow-[0_22px_55px_rgba(17,24,39,0.10)]">
               <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-red-950 via-red-700 to-gray-300" />
-              <div className="relative grid gap-6 p-6 lg:grid-cols-[1fr_auto] lg:items-center">
-                <div className="flex min-w-0 items-center gap-4">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-red-900/10 bg-red-50 text-red-950">
+              <div className="relative grid gap-5 p-4 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
+                <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-red-900/10 bg-red-50 text-red-950 sm:h-16 sm:w-16">
                     {perfil.tipo_cliente === "empresarial" ? (
                       <Building2 className="h-8 w-8" />
                     ) : (
@@ -140,7 +140,7 @@ export default function EditarPerfilCliente() {
                     <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-950">
                       Perfil del cliente
                     </p>
-                    <h2 className="mt-1 truncate text-2xl font-black text-gray-800" title={perfil.nombre}>
+                    <h2 className="mt-1 break-words text-xl font-black text-gray-800 sm:text-2xl" title={perfil.nombre}>
                       {perfil.nombre || "Cliente"}
                     </h2>
                     <p className="mt-1 font-mono text-sm font-black text-red-950">
@@ -166,14 +166,14 @@ export default function EditarPerfilCliente() {
             </section>
 
             <section className="mt-6 overflow-hidden rounded-2xl border border-gray-200/80 bg-white/95 shadow-[0_22px_55px_rgba(17,24,39,0.10)]">
-              <div className="border-b border-gray-200 bg-gradient-to-r from-white via-red-50/30 to-white px-6 py-5">
+              <div className="border-b border-gray-200 bg-gradient-to-r from-white via-red-50/30 to-white px-4 py-5 sm:px-6">
                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-950">
                   Informacion registrada
                 </p>
                 <h2 className="mt-1 text-xl font-semibold text-gray-800">Datos de contacto</h2>
               </div>
 
-              <div className="grid gap-x-8 gap-y-2 p-6 md:grid-cols-2">
+              <div className="grid gap-x-8 gap-y-2 p-4 sm:p-6 md:grid-cols-2">
                 <Dato icono={AtSign} label="Correo electronico" valor={perfil.email} />
                 <Dato icono={Phone} label="Celular" valor={[perfil.indicativo, perfil.celular].filter(Boolean).join(" ")} />
                 <Dato icono={MapPin} label="Direccion" valor={perfil.direccion} />
@@ -275,9 +275,9 @@ function ModalEditarPerfil({ perfil, onClose, onUpdated }: { perfil: PerfilClien
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
-      <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/70 bg-white shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-5">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+      <div className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-t-2xl border border-white/70 bg-white shadow-2xl sm:rounded-2xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-gray-200 bg-white px-4 py-4 sm:px-6 sm:py-5">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-950">Gestion de perfil</p>
             <h2 className="mt-1 text-xl font-black text-gray-800">Editar mis datos</h2>
@@ -287,7 +287,7 @@ function ModalEditarPerfil({ perfil, onClose, onUpdated }: { perfil: PerfilClien
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="grid gap-4 p-6 md:grid-cols-2">
+        <form onSubmit={handleSubmit} className="grid gap-4 p-4 sm:p-6 md:grid-cols-2">
           {empresarial ? (
             <Campo label="Razon social" name="nombre_empresa" value={form.nombre_empresa || ""} onChange={handleChange} required className="md:col-span-2" />
           ) : (
@@ -315,7 +315,7 @@ function ModalEditarPerfil({ perfil, onClose, onUpdated }: { perfil: PerfilClien
             </select>
           </label>
 
-          <div className="flex items-end justify-end gap-3 md:col-span-2">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-end sm:justify-end md:col-span-2">
             <button type="button" onClick={onClose} className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-black text-gray-600 transition hover:bg-gray-50">Cancelar</button>
             <button type="submit" disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-950 to-red-900 px-6 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60">
               <Save className="h-4 w-4" />

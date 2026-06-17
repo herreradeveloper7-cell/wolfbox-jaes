@@ -48,7 +48,6 @@
 
   const tiposComprobantePermitidos = new Set([
     "image/jpeg",
-    "image/png",
     "application/pdf",
   ]);
 
@@ -60,7 +59,7 @@
         return cb(null, true);
       }
 
-      return cb(new Error("Solo se permiten archivos JPG, PNG o PDF."));
+      return cb(new Error("Solo se permiten archivos PDF, JPG o JPEG."));
     },
   });
   const soloAdmin = autorizarRoles("admin");

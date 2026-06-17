@@ -164,12 +164,12 @@ export default function DestinatariosCasilleros() {
 
   return (
     <Layout scrollable>
-      <div className="min-w-0 max-w-full overflow-x-hidden px-4 pb-10 text-gray-800 sm:px-6 lg:px-10">
-        <h1 className="text-3xl font-bold mb-2 text-red-900">
+      <div className="min-w-0 max-w-full overflow-x-hidden px-0 pb-10 text-gray-800 sm:px-2 lg:px-4">
+        <h1 className="mb-2 text-2xl font-bold text-red-900 sm:text-3xl">
           Destinatarios Casilleros
         </h1>
 
-        <p className="text-sm text-gray-500 mb-6 flex items-center gap-1">
+        <p className="mb-6 flex flex-wrap items-center gap-1 text-xs text-gray-500 sm:text-sm">
           <img src={iconHome} alt="Inicio" className="w-4 h-4" />
           <button
             onClick={() => navigate(dashboardPath)}
@@ -224,15 +224,15 @@ export default function DestinatariosCasilleros() {
         {clienteSeleccionado && (
           <section className="relative overflow-hidden rounded-2xl border border-gray-200/80 bg-white/95 shadow-[0_22px_55px_rgba(17,24,39,0.10)]">
             <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-red-950 via-red-700 to-gray-300" />
-            <div className="relative p-6">
+            <div className="relative p-4 sm:p-6">
               <div className="mb-6 flex flex-col gap-4 border-b border-gray-200/70 pb-5 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-950">
                     {clientePortal ? "Mis destinatarios" : "Destinatarios registrados"}
                   </p>
-                  <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-900">
+                  <h2 className="mt-1 text-lg font-semibold tracking-tight text-gray-900 sm:text-xl">
                     Destinatarios de{" "}
-                    <span className="text-red-950">{clienteSeleccionado.nombre}</span>
+                    <span className="break-words text-red-950">{clienteSeleccionado.nombre}</span>
                   </h2>
                   <p className="mt-1 text-xs font-semibold text-gray-500">
                     Administra direcciones y datos de contacto para tus solicitudes de despacho.

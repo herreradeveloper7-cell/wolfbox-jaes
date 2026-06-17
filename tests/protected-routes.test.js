@@ -90,3 +90,14 @@ test("las consultas internas de guias requieren autenticacion", () => {
   assert.match(source, /router\.post\("\/buscar", buscarGuias\)/);
   assert.match(source, /router\.get\("\/consultar-tracking", consultarTrackingFiltrado\)/);
 });
+
+test("comprobantes de solicitudes restringen formato y notifican al equipo", () => {
+  const rutasSolicitudes = readRoute("../routes/solicitudes.routes.js");
+  const controllerSolicitudes = readRoute("../controllers/solicitudes.controller.js");
+
+  assert.match(rutasSolicitudes, /const tiposComprobantePermitidos = new Set\(\[[\s\S]*"image\/jpeg"[\s\S]*"application\/pdf"/);
+  assert.doesNotMatch(rutasSolicitudes, /"image\/png"/);
+  assert.match(rutasSolicitudes, /Solo se permiten archivos PDF, JPG o JPEG/);
+  assert.match(controllerSolicitudes, /crearNotificacionUsuarios\(\{[\s\S]*Comprobante cargado/);
+  assert.match(controllerSolicitudes, /url: `\/conciliacion-pagos\?solicitud=\$\{solicitudId\}`/);
+});

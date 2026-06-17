@@ -122,15 +122,15 @@ export default function DashboardClients() {
 
   return (
     <ClientDashboardLayout scrollable>
-      <div className="mx-auto w-full max-w-7xl px-2 pb-10 text-gray-800">
-        <section className="relative overflow-hidden rounded-[1.35rem] border border-white/70 bg-gradient-to-br from-red-950 via-red-900 to-slate-950 p-6 text-white shadow-xl shadow-slate-400/20 sm:p-8">
+      <div className="mx-auto w-full max-w-7xl pb-10 text-gray-800">
+        <section className="relative overflow-hidden rounded-2xl border border-white/70 bg-gradient-to-br from-red-950 via-red-900 to-slate-950 p-4 text-white shadow-xl shadow-slate-400/20 sm:p-8">
           <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/25 to-transparent" />
           <div className="relative grid gap-6 lg:grid-cols-[1fr_380px] lg:items-end">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/60">
                 Portal cliente
               </p>
-              <h1 className="mt-3 max-w-3xl text-3xl font-black tracking-tight sm:text-4xl">
+              <h1 className="mt-3 max-w-3xl break-words text-2xl font-black tracking-tight sm:text-4xl">
                 Hola, {cliente.nombre}
               </h1>
               <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/75">
@@ -138,11 +138,11 @@ export default function DashboardClients() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur">
+            <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur sm:p-5">
               <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/60">
                 Codigo de casillero
               </p>
-              <p className="mt-2 break-all font-mono text-2xl font-black text-white">
+              <p className="mt-2 break-all font-mono text-xl font-black text-white sm:text-2xl">
                 {codigoCasillero}
               </p>
               <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-2 text-xs font-black text-emerald-100">
@@ -154,7 +154,7 @@ export default function DashboardClients() {
         </section>
 
         <section className="mt-6 grid gap-5 lg:grid-cols-[1fr_390px]">
-          <div className="rounded-[1.35rem] border border-white/70 bg-white/95 p-6 shadow-xl shadow-slate-400/20">
+          <div className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-xl shadow-slate-400/20 sm:p-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-950">
@@ -182,7 +182,7 @@ export default function DashboardClients() {
                     <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl border border-red-900/10 bg-red-50 text-red-950 shadow-sm">
                       <Icon className="h-5 w-5" />
                     </div>
-                    <div className="rounded-2xl border border-gray-100 bg-slate-50/80 px-4 py-3">
+                    <div className="rounded-2xl border border-gray-100 bg-slate-50/80 px-3 py-3 sm:px-4">
                       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                         <h3 className="text-sm font-black text-gray-800">{paso.titulo}</h3>
                         <span className="text-[10px] font-black uppercase tracking-[0.16em] text-gray-400">
@@ -199,7 +199,7 @@ export default function DashboardClients() {
             </div>
           </div>
 
-          <aside className="rounded-[1.35rem] border border-white/70 bg-white/95 p-6 shadow-xl shadow-slate-400/20">
+          <aside className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-xl shadow-slate-400/20 sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-950">

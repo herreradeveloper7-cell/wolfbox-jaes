@@ -10,6 +10,7 @@ import {
   enviarEmailDesdePlantilla,
   obtenerPlantillaEmailPorEvento,
 } from "../utils/email.service.js";
+import { crearNotificacionUsuarios } from "../utils/notificaciones.service.js";
 import {
   azureStorageDisponible,
   crearUrlTemporalLectura,
@@ -2171,7 +2172,26 @@ export const subirComprobantePago = async (req, res) => {
 
     const solicitud = await pool.request()
       .input("id", sql.Int, solicitudId)
-      .query(`SELECT comprobante_pago_url, comprobante FROM solicitudes WHERE id = @id`);
+      .query(`
+        SELECT
+          s.comprobante_pago_url,
+          s.comprobante,
+          c.codigo_referencia,
+          CASE
+            WHEN LOWER(ISNULL(c.tipo_cliente, '')) = 'empresarial' THEN
+              COALESCE(NULLIF(c.nombre_empresa, ''), CONCAT(c.primer_nombre, ' ', c.primer_apellido))
+            ELSE
+              RTRIM(
+                ISNULL(c.primer_nombre, '') + ' ' +
+                ISNULL(c.segundo_nombre + ' ', '') +
+                ISNULL(c.primer_apellido, '') + ' ' +
+                ISNULL(c.segundo_apellido, '')
+              )
+          END AS nombre_cliente
+        FROM solicitudes s
+        LEFT JOIN clientes c ON c.id = s.cliente_id
+        WHERE s.id = @id
+      `);
 
     if (solicitud.recordset.length === 0) {
       if (req.file.filename) {
@@ -2222,6 +2242,22 @@ export const subirComprobantePago = async (req, res) => {
             comprobante = @url
         WHERE id = @id
       `);
+
+    const datosSolicitud = solicitud.recordset[0];
+    const cliente =
+      datosSolicitud?.nombre_cliente || datosSolicitud?.codigo_referencia || "cliente";
+    const accion = comprobanteActual ? "reemplazo" : "cargo";
+
+    crearNotificacionUsuarios({
+      tipo: "success",
+      titulo: comprobanteActual ? "Comprobante reemplazado" : "Comprobante cargado",
+      mensaje: `Se ${accion} el comprobante de pago de la solicitud #${solicitudId} para ${cliente}.`,
+      entidadTipo: "solicitud",
+      entidadId: Number(solicitudId),
+      url: `/conciliacion-pagos?solicitud=${solicitudId}`,
+    }).catch((error) => {
+      console.error("Error creando notificacion de comprobante:", error);
+    });
 
     return res.json({
       ok: true,
