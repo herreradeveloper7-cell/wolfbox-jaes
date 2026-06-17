@@ -120,16 +120,16 @@ export default function RastreoPaquetesCliente() {
 
   return (
     <ClientDashboardLayout scrollable>
-      <div className="min-h-full bg-slate-200 px-5 py-8 text-slate-900 lg:px-10">
+      <div className="min-h-full bg-slate-200 px-0 py-2 text-slate-900 sm:px-2 sm:py-4 lg:px-4">
         <section className="mx-auto w-full max-w-7xl">
           <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
-            <section className="relative overflow-hidden rounded-[1.35rem] border border-white/70 bg-gradient-to-br from-red-950 to-slate-950 p-6 text-white shadow-xl shadow-slate-400/20">
+            <section className="relative overflow-hidden rounded-2xl border border-white/70 bg-gradient-to-br from-red-950 to-slate-950 p-4 text-white shadow-xl shadow-slate-400/20 sm:p-6">
               <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-white/5" />
               <div className="relative">
                 <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/55">
                   Rastreo de paquetes
                 </p>
-                <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
+                <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-4xl">
                   Seguimiento en tiempo real
                 </h1>
                 <p className="mt-3 max-w-xl text-sm font-semibold leading-6 text-white/75">
@@ -169,7 +169,7 @@ export default function RastreoPaquetesCliente() {
               </div>
             </section>
 
-            <section className="rounded-[1.35rem] border border-white/70 bg-white/95 p-6 shadow-xl shadow-slate-400/20">
+            <section className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-xl shadow-slate-400/20 sm:p-6">
               {!guia ? (
                 <div className="flex min-h-[280px] flex-col items-center justify-center text-center">
                   <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-red-50 text-red-950">
@@ -226,7 +226,7 @@ export default function RastreoPaquetesCliente() {
 
           {guia && (
             <div className="mt-6 grid gap-5 lg:grid-cols-[360px_1fr]">
-              <aside className="rounded-[1.35rem] border border-white/70 bg-white/95 p-5 shadow-xl shadow-slate-400/20">
+              <aside className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-xl shadow-slate-400/20 sm:p-5">
                 <div className="mb-4 flex items-center gap-3">
                   <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-50 text-red-950">
                     <Boxes className="h-5 w-5" />
@@ -257,7 +257,7 @@ export default function RastreoPaquetesCliente() {
                 </div>
               </aside>
 
-              <section className="rounded-[1.35rem] border border-white/70 bg-white/95 p-6 shadow-xl shadow-slate-400/20">
+              <section className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-xl shadow-slate-400/20 sm:p-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.28em] text-red-900">
@@ -280,7 +280,7 @@ export default function RastreoPaquetesCliente() {
                   )}
 
                   {estados.map((estado, index) => (
-                    <article key={estado.id} className="relative flex gap-4">
+                    <article key={estado.id} className="relative flex gap-3 sm:gap-4">
                       <div className="flex flex-col items-center">
                         <div className={`flex h-10 w-10 items-center justify-center rounded-2xl text-white ${
                           index === 0 ? "bg-red-950" : "bg-slate-800"

@@ -1,10 +1,11 @@
 import { Solicitud } from "../../types/solicitudes";
+import type { ChangeEvent } from "react";
 import Swal from "sweetalert2";
 import iconTrash from "../../assets/trash-svgrepo-com.svg";
 import iconEdit from "../../assets/pencil-edit-button-svgrepo-com.svg";
 import iconOptions from "../../assets/detail-interface-list-svgrepo-com.svg";
 import iconPrinter from "../../assets/printer-free-6-svgrepo-com.svg";
-import { BadgeCheck, ReceiptText } from "lucide-react";
+import { BadgeCheck, ReceiptText, UploadCloud } from "lucide-react";
 
 interface Props {
   solicitudes: Solicitud[];
@@ -12,6 +13,7 @@ interface Props {
   onVerDetalle?: (solicitud: Solicitud) => void;
   onImprimir?: (solicitud: Solicitud) => void;
   onEditar?: (solicitud: Solicitud) => void;
+  onSubirComprobante?: (solicitud: Solicitud, archivo: File) => Promise<void> | void;
   modoCliente?: boolean;
 }
 
@@ -21,9 +23,12 @@ export default function SolicitudesRealizadasTabla({
   onVerDetalle,
   onImprimir,
   onEditar,
+  onSubirComprobante,
   modoCliente = false,
 }: Props) {
   const listaSegura = Array.isArray(solicitudes) ? solicitudes : [];
+  const mostrarCargaComprobante = modoCliente && Boolean(onSubirComprobante);
+  const totalColumnas = mostrarCargaComprobante ? 10 : 9;
 
   const solicitudesFiltradas = listaSegura.filter(
     (s) => (s.estado || "").trim().toLowerCase() !== "anulado"
@@ -45,6 +50,67 @@ export default function SolicitudesRealizadasTabla({
         onEliminar(solicitud);
       }
     });
+  };
+
+  const validarComprobante = (archivo: File) => {
+    const nombre = archivo.name.toLowerCase();
+    const extensionValida =
+      nombre.endsWith(".pdf") || nombre.endsWith(".jpg") || nombre.endsWith(".jpeg");
+    const tipoValido =
+      archivo.type === "application/pdf" || archivo.type === "image/jpeg";
+    const pesoMaximo = 8 * 1024 * 1024;
+
+    if (!extensionValida || !tipoValido) {
+      Swal.fire(
+        "Archivo no valido",
+        "Solo puedes cargar comprobantes en PDF, JPG o JPEG.",
+        "warning"
+      );
+      return false;
+    }
+
+    if (archivo.size > pesoMaximo) {
+      Swal.fire(
+        "Archivo demasiado pesado",
+        "El comprobante no puede superar 8 MB.",
+        "warning"
+      );
+      return false;
+    }
+
+    return true;
+  };
+
+  const seleccionarComprobante = async (
+    solicitud: Solicitud,
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const input = event.currentTarget;
+    const archivo = input.files?.[0];
+    input.value = "";
+
+    if (!archivo || !onSubirComprobante || !validarComprobante(archivo)) return;
+
+    const tieneComprobante = Boolean(
+      solicitud.comprobante_pago_url || solicitud.comprobante
+    );
+
+    if (tieneComprobante) {
+      const result = await Swal.fire({
+        title: "Reemplazar comprobante?",
+        text: "Esta solicitud ya tiene un comprobante cargado.",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonColor: "#7f1d1d",
+        cancelButtonColor: "#6b7280",
+        confirmButtonText: "Si, reemplazar",
+        cancelButtonText: "Cancelar",
+      });
+
+      if (!result.isConfirmed) return;
+    }
+
+    await onSubirComprobante(solicitud, archivo);
   };
 
   const actionButton =
@@ -103,6 +169,7 @@ export default function SolicitudesRealizadasTabla({
             <col className="w-[136px]" />
             <col className="w-[104px]" />
             <col className="w-[92px]" />
+            {mostrarCargaComprobante && <col className="w-[138px]" />}
             <col className="w-[112px]" />
             <col className="w-[160px]" />
             <col className="w-[160px]" />
@@ -115,6 +182,9 @@ export default function SolicitudesRealizadasTabla({
               <th className="px-3 py-3 text-center">Opciones</th>
               <th className="px-3 py-3 text-left">Solicitud</th>
               <th className="px-3 py-3 text-center">Control</th>
+              {mostrarCargaComprobante && (
+                <th className="px-3 py-3 text-center">Comprobante</th>
+              )}
               <th className="px-3 py-3 text-left">Fecha</th>
               <th className="px-3 py-3 text-left">Destinatario</th>
               <th className="px-3 py-3 text-left">Guia agrupada</th>
@@ -225,6 +295,28 @@ export default function SolicitudesRealizadasTabla({
                     </div>
                   </td>
 
+                  {mostrarCargaComprobante && (
+                    <td className="px-3 py-3 text-center align-middle">
+                      <label
+                        title={
+                          tieneComprobante
+                            ? "Reemplazar comprobante de pago"
+                            : "Subir comprobante de pago"
+                        }
+                        className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-red-900/10 bg-white px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-red-950 shadow-sm transition hover:-translate-y-0.5 hover:border-red-900/20 hover:bg-red-50 hover:shadow-md"
+                      >
+                        <UploadCloud size={15} strokeWidth={2.5} />
+                        <span>{tieneComprobante ? "Reemplazar" : "Subir"}</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
+                          className="sr-only"
+                          onChange={(event) => seleccionarComprobante(s, event)}
+                        />
+                      </label>
+                    </td>
+                  )}
+
                   <td className="whitespace-nowrap px-3 py-3 text-sm font-semibold text-gray-700">
                     {formatearFecha(s.fecha)}
                   </td>
@@ -265,7 +357,7 @@ export default function SolicitudesRealizadasTabla({
               })
             ) : (
               <tr>
-                <td colSpan={9} className="py-12 text-center text-gray-500">
+                <td colSpan={totalColumnas} className="py-12 text-center text-gray-500">
                   <div className="mx-auto flex max-w-sm flex-col items-center">
                     <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-xl font-black text-red-950">
                       !

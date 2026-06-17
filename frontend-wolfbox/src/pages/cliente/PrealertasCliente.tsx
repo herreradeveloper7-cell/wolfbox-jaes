@@ -188,14 +188,14 @@ export default function PrealertasCliente() {
 
   return (
     <ClientDashboardLayout scrollable>
-      <div className="mx-auto w-full max-w-7xl px-2 pb-10 text-gray-800">
-        <section className="relative overflow-hidden rounded-[1.35rem] border border-white/70 bg-gradient-to-br from-red-950 via-red-900 to-slate-950 p-6 text-white shadow-xl shadow-slate-400/20 sm:p-8">
+      <div className="mx-auto w-full max-w-7xl pb-10 text-gray-800">
+        <section className="relative overflow-hidden rounded-2xl border border-white/70 bg-gradient-to-br from-red-950 via-red-900 to-slate-950 p-4 text-white shadow-xl shadow-slate-400/20 sm:p-8">
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/60">
                 Casillero {codigoCasillero}
               </p>
-              <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+              <h1 className="mt-3 text-2xl font-black tracking-tight sm:text-4xl">
                 Prealertas
               </h1>
               <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/75">
@@ -205,7 +205,7 @@ export default function PrealertasCliente() {
 
             <button
               onClick={() => setMostrarFormulario((prev) => !prev)}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-black text-red-950 transition hover:bg-red-50"
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-black text-red-950 transition hover:bg-red-50 sm:w-auto"
             >
               {mostrarFormulario ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
               {mostrarFormulario ? "Cerrar formulario" : "Crear prealerta"}
@@ -214,7 +214,7 @@ export default function PrealertasCliente() {
         </section>
 
         {mostrarFormulario && (
-          <section className="mt-6 rounded-[1.35rem] border border-white/70 bg-white/95 p-6 shadow-xl shadow-slate-400/20">
+          <section className="mt-6 rounded-2xl border border-white/70 bg-white/95 p-4 shadow-xl shadow-slate-400/20 sm:p-6">
             <div className="mb-5 flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-50 text-red-950">
                 <PackagePlus className="h-5 w-5" />
@@ -248,11 +248,11 @@ export default function PrealertasCliente() {
                 />
               </label>
 
-              <div className="lg:col-span-2 flex justify-end">
+              <div className="flex lg:col-span-2 sm:justify-end">
                 <button
                   type="submit"
                   disabled={saving}
-                  className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-950 to-red-900 px-7 py-3 text-sm font-black text-white shadow-lg shadow-red-900/20 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
+                  className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-950 to-red-900 px-7 py-3 text-sm font-black text-white shadow-lg shadow-red-900/20 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none sm:w-auto"
                 >
                   <BellPlus className="h-4 w-4" />
                   {saving ? "Guardando..." : "Guardar prealerta"}
@@ -262,7 +262,7 @@ export default function PrealertasCliente() {
           </section>
         )}
 
-        <section className="mt-6 rounded-[1.35rem] border border-white/70 bg-white/95 p-6 shadow-xl shadow-slate-400/20">
+        <section className="mt-6 rounded-2xl border border-white/70 bg-white/95 p-4 shadow-xl shadow-slate-400/20 sm:p-6">
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-50 text-red-950">
@@ -281,7 +281,56 @@ export default function PrealertasCliente() {
             </span>
           </div>
 
-          <div className="w-full overflow-x-auto rounded-2xl border border-gray-200">
+          <div className="grid gap-3 md:hidden">
+            {loading ? (
+              <div className="rounded-2xl border border-gray-200 bg-white px-5 py-10 text-center text-sm font-semibold text-gray-500">
+                Cargando prealertas...
+              </div>
+            ) : prealertas.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-slate-50 px-5 py-10 text-center text-sm font-semibold text-gray-500">
+                No tienes prealertas registradas
+              </div>
+            ) : (
+              prealertas.map((prealerta) => (
+                <article key={prealerta.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-red-950">Tracking</p>
+                      <h3 className="mt-1 break-all font-mono text-base font-black text-gray-800">{prealerta.tracking}</h3>
+                    </div>
+                    <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black ${prealerta.estado === "Digitado" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+                      {prealerta.estado}
+                    </span>
+                  </div>
+
+                  <dl className="mt-4 grid gap-3">
+                    <InfoPrealerta label="Contenido" value={prealerta.contenido} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <InfoPrealerta label="Peso" value={`${Number(prealerta.peso_lbs || 0).toFixed(2)} lb`} />
+                      <InfoPrealerta label="Fecha" value={formatearFecha(prealerta.fecha_creacion)} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <InfoPrealerta label="Declarado" value={formatearUSD(prealerta.valor_declarado)} />
+                      <InfoPrealerta label="Asegurado" value={formatearUSD(prealerta.valor_asegurado)} />
+                    </div>
+                  </dl>
+
+                  <div className="mt-4 flex gap-2">
+                    <button type="button" onClick={() => setPrealertaEditar(prealerta)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-black text-red-950">
+                      <Pencil size={16} />
+                      Editar
+                    </button>
+                    <button type="button" onClick={() => eliminarPrealerta(prealerta)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-sm font-black text-red-800">
+                      <Trash2 size={16} />
+                      Eliminar
+                    </button>
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+
+          <div className="hidden w-full overflow-x-auto rounded-2xl border border-gray-200 md:block">
             <table className="w-full min-w-[980px] border-collapse">
               <thead className="bg-gradient-to-r from-gray-100 to-gray-50 text-[11px] font-black uppercase tracking-[0.14em] text-gray-600">
                 <tr>
@@ -338,6 +387,15 @@ export default function PrealertasCliente() {
         <ModalEditarPrealerta prealerta={prealertaEditar} guardando={saving} onClose={() => setPrealertaEditar(null)} onSave={editarPrealerta} />
       </div>
     </ClientDashboardLayout>
+  );
+}
+
+function InfoPrealerta({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-slate-50 px-3 py-2">
+      <dt className="text-[10px] font-black uppercase tracking-[0.16em] text-gray-400">{label}</dt>
+      <dd className="mt-1 break-words text-sm font-semibold text-gray-700">{value || "-"}</dd>
+    </div>
   );
 }
 

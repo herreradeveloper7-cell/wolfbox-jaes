@@ -158,6 +158,54 @@ export default function SolicitarDespachos() {
     }
   };
 
+  const handleSubirComprobante = async (solicitud: Solicitud, archivo: File) => {
+    try {
+      const formData = new FormData();
+      formData.append("comprobante", archivo);
+
+      const { data } = await axios.post(
+        `/api/solicitudes/comprobante/${solicitud.id}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      setSolicitudes((prev) =>
+        prev.map((item) =>
+          item.id === solicitud.id
+            ? {
+                ...item,
+                comprobante_pago_url: data?.url || item.comprobante_pago_url,
+                comprobante: data?.url || item.comprobante,
+              }
+            : item
+        )
+      );
+
+      if (clienteSeleccionado?.codigo_referencia) {
+        await obtenerSolicitudesCliente(clienteSeleccionado.codigo_referencia);
+      }
+
+      Swal.fire(
+        "Comprobante cargado",
+        "El equipo de JAES Cargo recibira la notificacion para validar el pago.",
+        "success"
+      );
+    } catch (error: any) {
+      console.error("Error subiendo comprobante:", error);
+      Swal.fire({
+        icon: "error",
+        title: "No se pudo cargar",
+        text:
+          error?.response?.data?.mensaje ||
+          "No fue posible subir el comprobante de pago.",
+      });
+    }
+  };
+
   useEffect(() => {
     if (clientePortal && !clienteSeleccionado) {
       seleccionarCliente(clientePortal);
@@ -349,12 +397,12 @@ export default function SolicitarDespachos() {
 
   return (
     <Layout scrollable>
-      <div className="min-w-0 max-w-full overflow-x-hidden text-gray-800 px-6 lg:px-10 pb-10 animate-fade-in">
-        <h1 className="text-3xl font-bold mb-2 text-red-900">
+      <div className="min-w-0 max-w-full overflow-x-hidden text-gray-800 px-0 pb-10 animate-fade-in sm:px-2 lg:px-4">
+        <h1 className="mb-2 text-2xl font-bold text-red-900 sm:text-3xl">
           Solicitar Despachos
         </h1>
 
-        <p className="text-sm text-gray-500 mb-6 flex items-center gap-1">
+        <p className="mb-6 flex flex-wrap items-center gap-1 text-xs text-gray-500 sm:text-sm">
           <img src={iconHome} alt="Inicio" className="w-4 h-4" />
           <button
             onClick={() => navigate(clientePortal ? "/dashboardCliente" : "/dashboardUsuario")}
@@ -427,12 +475,12 @@ export default function SolicitarDespachos() {
           <>
             <section className="relative mb-5 overflow-hidden rounded-2xl border border-gray-200/80 bg-white/95 shadow-[0_22px_55px_rgba(17,24,39,0.10)]">
               <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-red-950 via-red-700 to-gray-300" />
-              <div className="relative grid gap-4 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
-                <div>
+              <div className="relative grid gap-4 p-4 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
+                <div className="min-w-0">
                   <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-950">
                     Cliente seleccionado
                   </p>
-                  <h3 className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
+                  <h3 className="mt-1 break-words text-lg font-semibold tracking-tight text-gray-800 sm:text-xl">
                     {clienteSeleccionado.nombre}
                   </h3>
                   <p className="mt-1 font-mono text-sm font-semibold text-red-950">
@@ -440,17 +488,17 @@ export default function SolicitarDespachos() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 sm:min-w-[360px]">
+                <div className="grid grid-cols-1 gap-2 min-[390px]:grid-cols-3 sm:min-w-[360px]">
                   <div className="rounded-xl border border-gray-200 bg-slate-50/80 p-3 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-500">Disponibles</p>
+                    <p className="text-[9px] font-black uppercase tracking-[0.12em] text-gray-500 sm:text-[10px] sm:tracking-[0.18em]">Disponibles</p>
                     <p className="mt-1 text-lg font-black text-gray-800">{paquetesCliente.length}</p>
                   </div>
                   <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-green-700">Seleccionados</p>
+                    <p className="text-[9px] font-black uppercase tracking-[0.12em] text-green-700 sm:text-[10px] sm:tracking-[0.18em]">Seleccionados</p>
                     <p className="mt-1 text-lg font-black text-green-800">{seleccionados.length}</p>
                   </div>
                   <div className="rounded-xl border border-red-900/10 bg-red-50 p-3 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-red-950">Peso</p>
+                    <p className="text-[9px] font-black uppercase tracking-[0.12em] text-red-950 sm:text-[10px] sm:tracking-[0.18em]">Peso</p>
                     <p className="mt-1 text-lg font-black text-red-950">{pesoSeleccionado.toFixed(2)}</p>
                   </div>
                 </div>
@@ -503,6 +551,9 @@ export default function SolicitarDespachos() {
                     </div>
                   </div>
 
+                  <p className="px-5 pb-2 text-[11px] font-bold text-gray-400 sm:hidden">
+                    Desliza la tabla hacia la derecha para ver toda la informacion.
+                  </p>
                   <div className="w-full max-w-full overflow-x-auto">
                   <table className="min-w-[1050px] w-full border-collapse">
                     <thead className="bg-gradient-to-r from-gray-100 to-gray-50 text-gray-600 text-xs uppercase font-black tracking-[0.16em]">
@@ -644,6 +695,7 @@ export default function SolicitarDespachos() {
             onVerDetalle={(s) => setModalDetalle(s)}
             onEliminar={clientePortal ? undefined : eliminarSolicitud}
             onEditar={clientePortal ? undefined : (s) => setSolicitudEditar(s)}
+            onSubirComprobante={clientePortal ? handleSubirComprobante : undefined}
             modoCliente={Boolean(clientePortal)}
           />
         )}
