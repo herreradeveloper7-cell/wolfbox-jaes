@@ -1,9 +1,14 @@
 {
   "name": "wolfbox_jaes",
   "version": "1.0.0",
+  "packageManager": "pnpm@11.5.0",
   "type": "module",
   "main": "index.js",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
+    "start": "node index.js",
     "test": "node --test"
   },
   "keywords": [],
@@ -20,11 +25,13 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
     "jsbarcode": "^3.11.6",
     "json2csv": "^6.0.0-alpha.2",
     "jsonwebtoken": "^9.0.3",
-    "jspdf": "^3.0.1",
-    "jspdf-autotable": "^5.0.2",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "mssql": "^11.0.1",
     "multer": "^2.0.2",
     "pdfkit": "^0.17.2",

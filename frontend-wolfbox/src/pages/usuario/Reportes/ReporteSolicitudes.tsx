@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
-import * as XLSX from "xlsx";
+import { exportarExcel, filasDesdeObjetos } from "../../../utils/exportarExcel";
 import { CalendarDays, Download, FileSpreadsheet, Loader2, ShieldCheck } from "lucide-react";
 import UserDashboardLayout from "../../../layouts/UserDashboardLayout"
 import { useNavigate } from "react-router-dom";
@@ -119,42 +119,16 @@ export default function ReporteSolicitudes() {
         ["Total cargos COP", Number(totalCargosCop.toFixed(2))],
         ["Generado", new Date().toLocaleString("es-CO")],
       ];
-      const workbook = XLSX.utils.book_new();
-      const resumenSheet = XLSX.utils.aoa_to_sheet(resumen);
-      const solicitudesSheet = XLSX.utils.json_to_sheet(rows);
-
-      resumenSheet["!cols"] = [{ wch: 22 }, { wch: 42 }];
-      solicitudesSheet["!cols"] = [
-        { wch: 14 },
-        { wch: 20 },
-        { wch: 18 },
-        { wch: 14 },
-        { wch: 18 },
-        { wch: 34 },
-        { wch: 34 },
-        { wch: 24 },
-        { wch: 18 },
-        { wch: 18 },
-        { wch: 14 },
-        { wch: 14 },
-        { wch: 14 },
-        { wch: 54 },
-        { wch: 18 },
-        { wch: 18 },
-        { wch: 14 },
-        { wch: 14 },
-        { wch: 18 },
-        { wch: 14 },
-        { wch: 16 },
-        { wch: 42 },
-        { wch: 42 },
-      ];
-
-      XLSX.utils.book_append_sheet(workbook, resumenSheet, "Resumen");
-      XLSX.utils.book_append_sheet(workbook, solicitudesSheet, "Solicitudes");
-      XLSX.writeFile(
-        workbook,
-        `Reporte_Solicitudes_${limpiarNombreArchivo(desbloqueo)}_${REPORTE_SOLICITUDES_VERSION}_${new Date().toISOString().slice(0, 10)}.xlsx`
+      await exportarExcel(
+        `Reporte_Solicitudes_${limpiarNombreArchivo(desbloqueo)}_${REPORTE_SOLICITUDES_VERSION}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+        [
+          { nombre: "Resumen", filas: resumen, anchos: [22, 42] },
+          {
+            nombre: "Solicitudes",
+            filas: filasDesdeObjetos(rows),
+            anchos: [14, 20, 18, 14, 18, 34, 34, 24, 18, 18, 14, 14, 14, 14, 14, 18, 14, 16, 42, 42],
+          },
+        ]
       );
 
       Swal.fire("Listo", "Reporte descargado correctamente", "success");

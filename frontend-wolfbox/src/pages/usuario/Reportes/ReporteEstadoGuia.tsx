@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
-import * as XLSX from "xlsx";
+import { exportarExcel, filasDesdeObjetos } from "../../../utils/exportarExcel";
 import { CalendarDays, Download, FileSpreadsheet, Loader2, MapPin, Route } from "lucide-react";
 import UserDashboardLayout from "../../../layouts/UserDashboardLayout"
 import { useNavigate } from "react-router-dom";
@@ -163,35 +163,16 @@ export default function ReporteEstadoGuia() {
         ["Peso total", Number(totalPeso.toFixed(2))],
         ["Generado", new Date().toLocaleString("es-CO")],
       ];
-      const workbook = XLSX.utils.book_new();
-      const resumenSheet = XLSX.utils.aoa_to_sheet(resumen);
-      const paquetesSheet = XLSX.utils.json_to_sheet(rows);
-
-      resumenSheet["!cols"] = [{ wch: 22 }, { wch: 44 }];
-      paquetesSheet["!cols"] = [
-        { wch: 10 },
-        { wch: 18 },
-        { wch: 28 },
-        { wch: 20 },
-        { wch: 18 },
-        { wch: 34 },
-        { wch: 34 },
-        { wch: 24 },
-        { wch: 28 },
-        { wch: 28 },
-        { wch: 24 },
-        { wch: 24 },
-        { wch: 44 },
-        { wch: 12 },
-        { wch: 24 },
-        { wch: 20 },
-      ];
-
-      XLSX.utils.book_append_sheet(workbook, resumenSheet, "Resumen");
-      XLSX.utils.book_append_sheet(workbook, paquetesSheet, "HAWB");
-      XLSX.writeFile(
-        workbook,
-        `Reporte_Estado_Guia_${limpiarNombreArchivo(resumenFiltro)}_${new Date().toISOString().slice(0, 10)}.xlsx`
+      await exportarExcel(
+        `Reporte_Estado_Guia_${limpiarNombreArchivo(resumenFiltro)}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+        [
+          { nombre: "Resumen", filas: resumen, anchos: [22, 44] },
+          {
+            nombre: "HAWB",
+            filas: filasDesdeObjetos(rows),
+            anchos: [10, 18, 28, 20, 18, 34, 34, 24, 28, 28, 24, 24, 44, 12, 24, 20],
+          },
+        ]
       );
 
       Swal.fire("Listo", "Reporte descargado correctamente", "success");

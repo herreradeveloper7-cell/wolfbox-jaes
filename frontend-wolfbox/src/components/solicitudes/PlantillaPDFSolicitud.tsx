@@ -56,6 +56,14 @@ const formatFecha = (fecha: any) => {
   return date.toISOString().split('T')[0];
 };
 
+const datoInfoStyle: React.CSSProperties = {
+  margin: "0 0 7px 0",
+  fontSize: "14px",
+  lineHeight: 1.35,
+  overflowWrap: "break-word",
+  wordBreak: "break-word",
+};
+
 
     return (
       <div
@@ -113,6 +121,8 @@ const formatFecha = (fecha: any) => {
           style={{
             display: "flex",
             justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: "28px",
             marginTop: "15px",
             padding: "20px",
             border: "2px solid #eee",
@@ -120,30 +130,36 @@ const formatFecha = (fecha: any) => {
             background: "#fafafa",
           }}
         >
-          <div style={{ width: "48%" }}>
+          <div style={{ width: "48%", minWidth: 0 }}>
             <h3 style={{ margin: "0 0 10px 0", color: "#8B0000" }}>CLIENTE</h3>
-            <p>
+            <p style={datoInfoStyle}>
               <strong>Nombre:</strong> {solicitud.cliente_nombre}
             </p>
-            <p>
+            <p style={datoInfoStyle}>
               <strong>Código Casillero:</strong> {solicitud.codigoCasillero}
+            </p>
+            <p style={datoInfoStyle}>
+              <strong>Dirección:</strong> {solicitud.cliente_direccion || "-"}
+            </p>
+            <p style={datoInfoStyle}>
+              <strong>Ciudad:</strong> {solicitud.cliente_ciudad || "-"}
             </p>
           </div>
 
-          <div style={{ width: "48%" }}>
+          <div style={{ width: "48%", minWidth: 0 }}>
             <h3 style={{ margin: "0 0 10px 0", color: "#8B0000" }}>
               DESTINATARIO
             </h3>
-            <p>
+            <p style={datoInfoStyle}>
               <strong>Nombre:</strong> {solicitud.destinatario_nombre}
             </p>
-            <p>
-              <strong>País/Ciudad:</strong> {solicitud.destinatario_ciudad}
+            <p style={datoInfoStyle}>
+              <strong>Ciudad:</strong> {solicitud.destinatario_ciudad}
             </p>
-            <p>
+            <p style={datoInfoStyle}>
               <strong>Dirección:</strong> {solicitud.destinatario_direccion}
             </p>
-            <p>
+            <p style={datoInfoStyle}>
               <strong>Teléfono:</strong> {solicitud.destinatario_telefono}
             </p>
           </div>

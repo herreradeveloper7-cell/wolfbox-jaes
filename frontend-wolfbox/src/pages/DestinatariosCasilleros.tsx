@@ -1,41 +1,86 @@
-import UserDashboardLayout from "../layouts/UserDashboardLayout";
+import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
+import Swal from "sweetalert2";
 import { useNavigate } from "react-router-dom";
+import { MapPin, Plus, UsersRound } from "lucide-react";
+import UserDashboardLayout from "../layouts/UserDashboardLayout";
+import ClientDashboardLayout from "../layouts/ClientDashboardLayout";
 import iconHome from "../assets/home-svgrepo-com.svg";
 import ModalCrearDestinatario from "../components/destianatariosCasilleros/ModalCrearDestinatario";
 import TablaDestinatarios from "../components/destianatariosCasilleros/TablaDestinatarios";
 import ModalEditarDestinatario from "../components/destianatariosCasilleros/ModalEditarDestinatario";
 import BuscarDestinatarios from "../components/destianatariosCasilleros/BuscarDestinatarios";
-import { useState } from "react";
-import Swal from "sweetalert2";
-import axios from "axios";
 
 export default function DestinatariosCasilleros() {
-
   const navigate = useNavigate();
+  const clientePortal = useMemo(() => {
+    const stored = localStorage.getItem("cliente") || sessionStorage.getItem("cliente");
+
+    if (!stored) return null;
+
+    try {
+      const parsed = JSON.parse(stored);
+      return {
+        ...parsed,
+        codigo_referencia: parsed.codigo_referencia || parsed.codigoReferencia,
+      };
+    } catch {
+      return null;
+    }
+  }, []);
 
   const [showModal, setShowModal] = useState(false);
   const [busquedaCliente, setBusquedaCliente] = useState("");
   const [clienteSeleccionado, setClienteSeleccionado] = useState<any>(null);
   const [destinatarios, setDestinatarios] = useState<any[]>([]);
+  const [editingDestinatario, setEditingDestinatario] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
+  const Layout = clientePortal ? ClientDashboardLayout : UserDashboardLayout;
+  const dashboardPath = clientePortal ? "/dashboardCliente" : "/dashboardUsuario";
 
-  const seleccionarCliente = async (cli: any) => {
-    setClienteSeleccionado(cli);
-    setBusquedaCliente(cli.codigo_referencia);
+  const cargarDestinatarios = async (cliente: any) => {
+    const clienteId = cliente.id || cliente.cliente_id;
 
-    const r2 = await axios.get(`/api/destinatarios/${cli.id}`);
-    setDestinatarios(r2.data);
+    if (!clienteId) {
+      setDestinatarios([]);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { data } = await axios.get(`/api/destinatarios/${clienteId}`);
+      setDestinatarios(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error cargando destinatarios:", error);
+      setDestinatarios([]);
+      Swal.fire("Error", "No se pudieron cargar los destinatarios", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  <BuscarDestinatarios
-    value={busquedaCliente}
-    onChange={setBusquedaCliente}
-    onSelect={seleccionarCliente}
-  />
+  const seleccionarCliente = async (cliente: any) => {
+    const normalizado = {
+      ...cliente,
+      codigo_referencia: cliente.codigo_referencia || cliente.codigoReferencia,
+    };
+
+    setClienteSeleccionado(normalizado);
+    setBusquedaCliente(normalizado.codigo_referencia || "");
+    await cargarDestinatarios(normalizado);
+  };
+
+  useEffect(() => {
+    if (clientePortal && !clienteSeleccionado) {
+      seleccionarCliente(clientePortal);
+    }
+  }, [clientePortal, clienteSeleccionado]);
 
   const handleBuscarCliente = async () => {
     if (!busquedaCliente.trim()) {
-      Swal.fire("Ups!", "Ingresa nombre o código de referencia del cliente", "warning");
+      Swal.fire("Ups!", "Ingresa nombre o codigo de referencia del cliente", "warning");
       return;
     }
 
@@ -45,41 +90,31 @@ export default function DestinatariosCasilleros() {
       );
 
       if (!Array.isArray(data.clientes) || data.clientes.length === 0) {
-        Swal.fire("Sin resultados", "No se encontró ningún cliente que coincida", "info");
+        Swal.fire("Sin resultados", "No se encontro ningun cliente que coincida", "info");
         setClienteSeleccionado(null);
         setDestinatarios([]);
         return;
       }
 
-      const cliente = data.clientes[0];
-      setClienteSeleccionado(cliente);
-
-      const r2 = await axios.get(`/api/destinatarios/${cliente.id}`);
-
-      setDestinatarios(Array.isArray(r2.data) ? r2.data : []);
-
-    } catch (e: any) {
-      console.error("❌ Error en handleBuscarCliente:", e?.response || e);
+      await seleccionarCliente(data.clientes[0]);
+    } catch (error) {
+      console.error("Error buscando cliente:", error);
       Swal.fire("Error", "Hubo un problema buscando el cliente", "error");
     }
   };
-
 
   const handleCrearDestinatario = async (data: any) => {
     try {
       await axios.post("/api/destinatarios/crear", {
         ...data,
-        cliente_id: clienteSeleccionado.id
+        cliente_id: clienteSeleccionado.id,
       });
 
       Swal.fire("OK", "Destinatario creado correctamente", "success");
-
       setShowModal(false);
-
-      const r2 = await axios.get(`/api/destinatarios/${clienteSeleccionado.id}`);
-      setDestinatarios(r2.data);
-
-    } catch (e) {
+      await cargarDestinatarios(clienteSeleccionado);
+    } catch (error) {
+      console.error("Error creando destinatario:", error);
       Swal.fire("Error", "No se pudo crear el destinatario", "error");
     }
   };
@@ -87,23 +122,19 @@ export default function DestinatariosCasilleros() {
   const handleEliminar = async (dest: any) => {
     const confirm = await Swal.fire({
       title: "Eliminar destinatario",
-      text: `Se eliminará: ${dest.nombre}`,
+      text: `Se eliminara: ${dest.nombre}`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#7d1111",
       cancelButtonColor: "#555",
-      confirmButtonText: "Sí, eliminar",
+      confirmButtonText: "Si, eliminar",
     });
 
     if (!confirm.isConfirmed) return;
 
     try {
       await axios.delete(`/api/destinatarios/${dest.id}`);
-
-      const r2 = await axios.get(
-        `/api/destinatarios/${clienteSeleccionado.id}`
-      );
-      setDestinatarios(r2.data);
+      await cargarDestinatarios(clienteSeleccionado);
 
       Swal.fire({
         icon: "success",
@@ -111,21 +142,17 @@ export default function DestinatariosCasilleros() {
         text: "El destinatario fue eliminado correctamente.",
         confirmButtonColor: "#7d1111",
       });
-
     } catch (error: any) {
-      // 🔐 BLOQUEO POR DESTINATARIO DEFAULT
       if (error.response?.status === 403) {
         Swal.fire({
           icon: "info",
           title: "No se puede eliminar",
-          text: error.response.data?.msg || 
-                "Este destinatario es el principal del cliente.",
+          text: error.response.data?.msg || "Este destinatario es el principal del cliente.",
           confirmButtonColor: "#7d1111",
         });
         return;
       }
 
-      // ❌ ERROR REAL
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -135,130 +162,119 @@ export default function DestinatariosCasilleros() {
     }
   };
 
-
-  const [editingDestinatario, setEditingDestinatario] = useState<any>(null);
-
-  const handleEditar = (dest: any) => {
-    setEditingDestinatario(dest);
-  };
-
-
   return (
-    <UserDashboardLayout scrollable={true}>
+    <Layout scrollable>
+      <div className="min-w-0 max-w-full overflow-x-hidden px-0 pb-10 text-gray-800 sm:px-2 lg:px-4">
+        <h1 className="mb-2 text-2xl font-bold text-red-900 sm:text-3xl">
+          Destinatarios Casilleros
+        </h1>
 
-      <div className="text-gray-800 px-4 sm:px-6 lg:px-10 animate-fade-in">
-        
-        <h1 className="text-3xl font-bold mb-2 text-red-900">Destinatarios Casilleros</h1>
-
-        <p className="text-sm text-gray-500 mb-6 flex items-center gap-1">
+        <p className="mb-6 flex flex-wrap items-center gap-1 text-xs text-gray-500 sm:text-sm">
           <img src={iconHome} alt="Inicio" className="w-4 h-4" />
           <button
-            onClick={() => navigate("/dashboardUsuario")}
+            onClick={() => navigate(dashboardPath)}
             className="font-semibold hover:underline text-gray-700 cursor-pointer"
           >
-            Dashboard
+            {clientePortal ? "Mi casillero" : "Dashboard"}
           </button>
           &gt; Destinatarios Casilleros
         </p>
 
-        
-        <div className="relative bg-white/95 border border-gray-200 shadow-xl rounded-2xl p-6 mb-10 overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-900 via-gray-300 to-red-900"></div>
-
-
-          <div className="relative z-10">
-            
+        {!clientePortal && (
+          <section className="relative mb-8 overflow-hidden rounded-2xl border border-gray-200/80 bg-white/95 p-6 shadow-[0_22px_55px_rgba(17,24,39,0.10)]">
+            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-red-950 via-red-700 to-gray-300" />
             <div className="mb-6 flex flex-col gap-3 border-b border-gray-200/70 pb-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-red-950">
-                  Gestión de destinatarios
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-950">
+                  Gestion de destinatarios
                 </p>
-
-                <h3 className="text-xl font-bold text-gray-700 tracking-wide">
-                  Búscar cliente o destinatario
-                </h3>
-
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
+                  Buscar cliente o destinatario
+                </h2>
                 <p className="mt-1 text-xs font-semibold text-gray-500">
-                  Consulta el cliente por nombre o código de casillero para administrar sus destinatarios.
+                  Consulta el cliente por nombre o codigo de casillero para administrar sus destinatarios.
                 </p>
               </div>
-
-            <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full bg-gray-50 border border-gray-200">
-              <span className="w-2 h-2 rounded-full bg-green-600"></span>
-              <span className="text-xs font-semibold text-gray-600">
-                Búsqueda activa
-              </span>
-            </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="md:col-span-3">
-                <label className="text-sm font-bold text-gray-600 tracking-wide px-1 mb-3 block">
-                  Cliente / Código de casillero
-                </label>
-
-                <BuscarDestinatarios
-                  value={busquedaCliente}
-                  onChange={setBusquedaCliente}
-                  onSelect={seleccionarCliente}
-                />
+              <div className="hidden items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-4 py-2 md:flex">
+                <span className="h-2 w-2 rounded-full bg-green-600" />
+                <span className="text-xs font-semibold text-gray-600">Busqueda activa</span>
               </div>
             </div>
 
+            <label className="mb-3 block px-1 text-sm font-bold tracking-wide text-gray-600">
+              Cliente / Codigo de casillero
+            </label>
+            <BuscarDestinatarios
+              value={busquedaCliente}
+              onChange={setBusquedaCliente}
+              onSelect={seleccionarCliente}
+            />
 
             <div className="mt-6 flex justify-end border-t border-gray-200/70 pt-5">
               <button
                 onClick={handleBuscarCliente}
-                className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-red-950 to-red-900 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-red-950/20 transition-all duration-200 hover:scale-[1.02] hover:from-red-900 hover:to-red-800 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-900/20"
+                className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-red-950 to-red-900 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-red-950/20 transition hover:-translate-y-0.5 hover:from-red-900 hover:to-red-800"
               >
                 Buscar
               </button>
             </div>
-          </div>
-        </div>
+          </section>
+        )}
 
         {clienteSeleccionado && (
-          <div className="relative overflow-hidden rounded-2xl border border-gray-200/80 bg-white/95 shadow-[0_22px_55px_rgba(17,24,39,0.10)]">
-            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-red-950 via-red-700 to-gray-300 shadow-[0_0_12px_rgba(127,29,29,0.35)]" />
-            <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-red-950/5 pointer-events-none" />
-            <div className="absolute -left-20 bottom-0 h-52 w-52 rounded-full bg-gray-900/5 pointer-events-none" />
-
-            <div className="relative p-6">
+          <section className="relative overflow-hidden rounded-2xl border border-gray-200/80 bg-white/95 shadow-[0_22px_55px_rgba(17,24,39,0.10)]">
+            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-red-950 via-red-700 to-gray-300" />
+            <div className="relative p-4 sm:p-6">
               <div className="mb-6 flex flex-col gap-4 border-b border-gray-200/70 pb-5 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-red-950">
-                    Destinatarios registrados
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-950">
+                    {clientePortal ? "Mis destinatarios" : "Destinatarios registrados"}
                   </p>
-
-                  <h3 className="mt-1 text-xl font-semibold tracking-tight text-gray-900">
+                  <h2 className="mt-1 text-lg font-semibold tracking-tight text-gray-900 sm:text-xl">
                     Destinatarios de{" "}
-                    <span className="text-red-950">
-                      {clienteSeleccionado.nombre}
-                    </span>
-                  </h3>
-
+                    <span className="break-words text-red-950">{clienteSeleccionado.nombre}</span>
+                  </h2>
                   <p className="mt-1 text-xs font-semibold text-gray-500">
-                    Administra direcciones, datos de contacto y destinatarios asociados al cliente.
+                    Administra direcciones y datos de contacto para tus solicitudes de despacho.
                   </p>
                 </div>
 
-                <button
-                  onClick={() => setShowModal(true)}
-                  className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-red-950 to-red-900 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-red-900/20 transition-all duration-200 hover:scale-[1.02] hover:from-red-900 hover:to-red-950 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-700/20"
-                >
-                  + Crear destinatario
-                </button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm font-black text-gray-700">
+                    <UsersRound className="h-4 w-4 text-red-950" />
+                    {destinatarios.length} registros
+                  </div>
+                  <button
+                    onClick={() => setShowModal(true)}
+                    className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-950 to-red-900 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-red-900/20 transition hover:-translate-y-0.5 hover:from-red-900 hover:to-red-800"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Crear destinatario
+                  </button>
+                </div>
               </div>
 
-              <TablaDestinatarios
-                lista={destinatarios}
-                onEditar={handleEditar}
-                onEliminar={handleEliminar}
-              />
+              {loading ? (
+                <div className="flex min-h-[220px] items-center justify-center rounded-2xl border border-gray-100 bg-slate-50">
+                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-red-900 border-t-transparent" />
+                </div>
+              ) : (
+                <TablaDestinatarios
+                  lista={destinatarios}
+                  onEditar={(dest) => setEditingDestinatario(dest)}
+                  onEliminar={handleEliminar}
+                />
+              )}
             </div>
+          </section>
+        )}
+
+        {!clienteSeleccionado && clientePortal && (
+          <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+            <MapPin className="mx-auto mb-3 h-8 w-8 text-red-950" />
+            <p className="text-sm font-semibold text-gray-500">Cargando destinatarios...</p>
           </div>
         )}
-        
 
         {showModal && (
           <ModalCrearDestinatario
@@ -272,23 +288,14 @@ export default function DestinatariosCasilleros() {
             destinatario={editingDestinatario}
             onClose={() => setEditingDestinatario(null)}
             onSave={async (data) => {
-              await axios.put(
-                `/api/destinatarios/${editingDestinatario.id}`,
-                data
-              );
-
-              const r2 = await axios.get(
-                `/api/destinatarios/${clienteSeleccionado.id}`
-              );
-              setDestinatarios(r2.data);
-
+              await axios.put(`/api/destinatarios/${editingDestinatario.id}`, data);
+              await cargarDestinatarios(clienteSeleccionado);
               setEditingDestinatario(null);
               Swal.fire("OK", "Destinatario actualizado correctamente", "success");
             }}
           />
         )}
-
       </div>
-    </UserDashboardLayout>
+    </Layout>
   );
 }

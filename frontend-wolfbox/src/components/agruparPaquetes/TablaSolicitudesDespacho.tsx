@@ -68,7 +68,16 @@ export default function TablaSolicitudesDespacho({
       ) : (
         <>
           <div className="relative overflow-x-auto">
-            <table className="w-full min-w-[980px] text-sm">
+            <table className="w-full min-w-[1100px] table-fixed text-sm">
+              <colgroup>
+                <col className="w-[86px]" />
+                <col className="w-[82px]" />
+                <col className="w-[112px]" />
+                <col className="w-[230px]" />
+                <col className="w-[150px]" />
+                <col className="w-[330px]" />
+                <col className="w-[100px]" />
+              </colgroup>
               <thead className="border-b border-gray-200 bg-gradient-to-r from-gray-100 to-gray-50">
                 <tr className="text-[10px] uppercase tracking-[0.18em] text-gray-600">
                   <th className="px-5 py-4 text-center font-black">Ver</th>
@@ -137,14 +146,15 @@ export default function TablaSolicitudesDespacho({
 
                       <td className="px-5 py-4">
                         {hawbs.length > 0 ? (
-                          <div className="flex flex-wrap justify-center gap-2">
+                          <div className="mx-auto max-h-24 max-w-[310px] overflow-y-auto rounded-xl border border-gray-100 bg-slate-50/70 px-3 py-2 scrollbar-thin">
                             {hawbs.map((h, i) => (
-                              <span
+                              <div
                                 key={i}
-                                className="rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1 font-mono text-[11px] font-bold text-gray-700"
+                                className="border-b border-gray-100 py-1 font-mono text-[11px] font-bold leading-5 text-gray-700 last:border-b-0"
+                                title={h}
                               >
-                                {h}
-                              </span>
+                                <span className="block truncate">{h}</span>
+                              </div>
                             ))}
                           </div>
                         ) : (
