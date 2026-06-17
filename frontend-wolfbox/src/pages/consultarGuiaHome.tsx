@@ -224,11 +224,8 @@ export default function ConsultarGuiaHome() {
                         Detalle de la guía
                       </p>
                       <div className="mt-3 space-y-2.5 text-sm">
-                        <DetailRow label="Cliente" value={guia.cliente ?? "No disponible"} />
-                        <DetailRow label="Casillero" value={guia.codigo_referencia ?? "No disponible"} />
                         <DetailRow label="Tienda" value={guia.tienda ?? "No disponible"} />
                         <DetailRow label="Contenido" value={guia.contenido ?? "No disponible"} />
-                        <DetailRow label="Notas" value={guia.notas ?? "Sin notas"} />
                       </div>
                     </div>
 

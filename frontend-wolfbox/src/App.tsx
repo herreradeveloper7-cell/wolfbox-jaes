@@ -19,6 +19,9 @@ import ConsultarUsuarios from './pages/usuario/ConsultarUsuarios';
 import EditarUsuario from "./pages/usuario/EditarUsuario";
 import SolicitarDespacho from "./pages/SolicitarDespachos";
 import DestinatariosCasilleros from './pages/DestinatariosCasilleros'; 
+import RastreoPaquetesCliente from './pages/cliente/RastreoPaquetesCliente';
+import PrealertasCliente from './pages/cliente/PrealertasCliente';
+import Prealertas from './pages/usuario/Prealertas';
 import ConfigTRM from './pages/usuario/ConfigTRM';
 import ConciliacionPago from './pages/usuario/ConciliacionPagos';
 import ConfigTarifas from './pages/usuario/ConfigTarifas';
@@ -36,6 +39,7 @@ import ReporteClientesCasilleros from './pages/usuario/Reportes/ReporteClientesC
 import ReporteSolicitudes from './pages/usuario/Reportes/ReporteSolicitudes';
 import Transportadoras from './pages/usuario/configuracion/Transportadoras';
 import PlantillaComunicacion from './pages/usuario/configuracion/PlantillaComunicacion';
+import PromocionesTiendas from './pages/usuario/configuracion/PromocionesTiendas';
 
 type RolInterno = "admin" | "usuario";
 type PermisoModulo =
@@ -50,6 +54,19 @@ type PermisoModulo =
 const obtenerUsuarioInterno = () => {
   const stored =
     localStorage.getItem("usuario") || sessionStorage.getItem("usuario");
+
+  if (!stored) return null;
+
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return null;
+  }
+};
+
+const obtenerClienteSesion = () => {
+  const stored =
+    localStorage.getItem("cliente") || sessionStorage.getItem("cliente");
 
   if (!stored) return null;
 
@@ -102,6 +119,45 @@ const interna = (
   <RutaInterna roles={roles} permiso={permiso}>{children}</RutaInterna>
 );
 
+function RutaCasilleroCompartida({ children }: { children: ReactNode }) {
+  const token =
+    localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+  const usuario = obtenerUsuarioInterno();
+  const cliente = obtenerClienteSesion();
+
+  if (!token || (!usuario && !cliente)) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (cliente) return <>{children}</>;
+
+  return (
+    <RutaInterna permiso="Casilleros">
+      {children}
+    </RutaInterna>
+  );
+}
+
+function RutaCliente({ children }: { children: ReactNode }) {
+  const token =
+    localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+  const cliente = obtenerClienteSesion();
+
+  if (!token || !cliente) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+const casilleroCompartido = (children: ReactNode) => (
+  <RutaCasilleroCompartida>{children}</RutaCasilleroCompartida>
+);
+
+const clienteProtegido = (children: ReactNode) => (
+  <RutaCliente>{children}</RutaCliente>
+);
+
 
 
 function App() {
@@ -114,9 +170,9 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/confirmacion" element={<ConfirmacionPage />} />
         <Route path="/consulta-hawb" element={<ConsultarGuiaHome />} />
-        <Route path="/dashboardCliente" element={<DashboardClientePage />} />
+        <Route path="/dashboardCliente" element={clienteProtegido(<DashboardClientePage />)} />
         <Route path="/dashboardUsuario" element={interna(<DashboardUsuarioPage />)} />
-        <Route path="/editar-perfil" element={<EditarPerfilCliente />} />
+        <Route path="/editar-perfil" element={clienteProtegido(<EditarPerfilCliente />)} />
         <Route path="/digitacion-paquetes" element={interna(<DigitacionPaquetes />, "Casilleros")} />
         <Route path ="/crear-tracking" element={interna(<CrearTracking/>, "Tracking")} />
         <Route path ="/consultar-tracking" element={interna(<ConsultarTracking/>, "Tracking")} />
@@ -125,8 +181,11 @@ function App() {
         <Route path="/crear-usuario" element={interna(<CrearUsuario />, "Seguridad")} />
         <Route path="/consultar-usuario" element={interna(<ConsultarUsuarios />, "Seguridad")} />
         <Route path="/usuarios/editar/:id" element={interna(<EditarUsuario />, "Seguridad")} />
-        <Route path="/solicitar-despachos" element={interna(<SolicitarDespacho />, "Casilleros")} />
-        <Route path="/destinatarios-casilleros" element={interna(<DestinatariosCasilleros />, "Casilleros")} />
+        <Route path="/solicitar-despachos" element={casilleroCompartido(<SolicitarDespacho />)} />
+        <Route path="/destinatarios-casilleros" element={casilleroCompartido(<DestinatariosCasilleros />)} />
+        <Route path="/rastreo-paquetes" element={clienteProtegido(<RastreoPaquetesCliente />)} />
+        <Route path="/prealertas" element={clienteProtegido(<PrealertasCliente />)} />
+        <Route path="/gestion-prealertas" element={interna(<Prealertas />, "Casilleros")} />
         <Route path="/config-trm" element={interna(<ConfigTRM />, "Configuracion")} />
         <Route path="/conciliacion-pagos" element={interna(<ConciliacionPago />, "Casilleros")} />
         <Route path="/config-tarifas" element={interna(<ConfigTarifas />, "Configuracion")} />
@@ -139,6 +198,7 @@ function App() {
         <Route path="/reporte-solicitudes" element={interna(<ReporteSolicitudes />, "Reportes")} />
         <Route path="/transportadoras" element={interna(<Transportadoras />, "Configuracion")} />
         <Route path="/plantilla-comunicacion" element={interna(<PlantillaComunicacion />, "Configuracion")} />
+        <Route path="/promociones-tiendas" element={interna(<PromocionesTiendas />, "Configuracion", ["admin"])} />
         <Route
           path="/dashboardUsuario/agrupar-solicitud/:id"
           element={interna(<AgruparSolicitud />, "Casilleros")}

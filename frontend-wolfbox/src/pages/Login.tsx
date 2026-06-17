@@ -2,11 +2,13 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logoJaesHome.png";
 import Loader from "../components/Loader";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
     const navigate = useNavigate();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [stayLoggedIn, setStayLoggedIn] = useState(false);
     const [loginError, setLoginError] = useState(""); 
     const [loading, setLoading] = useState(false);
@@ -169,17 +171,32 @@ export default function LoginPage() {
                   Contraseña
                 </label>
 
-                <input
-                  type="password"
-                  required
-                  placeholder="Ingrese su contraseña"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (loginError) setLoginError("");
-                  }}
-                  className="w-full rounded-xl border border-gray-200 bg-slate-50/80 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-inner outline-none transition-all duration-300 placeholder:text-slate-400 hover:border-gray-300 focus:border-red-900 focus:bg-white focus:ring-4 focus:ring-red-900/10"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    placeholder="Ingrese su contraseña"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (loginError) setLoginError("");
+                    }}
+                    className="w-full rounded-xl border border-gray-200 bg-slate-50/80 py-2.5 pl-4 pr-12 text-sm font-semibold text-slate-700 shadow-inner outline-none transition-all duration-300 placeholder:text-slate-400 hover:border-gray-300 focus:border-red-900 focus:bg-white focus:ring-4 focus:ring-red-900/10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((visible) => !visible)}
+                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-red-50 hover:text-red-900 focus:outline-none focus:ring-2 focus:ring-red-900/20 cursor-pointer"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4.5 w-4.5" strokeWidth={2.2} />
+                    ) : (
+                      <Eye className="h-4.5 w-4.5" strokeWidth={2.2} />
+                    )}
+                  </button>
+                </div>
               </div>
 
               {loginError && (

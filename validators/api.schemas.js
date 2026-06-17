@@ -116,7 +116,11 @@ export const clienteSchemas = {
   }),
   actualizarPerfil: z.object({
     id: requiredNumber("Cliente"),
-    nombre: requiredString("Nombre"),
+    primer_nombre: optionalString,
+    segundo_nombre: optionalString,
+    primer_apellido: optionalString,
+    segundo_apellido: optionalString,
+    nombre_empresa: optionalString,
     email,
     genero,
     direccion: optionalString,
@@ -175,6 +179,37 @@ export const trmSchemas = {
   guardar: z.object({
     fecha: optionalString,
     valor: requiredNumber("Valor TRM").positive("Valor TRM debe ser mayor a cero"),
+  }).passthrough(),
+};
+
+export const prealertaSchemas = {
+  id: idParam(),
+  listar: z.object({
+    cliente_id: optionalNumber,
+    tracking: optionalString,
+    cliente: optionalString,
+    contenido: optionalString,
+    fecha_desde: optionalString,
+    fecha_hasta: optionalString,
+    pagina: optionalNumber,
+    limite: optionalNumber,
+  }).passthrough(),
+  crear: z.object({
+    cliente_id: optionalNumber,
+    tracking: requiredString("Tracking"),
+    peso_lbs: requiredNumber("Peso en libras").positive("Peso en libras debe ser mayor a cero"),
+    contenido: requiredString("Contenido"),
+    valor_declarado: requiredNumber("Valor declarado").nonnegative("Valor declarado no puede ser negativo"),
+    valor_asegurado: requiredNumber("Valor asegurado").nonnegative("Valor asegurado no puede ser negativo"),
+    observaciones: optionalString,
+  }).passthrough(),
+  actualizar: z.object({
+    tracking: requiredString("Tracking"),
+    peso_lbs: requiredNumber("Peso en libras").positive("Peso en libras debe ser mayor a cero"),
+    contenido: requiredString("Contenido"),
+    valor_declarado: requiredNumber("Valor declarado").nonnegative("Valor declarado no puede ser negativo"),
+    valor_asegurado: requiredNumber("Valor asegurado").nonnegative("Valor asegurado no puede ser negativo"),
+    observaciones: optionalString,
   }).passthrough(),
 };
 
@@ -271,7 +306,7 @@ export const solicitudSchemas = {
   }).passthrough(),
   crear: z.object({
     cliente_id: requiredNumber("Cliente").int().positive("Cliente invalido"),
-    usuario_id: requiredNumber("Usuario").int().positive("Usuario invalido"),
+    usuario_id: optionalNumber,
     paquetes: z.array(paqueteSolicitud).min(1, "Debe seleccionar al menos un paquete"),
     destinatario: requiredNumber("Destinatario").int().positive("Destinatario invalido"),
     medio_pago: optionalString,
@@ -357,4 +392,31 @@ export const despachoSchemas = {
     hawb: requiredString("HAWB"),
     responsable: optionalString,
   }).passthrough(),
+};
+
+export const promocionesSchemas = {
+  id: idParam(),
+  listar: z.object({
+    pagina: optionalNumber,
+    limite: optionalNumber,
+    busqueda: optionalString,
+    estado: z.enum(["Todos", "Borrador", "Programada", "Activa", "Finalizada"]).optional(),
+  }).passthrough(),
+  guardar: z.object({
+    tienda: requiredString("Tienda"),
+    titulo: requiredString("Título"),
+    descripcion: requiredString("Descripción"),
+    categoria: optionalString,
+    evento: optionalString,
+    url_destino: z.string().trim().url("URL de destino inválida"),
+    imagen_url: z.preprocess(emptyToUndefined, z.string().trim().url("URL de imagen inválida").optional()),
+    fecha_inicio: requiredString("Fecha inicial"),
+    fecha_fin: requiredString("Fecha final"),
+    publicada: z.union([z.boolean(), z.enum(["true", "false"])]).optional(),
+    destacada: z.union([z.boolean(), z.enum(["true", "false"])]).optional(),
+    orden: optionalNumber,
+  }).passthrough().refine((data) => new Date(data.fecha_fin) > new Date(data.fecha_inicio), {
+    message: "La fecha final debe ser posterior a la fecha inicial",
+    path: ["fecha_fin"],
+  }),
 };

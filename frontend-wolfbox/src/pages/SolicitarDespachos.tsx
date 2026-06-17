@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import UserDashboardLayout from "../layouts/UserDashboardLayout";
+import ClientDashboardLayout from "../layouts/ClientDashboardLayout";
 import iconHome from "../assets/home-svgrepo-com.svg";
 import Swal from "sweetalert2";
 import SolicitudesRealizadasTabla from "../components/solicitudes/SolicitudesRealizadasTabla";
@@ -13,6 +14,21 @@ import { useNavigate } from "react-router-dom";
 import ModalEditarSolicitud from "../components/solicitudes/ModalEditarSolicitud";
 
 export default function SolicitarDespachos() {
+  const clientePortal = useMemo(() => {
+    const stored = localStorage.getItem("cliente") || sessionStorage.getItem("cliente");
+
+    if (!stored) return null;
+
+    try {
+      const parsed = JSON.parse(stored);
+      return {
+        ...parsed,
+        codigo_referencia: parsed.codigo_referencia || parsed.codigoReferencia,
+      };
+    } catch {
+      return null;
+    }
+  }, []);
 
   type PaqueteSolicitud = {
   id: number;
@@ -67,6 +83,8 @@ export default function SolicitarDespachos() {
   const [clienteSeleccionado, setClienteSeleccionado] = useState<any>(null);
   const [paquetesCliente, setPaquetesCliente] = useState<any[]>([]);
   const [seleccionados, setSeleccionados] = useState<number[]>([]);
+  const [paginaPaquetes, setPaginaPaquetes] = useState(1);
+  const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
   const [mostrarModal, setMostrarModal] = useState(false);
   const [paquetesSeleccionadosDatos, setPaquetesSeleccionadosDatos] = useState<any[]>([]);
   const [modalDetalle, setModalDetalle] = useState<any>(null);
@@ -103,14 +121,17 @@ export default function SolicitarDespachos() {
 
 
   const seleccionarCliente = async (cliente: any) => {
+    const codigoReferencia =
+      cliente.codigo_referencia || cliente.codigoReferencia || cliente.codigo;
+
     setLoadingPaquetes(true);
-    setClienteSeleccionado(cliente);
+    setClienteSeleccionado({ ...cliente, codigo_referencia: codigoReferencia });
     setClientes([]);
-    setSearch(`${cliente.nombre} (${cliente.codigo_referencia})`);
+    setSearch(`${cliente.nombre} (${codigoReferencia})`);
 
     try {
       const { data } = await axios.get(
-        `/api/paquetes/por-cliente/${cliente.codigo_referencia}`
+        `/api/paquetes/por-cliente/${codigoReferencia}`
       );
 
       if (Array.isArray(data)) {
@@ -119,7 +140,7 @@ export default function SolicitarDespachos() {
         );
 
         setPaquetesCliente(disponibles);
-        await obtenerSolicitudesCliente(cliente.codigo_referencia);
+        await obtenerSolicitudesCliente(codigoReferencia);
 
       } else {
         setPaquetesCliente([]);
@@ -137,11 +158,66 @@ export default function SolicitarDespachos() {
     }
   };
 
+  const handleSubirComprobante = async (solicitud: Solicitud, archivo: File) => {
+    try {
+      const formData = new FormData();
+      formData.append("comprobante", archivo);
+
+      const { data } = await axios.post(
+        `/api/solicitudes/comprobante/${solicitud.id}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      setSolicitudes((prev) =>
+        prev.map((item) =>
+          item.id === solicitud.id
+            ? {
+                ...item,
+                comprobante_pago_url: data?.url || item.comprobante_pago_url,
+                comprobante: data?.url || item.comprobante,
+              }
+            : item
+        )
+      );
+
+      if (clienteSeleccionado?.codigo_referencia) {
+        await obtenerSolicitudesCliente(clienteSeleccionado.codigo_referencia);
+      }
+
+      Swal.fire(
+        "Comprobante cargado",
+        "El equipo de JAES Cargo recibira la notificacion para validar el pago.",
+        "success"
+      );
+    } catch (error: any) {
+      console.error("Error subiendo comprobante:", error);
+      Swal.fire({
+        icon: "error",
+        title: "No se pudo cargar",
+        text:
+          error?.response?.data?.mensaje ||
+          "No fue posible subir el comprobante de pago.",
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (clientePortal && !clienteSeleccionado) {
+      seleccionarCliente(clientePortal);
+    }
+  }, [clientePortal, clienteSeleccionado]);
+
 
   const obtenerSolicitudesCliente = async (codigoReferencia: string) => {
     try {
+      const codigoSeguro = encodeURIComponent(codigoReferencia);
       const { data } = await axios.get(
-        `/api/solicitudes/listar?codigo=${codigoReferencia}`
+        `/api/solicitudes/listar?codigo=${codigoSeguro}`
       );
 
       if (Array.isArray(data)) {
@@ -154,6 +230,10 @@ export default function SolicitarDespachos() {
       setSolicitudes([]);
     }
   };
+
+  useEffect(() => {
+    setPaginaPaquetes(1);
+  }, [paquetesCliente.length, registrosPorPagina]);
 
   const formatearFechaRegistro = (fecha?: string) => {
     if (!fecha) return "—";
@@ -243,8 +323,8 @@ export default function SolicitarDespachos() {
     const usuarioOperacion = obtenerUsuarioOperacion();
 
     if (
-      !usuarioOperacion?.id ||
-      !["admin", "usuario"].includes(usuarioOperacion?.tipo)
+      !clientePortal &&
+      (!usuarioOperacion?.id || !["admin", "usuario"].includes(usuarioOperacion?.tipo))
     ) {
       return Swal.fire({
         icon: "error",
@@ -255,7 +335,7 @@ export default function SolicitarDespachos() {
 
     const payload = {
       cliente_id: clienteSeleccionado?.id || clienteSeleccionado?.cliente_id,
-      usuario_id: usuarioOperacion.id,
+      usuario_id: usuarioOperacion?.id || null,
       paquetes: formData.paquetes.map((p: PaqueteSolicitud) => ({
         id: p.id,
         asegurado: p.asegurado
@@ -302,25 +382,38 @@ export default function SolicitarDespachos() {
     clienteSeleccionado?.codigo ||
     clienteSeleccionado?.codigo_casillero ||
     "";
+  const Layout = clientePortal ? ClientDashboardLayout : UserDashboardLayout;
+  const totalPaginasPaquetes = Math.max(
+    1,
+    Math.ceil(paquetesCliente.length / registrosPorPagina)
+  );
+  const paginaPaquetesSegura = Math.min(paginaPaquetes, totalPaginasPaquetes);
+  const inicioPaquetes = (paginaPaquetesSegura - 1) * registrosPorPagina;
+  const finPaquetes = Math.min(inicioPaquetes + registrosPorPagina, paquetesCliente.length);
+  const paquetesPaginados = paquetesCliente.slice(inicioPaquetes, finPaquetes);
+  const cambiarPaginaPaquetes = (pagina: number) => {
+    setPaginaPaquetes(Math.min(Math.max(pagina, 1), totalPaginasPaquetes));
+  };
 
   return (
-    <UserDashboardLayout scrollable>
-      <div className="min-w-0 max-w-full overflow-x-hidden text-gray-800 px-6 lg:px-10 pb-10 animate-fade-in">
-        <h1 className="text-3xl font-bold mb-2 text-red-900">
+    <Layout scrollable>
+      <div className="min-w-0 max-w-full overflow-x-hidden text-gray-800 px-0 pb-10 animate-fade-in sm:px-2 lg:px-4">
+        <h1 className="mb-2 text-2xl font-bold text-red-900 sm:text-3xl">
           Solicitar Despachos
         </h1>
 
-        <p className="text-sm text-gray-500 mb-6 flex items-center gap-1">
+        <p className="mb-6 flex flex-wrap items-center gap-1 text-xs text-gray-500 sm:text-sm">
           <img src={iconHome} alt="Inicio" className="w-4 h-4" />
           <button
-            onClick={() => navigate("/dashboardUsuario")}
+            onClick={() => navigate(clientePortal ? "/dashboardCliente" : "/dashboardUsuario")}
             className="font-semibold hover:underline cursor-pointer"
           >
-            Dashboard
+            {clientePortal ? "Mi casillero" : "Dashboard"}
           </button>
           &gt; Solicitar despachos
         </p>
 
+        {!clientePortal && (
         <div className="relative mb-8 overflow-visible rounded-2xl border border-gray-200/80 bg-white/95 p-5 shadow-[0_22px_55px_rgba(17,24,39,0.10)] sm:p-6">
           <div className="pointer-events-none absolute -right-24 -top-24 h-60 w-60 rounded-full bg-red-950/5" />
           <div className="relative mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -376,17 +469,18 @@ export default function SolicitarDespachos() {
             )}
           </div>
         </div>
+        )}
 
         {clienteSeleccionado && (
           <>
             <section className="relative mb-5 overflow-hidden rounded-2xl border border-gray-200/80 bg-white/95 shadow-[0_22px_55px_rgba(17,24,39,0.10)]">
               <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-red-950 via-red-700 to-gray-300" />
-              <div className="relative grid gap-4 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
-                <div>
+              <div className="relative grid gap-4 p-4 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
+                <div className="min-w-0">
                   <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-950">
                     Cliente seleccionado
                   </p>
-                  <h3 className="mt-1 text-xl font-semibold tracking-tight text-gray-800">
+                  <h3 className="mt-1 break-words text-lg font-semibold tracking-tight text-gray-800 sm:text-xl">
                     {clienteSeleccionado.nombre}
                   </h3>
                   <p className="mt-1 font-mono text-sm font-semibold text-red-950">
@@ -394,17 +488,17 @@ export default function SolicitarDespachos() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 sm:min-w-[360px]">
+                <div className="grid grid-cols-1 gap-2 min-[390px]:grid-cols-3 sm:min-w-[360px]">
                   <div className="rounded-xl border border-gray-200 bg-slate-50/80 p-3 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-500">Disponibles</p>
+                    <p className="text-[9px] font-black uppercase tracking-[0.12em] text-gray-500 sm:text-[10px] sm:tracking-[0.18em]">Disponibles</p>
                     <p className="mt-1 text-lg font-black text-gray-800">{paquetesCliente.length}</p>
                   </div>
                   <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-green-700">Seleccionados</p>
+                    <p className="text-[9px] font-black uppercase tracking-[0.12em] text-green-700 sm:text-[10px] sm:tracking-[0.18em]">Seleccionados</p>
                     <p className="mt-1 text-lg font-black text-green-800">{seleccionados.length}</p>
                   </div>
                   <div className="rounded-xl border border-red-900/10 bg-red-50 p-3 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-red-950">Peso</p>
+                    <p className="text-[9px] font-black uppercase tracking-[0.12em] text-red-950 sm:text-[10px] sm:tracking-[0.18em]">Peso</p>
                     <p className="mt-1 text-lg font-black text-red-950">{pesoSeleccionado.toFixed(2)}</p>
                   </div>
                 </div>
@@ -428,7 +522,7 @@ export default function SolicitarDespachos() {
             ) : (
               <>
                 <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white/95 shadow-[0_22px_55px_rgba(17,24,39,0.10)]">
-                  <div className="flex flex-col gap-3 border-b border-gray-200 bg-gradient-to-r from-white via-red-50/30 to-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-4 border-b border-gray-200 bg-gradient-to-r from-white via-red-50/30 to-white px-5 py-4 xl:flex-row xl:items-center xl:justify-between">
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-[0.22em] text-red-950">
                         Inventario disponible
@@ -437,11 +531,29 @@ export default function SolicitarDespachos() {
                         Paquetes listos para solicitud
                       </h3>
                     </div>
-                    <span className="rounded-full border border-red-900/10 bg-red-50 px-3 py-1 text-xs font-bold text-red-950">
-                      {paquetesCliente.length} registros
-                    </span>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                      <span className="rounded-full border border-red-900/10 bg-red-50 px-3 py-1 text-xs font-bold text-red-950">
+                        {paquetesCliente.length} registros
+                      </span>
+                      <label className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-gray-500">
+                        Ver
+                        <select
+                          value={registrosPorPagina}
+                          onChange={(e) => setRegistrosPorPagina(Number(e.target.value))}
+                          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-bold normal-case tracking-normal text-gray-800 outline-none transition focus:border-red-900 focus:ring-4 focus:ring-red-900/10"
+                        >
+                          <option value={10}>10</option>
+                          <option value={20}>20</option>
+                          <option value={50}>50</option>
+                          <option value={100}>100</option>
+                        </select>
+                      </label>
+                    </div>
                   </div>
 
+                  <p className="px-5 pb-2 text-[11px] font-bold text-gray-400 sm:hidden">
+                    Desliza la tabla hacia la derecha para ver toda la informacion.
+                  </p>
                   <div className="w-full max-w-full overflow-x-auto">
                   <table className="min-w-[1050px] w-full border-collapse">
                     <thead className="bg-gradient-to-r from-gray-100 to-gray-50 text-gray-600 text-xs uppercase font-black tracking-[0.16em]">
@@ -458,7 +570,7 @@ export default function SolicitarDespachos() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {paquetesCliente.map((p) => (
+                      {paquetesPaginados.map((p) => (
                         <tr
                           key={p.id}
                           className={`text-sm transition-all duration-200 hover:bg-red-50/50 ${
@@ -509,23 +621,66 @@ export default function SolicitarDespachos() {
                   </table>
                 </div>
 
-                <div className="flex flex-col gap-3 border-t border-gray-200 bg-gradient-to-r from-white via-gray-50 to-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm font-semibold text-gray-500">
-                    {seleccionados.length > 0
-                      ? `${seleccionados.length} paquete(s) seleccionado(s) para crear solicitud.`
-                      : "Selecciona los paquetes que haran parte del despacho."}
-                  </p>
-                  <button
-                    onClick={crearSolicitud}
-                    disabled={seleccionados.length === 0}
-                    className={`rounded-xl px-6 py-2.5 text-sm font-black text-white shadow-lg transition-all duration-200 ${
-                      seleccionados.length === 0
-                        ? "cursor-not-allowed bg-gray-300 text-gray-500 shadow-none"
-                        : "cursor-pointer bg-gradient-to-r from-red-950 to-red-900 shadow-red-950/20 hover:-translate-y-0.5 hover:from-red-900 hover:to-red-800 hover:shadow-xl"
-                    }`}
-                  >
-                    Crear Solicitud
-                  </button>
+                <div className="flex flex-col gap-4 border-t border-gray-200 bg-gradient-to-r from-white via-gray-50 to-white px-5 py-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <p className="text-sm font-semibold text-gray-500">
+                      Mostrando{" "}
+                      <span className="font-black text-gray-800">
+                        {paquetesCliente.length === 0 ? 0 : inicioPaquetes + 1}
+                      </span>{" "}
+                      -{" "}
+                      <span className="font-black text-gray-800">{finPaquetes}</span>{" "}
+                      de{" "}
+                      <span className="font-black text-gray-800">{paquetesCliente.length}</span>
+                    </p>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => cambiarPaginaPaquetes(paginaPaquetesSegura - 1)}
+                        disabled={paginaPaquetesSegura === 1}
+                        className={`rounded-lg border px-3 py-2 text-sm font-bold transition ${
+                          paginaPaquetesSegura === 1
+                            ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                            : "border-gray-200 bg-white text-gray-700 hover:border-red-900/20 hover:bg-red-50"
+                        }`}
+                      >
+                        Anterior
+                      </button>
+                      <span className="min-w-[86px] text-center text-sm font-black text-gray-700">
+                        {paginaPaquetesSegura} / {totalPaginasPaquetes}
+                      </span>
+                      <button
+                        onClick={() => cambiarPaginaPaquetes(paginaPaquetesSegura + 1)}
+                        disabled={paginaPaquetesSegura === totalPaginasPaquetes}
+                        className={`rounded-lg border px-3 py-2 text-sm font-bold transition ${
+                          paginaPaquetesSegura === totalPaginasPaquetes
+                            ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                            : "border-gray-200 bg-white text-gray-700 hover:border-red-900/20 hover:bg-red-50"
+                        }`}
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm font-semibold text-gray-500">
+                      {seleccionados.length > 0
+                        ? `${seleccionados.length} paquete(s) seleccionado(s) para crear solicitud.`
+                        : "Selecciona los paquetes que haran parte del despacho."}
+                    </p>
+                    <button
+                      onClick={crearSolicitud}
+                      disabled={seleccionados.length === 0}
+                      className={`rounded-xl px-6 py-2.5 text-sm font-black text-white shadow-lg transition-all duration-200 ${
+                        seleccionados.length === 0
+                          ? "cursor-not-allowed bg-gray-300 text-gray-500 shadow-none"
+                          : "cursor-pointer bg-gradient-to-r from-red-950 to-red-900 shadow-red-950/20 hover:-translate-y-0.5 hover:from-red-900 hover:to-red-800 hover:shadow-xl"
+                      }`}
+                    >
+                      Crear Solicitud
+                    </button>
+                  </div>
                 </div>
                 </div>
               </>
@@ -533,13 +688,15 @@ export default function SolicitarDespachos() {
           </>
         )}
 
-        {clienteSeleccionado && solicitudes.length > 0 && (
+        {clienteSeleccionado && (clientePortal || solicitudes.length > 0) && (
           <SolicitudesRealizadasTabla
-          solicitudes={solicitudes}
-          onImprimir={handleImprimirSolicitud}
-          onEliminar={eliminarSolicitud}
-          onVerDetalle={(s) => setModalDetalle(s)}
-          onEditar={(s) => setSolicitudEditar(s)}
+            solicitudes={solicitudes}
+            onImprimir={handleImprimirSolicitud}
+            onVerDetalle={(s) => setModalDetalle(s)}
+            onEliminar={clientePortal ? undefined : eliminarSolicitud}
+            onEditar={clientePortal ? undefined : (s) => setSolicitudEditar(s)}
+            onSubirComprobante={clientePortal ? handleSubirComprobante : undefined}
+            modoCliente={Boolean(clientePortal)}
           />
         )}
 
@@ -558,10 +715,11 @@ export default function SolicitarDespachos() {
         <ModalVerDetalleSolicitud
           solicitud={modalDetalle}
           onClose={() => setModalDetalle(null)}
+          puedeEnviarCobro={!clientePortal}
         />
       )}
 
-      {solicitudEditar && (
+      {!clientePortal && solicitudEditar && (
         <ModalEditarSolicitud
           solicitud={solicitudEditar}
           onClose={() => setSolicitudEditar(null)}
@@ -570,6 +728,6 @@ export default function SolicitarDespachos() {
       )}
 
       
-    </UserDashboardLayout>
+    </Layout>
   );
 }

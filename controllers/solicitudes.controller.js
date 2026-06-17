@@ -10,6 +10,7 @@ import {
   enviarEmailDesdePlantilla,
   obtenerPlantillaEmailPorEvento,
 } from "../utils/email.service.js";
+import { crearNotificacionUsuarios } from "../utils/notificaciones.service.js";
 import {
   azureStorageDisponible,
   crearUrlTemporalLectura,
@@ -211,6 +212,8 @@ const obtenerSolicitudParaCobro = async (pool, solicitudId) => {
         END AS cliente_nombre,
         c.correo AS cliente_correo,
         c.codigo_referencia AS codigoCasillero,
+        c.direccion AS cliente_direccion,
+        c.ciudad AS cliente_ciudad,
         d.nombre AS destinatario_nombre,
         d.ciudad AS destinatario_ciudad,
         d.direccion AS destinatario_direccion,
@@ -356,38 +359,76 @@ const generarPdfCobroSolicitud = (solicitud) =>
         { align: "right", width: 260 }
       );
 
+    const infoBoxY = 132;
+    const infoBoxX = 38;
+    const infoPaddingX = 18;
+    const infoTop = infoBoxY + 18;
+    const columnWidth = 224;
+    const rightColumnX = 306;
+    const lineOptions = { width: columnWidth, lineGap: 1 };
+    const clienteLineas = [
+      ["Nombre", solicitud.cliente_nombre],
+      ["Codigo casillero", solicitud.codigoCasillero],
+      ["Direccion", solicitud.cliente_direccion],
+      ["Ciudad", solicitud.cliente_ciudad],
+    ];
+    const destinatarioLineas = [
+      ["Nombre", solicitud.destinatario_nombre],
+      ["Ciudad", solicitud.destinatario_ciudad],
+      ["Direccion", solicitud.destinatario_direccion],
+      ["Telefono", solicitud.destinatario_telefono],
+    ];
+
+    const medirColumnaInfo = (lineas) => {
+      doc.font("Helvetica").fontSize(8.7);
+
+      return lineas.reduce((alto, [label, value]) => {
+        const texto = `${label}: ${value || "-"}`;
+        return alto + doc.heightOfString(texto, lineOptions) + 5;
+      }, 21);
+    };
+
+    const infoBoxHeight = Math.max(
+      122,
+      medirColumnaInfo(clienteLineas) + 32,
+      medirColumnaInfo(destinatarioLineas) + 32
+    );
+
     doc
-      .roundedRect(38, 132, contentWidth, 98, 10)
+      .roundedRect(infoBoxX, infoBoxY, contentWidth, infoBoxHeight, 10)
       .lineWidth(1)
       .strokeColor("#E5E7EB")
       .stroke();
 
-    doc
-      .fillColor(red)
-      .font("Helvetica-Bold")
-      .fontSize(9)
-      .text("CLIENTE", 54, 150)
-      .text("DESTINATARIO", 300, 150);
+    const dibujarColumnaInfo = (titulo, x, lineas) => {
+      let currentY = infoTop;
 
-    doc
-      .fillColor("#222222")
-      .font("Helvetica")
-      .fontSize(9)
-      .text(`Nombre: ${solicitud.cliente_nombre || "-"}`, 54, 170, { width: 210 })
-      .text(`Codigo casillero: ${solicitud.codigoCasillero || "-"}`, 54, 186, {
-        width: 210,
-      })
-      .text(`Nombre: ${solicitud.destinatario_nombre || "-"}`, 300, 170, {
-        width: 220,
-      })
-      .text(`Ciudad: ${solicitud.destinatario_ciudad || "-"}`, 300, 186, {
-        width: 220,
-      })
-      .text(`Telefono: ${solicitud.destinatario_telefono || "-"}`, 300, 202, {
-        width: 220,
+      doc
+        .fillColor(red)
+        .font("Helvetica-Bold")
+        .fontSize(9)
+        .text(titulo, x, currentY, { width: columnWidth });
+
+      currentY += 21;
+
+      lineas.forEach(([label, value]) => {
+        const texto = `${label}: ${value || "-"}`;
+        const alto = doc.heightOfString(texto, lineOptions);
+
+        doc
+          .fillColor("#222222")
+          .font("Helvetica")
+          .fontSize(8.7)
+          .text(texto, x, currentY, lineOptions);
+
+        currentY += alto + 5;
       });
+    };
 
-    let y = 260;
+    dibujarColumnaInfo("CLIENTE", infoBoxX + infoPaddingX, clienteLineas);
+    dibujarColumnaInfo("DESTINATARIO", rightColumnX, destinatarioLineas);
+
+    let y = infoBoxY + infoBoxHeight + 30;
     doc.fillColor(red).font("Helvetica-Bold").fontSize(10).text("DETALLE DE PAQUETES", 38, y);
     y += 18;
 
@@ -399,31 +440,87 @@ const generarPdfCobroSolicitud = (solicitud) =>
       { label: "Asegurado", x: 473, width: 70 },
     ];
 
-    doc.rect(38, y, contentWidth, 24).fill(red);
-    doc.fillColor("#FFFFFF").font("Helvetica-Bold").fontSize(8);
-    columns.forEach((col) => doc.text(col.label, col.x + 5, y + 8, { width: col.width - 8 }));
-    y += 24;
+    const resumirContenidoPdf = (contenido) => {
+      const texto = String(contenido || "-").trim();
 
-    doc.font("Helvetica").fontSize(8).fillColor("#333333");
+      if (texto.length <= 120 || !texto.includes(",")) return texto || "-";
+
+      const partes = texto
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      if (partes.length < 4) return texto;
+
+      const conteo = new Map();
+
+      partes.forEach((item) => {
+        const clave = item.toLowerCase();
+        const actual = conteo.get(clave);
+
+        conteo.set(clave, {
+          label: actual?.label || item,
+          total: (actual?.total || 0) + 1,
+        });
+      });
+
+      const resumen = [...conteo.values()]
+        .map((item) => (item.total > 1 ? `${item.label} (${item.total})` : item.label))
+        .join(", ");
+
+      return resumen.length <= texto.length ? resumen : texto;
+    };
+
+    const dibujarHeaderPaquetes = () => {
+      doc.rect(38, y, contentWidth, 24).fill(red);
+      doc.fillColor("#FFFFFF").font("Helvetica-Bold").fontSize(8);
+      columns.forEach((col) =>
+        doc.text(col.label, col.x + 5, y + 8, { width: col.width - 8 })
+      );
+      y += 24;
+    };
+
+    dibujarHeaderPaquetes();
+
+    doc.font("Helvetica").fontSize(7.6).fillColor("#333333");
     solicitud.paquetes.forEach((paquete, index) => {
-      if (y > 680) {
+      const valores = [
+        paquete.tracking || "-",
+        paquete.hawb || "-",
+        resumirContenidoPdf(paquete.contenido),
+        String(paquete.peso || "0"),
+        formatUSD(paquete.asegurado),
+      ];
+      const rowOptions = (col) => ({ width: col.width - 10, lineGap: 1 });
+      const rowHeight = Math.max(
+        26,
+        ...valores.map((valor, colIndex) =>
+          doc.heightOfString(String(valor), rowOptions(columns[colIndex])) + 14
+        )
+      );
+
+      if (y + rowHeight > 730) {
         doc.addPage();
         y = 50;
+        dibujarHeaderPaquetes();
+        doc.font("Helvetica").fontSize(7.6).fillColor("#333333");
       }
 
       if (index % 2 === 0) {
-        doc.rect(38, y, contentWidth, 25).fill("#F9FAFB");
+        doc.rect(38, y, contentWidth, rowHeight).fill("#F9FAFB");
         doc.fillColor("#333333");
       }
 
       doc
-        .text(paquete.tracking || "-", 43, y + 8, { width: 120 })
-        .text(paquete.hawb || "-", 173, y + 8, { width: 100 })
-        .text(paquete.contenido || "-", 283, y + 8, { width: 130 })
-        .text(String(paquete.peso || "0"), 423, y + 8, { width: 45 })
-        .text(formatUSD(paquete.asegurado), 478, y + 8, { width: 60 });
+        .font("Helvetica")
+        .fontSize(7.6)
+        .fillColor("#333333");
 
-      y += 25;
+      columns.forEach((col, colIndex) => {
+        doc.text(String(valores[colIndex]), col.x + 5, y + 8, rowOptions(col));
+      });
+
+      y += rowHeight;
     });
 
     y += 22;
@@ -528,7 +625,6 @@ export const crearSolicitud = async (req, res) => {
 
     if (
       !cliente_id ||
-      !usuario_id ||
       !Array.isArray(paquetes) ||
       paquetes.length === 0
     ) {
@@ -544,26 +640,113 @@ export const crearSolicitud = async (req, res) => {
     transactionStarted = true;
     const request = () => new sql.Request(transaction);
 
-    const paqueteIds = paquetes.map(p => p.id);
+    const paqueteIds = [...new Set(paquetes.map((p) => Number(p.id)))];
+
+    if (paqueteIds.length !== paquetes.length) {
+      const error = new Error("La selección contiene paquetes repetidos.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const clienteResult = await request()
+      .input("cliente_id", sql.Int, cliente_id)
+      .input("destinatario_id", sql.Int, destinatario)
+      .query(`
+        SELECT TOP 1 id, codigo_referencia
+        FROM clientes
+        WHERE id = @cliente_id;
+
+        SELECT TOP 1 id
+        FROM destinatarios
+        WHERE id = @destinatario_id
+          AND cliente_id = @cliente_id
+          AND activo = 1;
+      `);
+
+    const cliente = clienteResult.recordsets[0]?.[0];
+    const destinatarioValido = clienteResult.recordsets[1]?.[0];
+
+    if (!cliente) {
+      const error = new Error("El cliente seleccionado no existe.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (!destinatarioValido) {
+      const error = new Error("El destinatario no pertenece al cliente seleccionado o está inactivo.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const paquetesRequest = request();
+    const placeholders = paqueteIds.map((id, index) => {
+      const nombre = `paquete_${index}`;
+      paquetesRequest.input(nombre, sql.Int, id);
+      return `@${nombre}`;
+    });
+
+    const resultServicios = await paquetesRequest.query(`
+      SELECT
+        p.id,
+        p.cliente_id,
+        p.codigo_referencia,
+        p.servicio_id,
+        p.peso,
+        p.asegurado,
+        p.solicitud_id,
+        p.agrupado_bit,
+        p.hawb_padre,
+        e.nombre AS estado
+      FROM paquetes p
+      LEFT JOIN estados_catalogo e ON e.id = p.estado_id
+      WHERE p.id IN (${placeholders.join(",")})
+    `);
+
+    if (resultServicios.recordset.length !== paqueteIds.length) {
+      const error = new Error("Uno o más paquetes seleccionados no existen.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const paqueteInvalido = resultServicios.recordset.find((paquete) => {
+      const perteneceCliente =
+        Number(paquete.cliente_id) === Number(cliente_id) ||
+        String(paquete.codigo_referencia || "") === String(cliente.codigo_referencia || "");
+      const disponible =
+        !paquete.solicitud_id &&
+        !paquete.agrupado_bit &&
+        !paquete.hawb_padre &&
+        String(paquete.estado || "").trim().toLowerCase() !== "anulado";
+
+      return !perteneceCliente || !disponible;
+    });
+
+    if (paqueteInvalido) {
+      const error = new Error("Uno o más paquetes no pertenecen al cliente o ya no están disponibles.");
+      error.statusCode = 409;
+      throw error;
+    }
 
     for (const p of paquetes) {
       if (p.asegurado !== undefined && p.asegurado !== null) {
         await request()
           .input("id", sql.Int, p.id)
           .input("asegurado", sql.Decimal(10, 2), p.asegurado)
+          .input("cliente_id", sql.Int, cliente_id)
+          .input("codigo_referencia", sql.NVarChar(50), cliente.codigo_referencia)
           .query(`
             UPDATE paquetes
             SET asegurado = @asegurado
             WHERE id = @id
+              AND (cliente_id = @cliente_id OR codigo_referencia = @codigo_referencia)
           `);
+
+        const paqueteActualizado = resultServicios.recordset.find(
+          (paquete) => Number(paquete.id) === Number(p.id)
+        );
+        if (paqueteActualizado) paqueteActualizado.asegurado = p.asegurado;
       }
     }
-
-    const resultServicios = await request().query(`
-      SELECT servicio_id, peso, asegurado
-      FROM paquetes
-      WHERE id IN (${paqueteIds.join(",")})
-    `);
 
     const serviciosEncontrados = [
       ...new Set(resultServicios.recordset.map(r => r.servicio_id))
@@ -681,7 +864,7 @@ export const crearSolicitud = async (req, res) => {
 
     const resultSolicitud = await request()
       .input("cliente_id", sql.Int, cliente_id)
-      .input("usuario_id", sql.Int, usuario_id)
+      .input("usuario_id", sql.Int, usuario_id || null)
       .input("destinatario", sql.Int, destinatario)
       .input("medio_pago", sql.NVarChar(50), medio_pago)
       .input("observaciones", sql.NVarChar(255), observaciones || "")
@@ -704,14 +887,21 @@ export const crearSolicitud = async (req, res) => {
 
 
     for (const p of paquetes) {
-      await request()
+      const asignacion = await request()
         .input("solicitud_id", sql.Int, solicitud_id)
         .input("paquete_id", sql.Int, p.id)
         .query(`
           UPDATE paquetes
           SET solicitud_id = @solicitud_id
           WHERE id = @paquete_id
+            AND solicitud_id IS NULL
         `);
+
+      if (Number(asignacion.rowsAffected?.[0] || 0) !== 1) {
+        const error = new Error("Uno de los paquetes dejó de estar disponible. Actualiza la lista e intenta nuevamente.");
+        error.statusCode = 409;
+        throw error;
+      }
     }
 
     await transaction.commit();
@@ -735,9 +925,9 @@ export const crearSolicitud = async (req, res) => {
     }
 
     console.error("❌ Error en crearSolicitud:", error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       ok: false,
-      mensaje: "Error interno al crear la solicitud"
+      mensaje: error.statusCode ? error.message : "Error interno al crear la solicitud"
     });
   }
 };
@@ -750,8 +940,9 @@ export const obtenerSolicitudes = async (req, res) => {
   try {
     const { usuario_id, codigo } = req.query;
     const pool = await poolPromise;
+    const request = pool.request();
 
-  let query = `
+    let query = `
     SELECT  
       s.id,
       s.cliente_id,
@@ -807,16 +998,17 @@ export const obtenerSolicitudes = async (req, res) => {
       FROM solicitudes s
       INNER JOIN clientes c ON s.cliente_id = c.id
       LEFT JOIN destinatarios d ON d.id = s.destinatario
-      INNER JOIN paquetes p ON p.solicitud_id = s.id
+      LEFT JOIN paquetes p ON p.solicitud_id = s.id
       WHERE 1 = 1
   `;
 
 
-    // 🔎 Filtros
     if (codigo) {
-      query += ` AND c.codigo_referencia = '${codigo}'`;
+      query += ` AND c.codigo_referencia = @codigo`;
+      request.input("codigo", sql.NVarChar(50), codigo);
     } else if (usuario_id) {
-      query += ` AND s.usuario_id = ${usuario_id}`;
+      query += ` AND s.usuario_id = @usuario_id`;
+      request.input("usuario_id", sql.Int, usuario_id);
     }
 
     query += `
@@ -837,7 +1029,7 @@ export const obtenerSolicitudes = async (req, res) => {
       ORDER BY s.fecha DESC
     `;
 
-    const result = await pool.request().query(query);
+    const result = await request.query(query);
     res.json(result.recordset);
 
   } catch (error) {
@@ -1344,6 +1536,8 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
           s.servicio_id,
           CONCAT(c.primer_nombre, ' ', c.primer_apellido) AS cliente_nombre,
           c.codigo_referencia AS codigoCasillero,
+          c.direccion AS cliente_direccion,
+          c.ciudad AS cliente_ciudad,
           d.nombre AS destinatario_nombre,
           d.ciudad AS destinatario_ciudad,
           d.direccion AS destinatario_direccion,
@@ -1999,7 +2193,9 @@ export const obtenerDestinatariosPorCliente = async (req, res) => {
   try {
     const pool = await poolPromise;
 
-    const result = await pool.request().query(`
+    const result = await pool.request()
+      .input("codigoCasillero", sql.NVarChar(50), codigoCasillero)
+      .query(`
       SELECT 
         d.id,
         d.nombre,
@@ -2010,7 +2206,7 @@ export const obtenerDestinatariosPorCliente = async (req, res) => {
         d.es_default
       FROM destinatarios d
       INNER JOIN clientes c ON d.cliente_id = c.id
-      WHERE c.codigo_referencia = '${codigoCasillero}'
+      WHERE c.codigo_referencia = @codigoCasillero
       ORDER BY d.nombre
     `);
 
@@ -2056,7 +2252,26 @@ export const subirComprobantePago = async (req, res) => {
 
     const solicitud = await pool.request()
       .input("id", sql.Int, solicitudId)
-      .query(`SELECT comprobante_pago_url, comprobante FROM solicitudes WHERE id = @id`);
+      .query(`
+        SELECT
+          s.comprobante_pago_url,
+          s.comprobante,
+          c.codigo_referencia,
+          CASE
+            WHEN LOWER(ISNULL(c.tipo_cliente, '')) = 'empresarial' THEN
+              COALESCE(NULLIF(c.nombre_empresa, ''), CONCAT(c.primer_nombre, ' ', c.primer_apellido))
+            ELSE
+              RTRIM(
+                ISNULL(c.primer_nombre, '') + ' ' +
+                ISNULL(c.segundo_nombre + ' ', '') +
+                ISNULL(c.primer_apellido, '') + ' ' +
+                ISNULL(c.segundo_apellido, '')
+              )
+          END AS nombre_cliente
+        FROM solicitudes s
+        LEFT JOIN clientes c ON c.id = s.cliente_id
+        WHERE s.id = @id
+      `);
 
     if (solicitud.recordset.length === 0) {
       if (req.file.filename) {
@@ -2107,6 +2322,22 @@ export const subirComprobantePago = async (req, res) => {
             comprobante = @url
         WHERE id = @id
       `);
+
+    const datosSolicitud = solicitud.recordset[0];
+    const cliente =
+      datosSolicitud?.nombre_cliente || datosSolicitud?.codigo_referencia || "cliente";
+    const accion = comprobanteActual ? "reemplazo" : "cargo";
+
+    crearNotificacionUsuarios({
+      tipo: "success",
+      titulo: comprobanteActual ? "Comprobante reemplazado" : "Comprobante cargado",
+      mensaje: `Se ${accion} el comprobante de pago de la solicitud #${solicitudId} para ${cliente}.`,
+      entidadTipo: "solicitud",
+      entidadId: Number(solicitudId),
+      url: `/conciliacion-pagos?solicitud=${solicitudId}`,
+    }).catch((error) => {
+      console.error("Error creando notificacion de comprobante:", error);
+    });
 
     return res.json({
       ok: true,

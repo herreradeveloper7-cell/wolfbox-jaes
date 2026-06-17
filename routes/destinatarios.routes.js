@@ -1,5 +1,5 @@
 import express from "express";
-import { autenticarToken, autorizarRoles } from "../middleware/auth.middleware.js";
+import { autenticarToken, autorizarPermisos, autorizarRoles } from "../middleware/auth.middleware.js";
 import { poolPromise, sql } from "../config/db.js";
 import { validar } from "../middleware/validate.middleware.js";
 import { destinatarioSchemas, idParam, textParam } from "../validators/api.schemas.js";
@@ -12,6 +12,10 @@ import {   crearDestinatario,
 
 const router = express.Router();
 const autenticados = autorizarRoles("admin", "usuario", "cliente");
+const accesoCasilleros = (req, res, next) => {
+  if (req.usuario?.tipo === "cliente") return next();
+  return autorizarPermisos("Casilleros")(req, res, next);
+};
 
 const autorizarDestinatarioPropio = async (req, res, next) => {
   if (["admin", "usuario"].includes(req.usuario?.tipo)) {
@@ -44,7 +48,7 @@ const autorizarDestinatarioPropio = async (req, res, next) => {
   }
 };
 
-router.use(autenticarToken, autenticados);
+router.use(autenticarToken, autenticados, accesoCasilleros);
 
 router.get(
   "/por-cliente/:codigoCasillero",

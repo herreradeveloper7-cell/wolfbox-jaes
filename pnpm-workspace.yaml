@@ -1,0 +1,6 @@
+packages:
+  - "."
+
+allowBuilds:
+  bcrypt: true
+  core-js: true

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
-import * as XLSX from "xlsx";
+import { exportarExcel, filasDesdeObjetos } from "../../../utils/exportarExcel";
 import { CalendarDays, Download, FileSpreadsheet, Loader2, UsersRound } from "lucide-react";
 import UserDashboardLayout from "../../../layouts/UserDashboardLayout"
 import { useNavigate } from "react-router-dom";
@@ -93,36 +93,16 @@ export default function ReporteClientesCasilleros() {
           ["Total clientes", clientes.length],
           ["Generado", new Date().toLocaleString("es-CO")],
         ];
-        const workbook = XLSX.utils.book_new();
-        const resumenSheet = XLSX.utils.aoa_to_sheet(resumen);
-        const clientesSheet = XLSX.utils.json_to_sheet(rows);
-
-        resumenSheet["!cols"] = [{ wch: 20 }, { wch: 38 }];
-        clientesSheet["!cols"] = [
-          { wch: 10 },
-          { wch: 18 },
-          { wch: 16 },
-          { wch: 34 },
-          { wch: 34 },
-          { wch: 20 },
-          { wch: 20 },
-          { wch: 34 },
-          { wch: 16 },
-          { wch: 18 },
-          { wch: 18 },
-          { wch: 44 },
-          { wch: 12 },
-          { wch: 18 },
-          { wch: 18 },
-          { wch: 14 },
-          { wch: 20 },
-        ];
-
-        XLSX.utils.book_append_sheet(workbook, resumenSheet, "Resumen");
-        XLSX.utils.book_append_sheet(workbook, clientesSheet, "Clientes");
-        XLSX.writeFile(
-          workbook,
-          `Reporte_Clientes_Casilleros_${limpiarNombreArchivo(tipoCliente)}_${new Date().toISOString().slice(0, 10)}.xlsx`
+        await exportarExcel(
+          `Reporte_Clientes_Casilleros_${limpiarNombreArchivo(tipoCliente)}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+          [
+            { nombre: "Resumen", filas: resumen, anchos: [20, 38] },
+            {
+              nombre: "Clientes",
+              filas: filasDesdeObjetos(rows),
+              anchos: [10, 18, 16, 34, 34, 20, 20, 34, 16, 18, 18, 44, 12, 18, 18, 14, 20],
+            },
+          ]
         );
 
         Swal.fire("Listo", "Reporte descargado correctamente", "success");
