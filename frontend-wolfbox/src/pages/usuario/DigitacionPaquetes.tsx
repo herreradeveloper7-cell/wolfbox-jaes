@@ -45,6 +45,7 @@ export default function DigitacionPaquetes() {
     const [cargandoDestinatarios, setCargandoDestinatarios] = useState(false);
     const [paquetes, setPaquetes] = useState<any[]>([]);
     const [paquetesFiltrados, setPaquetesFiltrados] = useState<any[]>([]);
+    const [busquedaAplicada, setBusquedaAplicada] = useState(false);
 
     const [servicios, setServicios] = useState<any[]>([]);
 
@@ -85,7 +86,20 @@ export default function DigitacionPaquetes() {
     }, []);
 
     
+    const hayFiltrosBusquedaActivos = () =>
+      Object.values(filtrosBusqueda).some((valor) => String(valor || "").trim() !== "");
+
     const handleBuscarPaquetes = async () => {
+      if (!hayFiltrosBusquedaActivos()) {
+        Swal.fire({
+          icon: "warning",
+          title: "Filtros vacios",
+          text: "Ingresa al menos un criterio para buscar paquetes.",
+          confirmButtonColor: "#991b1b",
+        });
+        return;
+      }
+
       try {
         const response = await fetch(
           "/api/paquetes/buscar",
@@ -106,15 +120,45 @@ export default function DigitacionPaquetes() {
         );
 
         const data = await response.json();
+        const resultados = data.ok && Array.isArray(data.paquetes) ? data.paquetes : [];
 
-        if (data.ok) {
-          setPaquetesFiltrados(data.paquetes);
-        } else {
-          setPaquetesFiltrados([]);
+        setBusquedaAplicada(true);
+        setPaquetesFiltrados(resultados);
+
+        if (resultados.length === 0) {
+          await Swal.fire({
+            icon: "info",
+            title: "Sin resultados",
+            text: "No se encontro ningun paquete con los filtros ingresados. Revisa el tracking, HAWB, contenido, cliente o fechas e intenta nuevamente.",
+            confirmButtonColor: "#991b1b",
+          });
         }
       } catch (error) {
         console.error("❌ Error al buscar paquetes:", error);
+        setBusquedaAplicada(true);
+        setPaquetesFiltrados([]);
+        Swal.fire({
+          icon: "error",
+          title: "Error en la busqueda",
+          text: "No se pudieron consultar los paquetes. Intenta nuevamente.",
+          confirmButtonColor: "#991b1b",
+        });
       }
+    };
+
+    const handleCancelarBusqueda = () => {
+      setFiltrosBusqueda({
+        fechaInicial: "",
+        fechaFinal: "",
+        trackingHawb: "",
+        contenido: "",
+        notas: "",
+        referencia: "",
+        cliente: "",
+        usuario: ""
+      });
+      setPaquetesFiltrados([]);
+      setBusquedaAplicada(false);
     };
 
     const buscarClientesFiltro = async (texto: string) => {
@@ -157,19 +201,6 @@ export default function DigitacionPaquetes() {
       }
     };
 
-    const handleCancelarBusqueda = () => {
-      setFiltrosBusqueda({
-        fechaInicial: "",
-        fechaFinal: "",
-        trackingHawb: "",
-        contenido: "",
-        notas: "",
-        referencia: "",
-        cliente: "",
-        usuario: ""
-      });
-      setPaquetesFiltrados([]);
-    };
     
     const limpiarFormulario = () => {
       setClienteInput("");
@@ -1666,7 +1697,7 @@ export default function DigitacionPaquetes() {
             
             <TablaPaquetesDigitados
               paquetes={
-                paquetesFiltrados.length > 0
+                busquedaAplicada
                   ? paquetesFiltrados
                   : paquetes
               }
