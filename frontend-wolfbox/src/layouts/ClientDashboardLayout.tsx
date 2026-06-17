@@ -220,7 +220,7 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
 
       <button
         onClick={toggleSidebar}
-        className={`fixed bottom-4 z-[60] bg-red-950 text-white p-2 shadow-lg transition-all duration-300 cursor-pointer ${
+        className={`fixed bottom-4 z-[35] bg-red-950 text-white p-2 shadow-lg transition-all duration-300 cursor-pointer ${
           sidebarOpen ? "left-56 rotate-0 md:left-[224px]" : "left-14 rotate-180 md:left-[64px]"
         }`}
       >
