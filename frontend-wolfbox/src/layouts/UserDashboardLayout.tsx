@@ -435,7 +435,7 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
 
       <button
         onClick={toggleSidebar}
-        className={`fixed bottom-4 z-[60] bg-red-950 text-white p-2 shadow-lg transition-all duration-300 cursor-pointer md:absolute md:z-40 ${
+        className={`fixed bottom-4 z-[35] bg-red-950 text-white p-2 shadow-lg transition-all duration-300 cursor-pointer md:absolute md:z-30 ${
           sidebarOpen ? "left-[224px] rotate-0" : "left-[64px] rotate-180"
         }`}
       >

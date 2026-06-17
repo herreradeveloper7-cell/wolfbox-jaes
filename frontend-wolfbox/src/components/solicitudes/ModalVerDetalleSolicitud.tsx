@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 
@@ -18,7 +18,7 @@ const formatCop = (value: number) =>
 
 function LoadingState({ text }: { text: string }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/70 px-4 backdrop-blur-md">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-gray-950/70 px-4 backdrop-blur-md">
       <div className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-red-900/30 bg-white/95 p-8 text-center shadow-2xl backdrop-blur-sm">
         <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-red-950 via-red-700 to-gray-300" />
         <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full border border-red-900/10" />
@@ -34,7 +34,7 @@ function LoadingState({ text }: { text: string }) {
 
 function ErrorState({ text }: { text: string }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/70 px-4 backdrop-blur-md">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-gray-950/70 px-4 backdrop-blur-md">
       <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-red-900/30 bg-white/95 p-8 text-center shadow-2xl backdrop-blur-sm">
         <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-red-950 via-red-700 to-gray-300" />
         <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full border border-red-900/10" />
@@ -74,9 +74,11 @@ function StatCard({
 export default function ModalVerDetalleSolicitud({
   solicitud,
   onClose,
+  puedeEnviarCobro = true,
 }: {
   solicitud: any;
   onClose: () => void;
+  puedeEnviarCobro?: boolean;
 }) {
   const [detalle, setDetalle] = useState<any>({
     solicitud: null,
@@ -86,6 +88,8 @@ export default function ModalVerDetalleSolicitud({
 
   const [cargando, setCargando] = useState(true);
   const [enviandoCobro, setEnviandoCobro] = useState(false);
+  const [paginaPaquetes, setPaginaPaquetes] = useState(1);
+  const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
 
   const [servicio, setServicio] = useState<any>(null);
   const [loadingServicio, setLoadingServicio] = useState(true);
@@ -143,14 +147,6 @@ export default function ModalVerDetalleSolicitud({
     };
   }, []);
 
-  if (loadingServicio || cargando) {
-    return <LoadingState text="Cargando información de la solicitud..." />;
-  }
-
-  if (!servicio) {
-    return <ErrorState text="Error: No se encontró el servicio asociado" />;
-  }
-
   const esHawbPadre = (p: any) => {
     return (
       p.es_padre === true ||
@@ -160,9 +156,28 @@ export default function ModalVerDetalleSolicitud({
     );
   };
 
-  const hawbPadre = detalle.paquetes.find((p: any) => esHawbPadre(p));
-  const hawbHijos = detalle.paquetes.filter((p: any) => !esHawbPadre(p));
+  const hawbPadre = useMemo(
+    () => detalle.paquetes.find((p: any) => esHawbPadre(p)),
+    [detalle.paquetes]
+  );
+  const hawbHijos = useMemo(
+    () => detalle.paquetes.filter((p: any) => !esHawbPadre(p)),
+    [detalle.paquetes]
+  );
   const paquetesParaTotales = hawbPadre ? hawbHijos : detalle.paquetes;
+  const paquetesTabla = hawbHijos.length > 0 ? hawbHijos : detalle.paquetes;
+  const totalPaginasPaquetes = Math.max(
+    1,
+    Math.ceil(paquetesTabla.length / registrosPorPagina)
+  );
+  const paginaActualPaquetes = Math.min(paginaPaquetes, totalPaginasPaquetes);
+  const inicioPaquetes = (paginaActualPaquetes - 1) * registrosPorPagina;
+  const finPaquetes = Math.min(inicioPaquetes + registrosPorPagina, paquetesTabla.length);
+  const paquetesPaginados = paquetesTabla.slice(inicioPaquetes, finPaquetes);
+
+  useEffect(() => {
+    setPaginaPaquetes(1);
+  }, [detalle.paquetes.length, registrosPorPagina]);
 
   const totalPeso = paquetesParaTotales.reduce(
     (acc: number, p: any) => acc + Number(p.peso || 0),
@@ -202,6 +217,14 @@ export default function ModalVerDetalleSolicitud({
   );
 
   const cantidadPaquetes = hawbPadre ? hawbHijos.length : detalle.paquetes.length;
+
+  if (loadingServicio || cargando) {
+    return <LoadingState text="Cargando información de la solicitud..." />;
+  }
+
+  if (!servicio) {
+    return <ErrorState text="Error: No se encontró el servicio asociado" />;
+  }
 
   const enviarCobro = async () => {
     const confirmacion = await Swal.fire({
@@ -243,7 +266,7 @@ export default function ModalVerDetalleSolicitud({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/65 px-3 py-3 backdrop-blur-md animate-fade-in sm:px-6 sm:py-5">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-gray-950/65 px-3 py-3 backdrop-blur-md animate-fade-in sm:px-6 sm:py-5">
       <div className="relative flex w-full max-w-6xl flex-col overflow-hidden rounded-[1.75rem] border border-white/30 bg-gray-50 shadow-[0_30px_90px_rgba(0,0,0,0.38)] max-h-[95vh] sm:max-h-[92vh]">
         <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-red-950 via-red-700 to-gray-300" />
 
@@ -357,7 +380,7 @@ export default function ModalVerDetalleSolicitud({
                         <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.2em] text-red-100/60">
                           Contenido
                         </p>
-                        <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm leading-relaxed text-white/95">
+                        <p className="mt-1.5 max-h-32 overflow-y-auto break-words pr-2 text-xs leading-relaxed text-white/95 sm:mt-2 sm:text-sm">
                           {hawbPadre.contenido}
                         </p>
                       </div>
@@ -366,7 +389,7 @@ export default function ModalVerDetalleSolicitud({
                 </section>
               )}
 
-              {hawbHijos.length > 0 && (
+              {paquetesTabla.length > 0 && (
                 <section className={`${cardBase} overflow-hidden`}>
                   <div className="flex flex-col gap-2 border-b border-gray-200/50 bg-gradient-to-r from-red-950 to-red-900 px-4 sm:px-5 py-4 sm:py-5 text-white sm:flex-row sm:items-end sm:justify-between">
                     <div>
@@ -378,11 +401,36 @@ export default function ModalVerDetalleSolicitud({
                       </h3>
                     </div>
                     <span className="w-fit text-xs sm:text-sm font-bold text-red-100 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/20">
-                      {hawbHijos.length} registros
+                      {paquetesTabla.length} registros
                     </span>
                   </div>
 
-                  <div className="overflow-x-auto">
+                  <div className="flex flex-col gap-3 border-b border-gray-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                    <p className="text-xs font-bold text-gray-500">
+                      Mostrando{" "}
+                      <span className="font-black text-gray-800">
+                        {paquetesTabla.length ? inicioPaquetes + 1 : 0}
+                      </span>{" "}
+                      - <span className="font-black text-gray-800">{finPaquetes}</span> de{" "}
+                      <span className="font-black text-gray-800">{paquetesTabla.length}</span>
+                    </p>
+
+                    <label className="flex w-fit items-center gap-2 text-[10px] font-black uppercase tracking-[0.12em] text-gray-500">
+                      Ver
+                      <select
+                        value={registrosPorPagina}
+                        onChange={(event) => setRegistrosPorPagina(Number(event.target.value))}
+                        className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-bold normal-case tracking-normal text-gray-800 outline-none focus:border-red-900 focus:ring-4 focus:ring-red-900/10"
+                      >
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="max-h-[440px] overflow-auto">
                     <table className="w-full text-xs sm:text-sm">
                       <thead className="bg-gradient-to-r from-gray-100 to-gray-50 border-b border-gray-200 sticky top-0">
                         <tr className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] text-gray-600">
@@ -400,9 +448,9 @@ export default function ModalVerDetalleSolicitud({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {hawbHijos.map((p: any, idx: number) => (
+                        {paquetesPaginados.map((p: any, idx: number) => (
                           <tr
-                            key={idx}
+                            key={`${p.id || p.hawb || p.tracking}-${inicioPaquetes + idx}`}
                             className="bg-white transition-all duration-200 hover:bg-gradient-to-r hover:from-red-50/60 hover:to-transparent group"
                           >
                             <td className="px-3 sm:px-5 py-3 sm:py-4 font-mono font-semibold text-red-950 text-xs sm:text-sm">
@@ -451,6 +499,34 @@ export default function ModalVerDetalleSolicitud({
                       </tbody>
                     </table>
                   </div>
+
+                  {totalPaginasPaquetes > 1 && (
+                    <div className="flex flex-col gap-3 border-t border-gray-100 bg-gradient-to-r from-white via-gray-50 to-white px-4 py-3 sm:flex-row sm:items-center sm:justify-end sm:px-5">
+                      <button
+                        type="button"
+                        onClick={() => setPaginaPaquetes((pagina) => Math.max(1, pagina - 1))}
+                        disabled={paginaActualPaquetes === 1}
+                        className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                      >
+                        Anterior
+                      </button>
+                      <span className="text-center text-xs font-black text-gray-600">
+                        {paginaActualPaquetes} / {totalPaginasPaquetes}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPaginaPaquetes((pagina) =>
+                            Math.min(totalPaginasPaquetes, pagina + 1)
+                          )
+                        }
+                        disabled={paginaActualPaquetes === totalPaginasPaquetes}
+                        className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  )}
                 </section>
               )}
 
@@ -564,13 +640,15 @@ export default function ModalVerDetalleSolicitud({
 
         {/* Footer - Button */}
         <footer className="flex items-center justify-end gap-3 border-t border-gray-200/50 bg-gradient-to-r from-white via-gray-50/50 to-white px-4 py-4 sm:px-8 sm:py-5 flex-shrink-0">
-          <button
-            onClick={enviarCobro}
-            disabled={enviandoCobro}
-            className="inline-flex items-center justify-center rounded-xl border border-red-900/20 bg-white px-5 sm:px-7 py-2 sm:py-3 text-xs sm:text-sm font-bold text-red-950 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-50 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-red-900/10 disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap cursor-pointer"
-          >
-            {enviandoCobro ? "Enviando cobro..." : "Enviar cobro"}
-          </button>
+          {puedeEnviarCobro && (
+            <button
+              onClick={enviarCobro}
+              disabled={enviandoCobro}
+              className="inline-flex items-center justify-center rounded-xl border border-red-900/20 bg-white px-5 sm:px-7 py-2 sm:py-3 text-xs sm:text-sm font-bold text-red-950 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-50 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-red-900/10 disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap cursor-pointer"
+            >
+              {enviandoCobro ? "Enviando cobro..." : "Enviar cobro"}
+            </button>
+          )}
           <button
             onClick={onClose}
             className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-red-950 to-red-900 hover:from-red-900 hover:to-red-800 px-6 sm:px-8 py-2 sm:py-3 text-xs sm:text-sm font-bold text-white shadow-lg shadow-red-950/20 transition-all duration-200 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-900/20 whitespace-nowrap cursor-pointer"

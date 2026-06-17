@@ -715,6 +715,7 @@ export default function SolicitarDespachos() {
         <ModalVerDetalleSolicitud
           solicitud={modalDetalle}
           onClose={() => setModalDetalle(null)}
+          puedeEnviarCobro={!clientePortal}
         />
       )}
 

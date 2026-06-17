@@ -416,31 +416,87 @@ const generarPdfCobroSolicitud = (solicitud) =>
       { label: "Asegurado", x: 473, width: 70 },
     ];
 
-    doc.rect(38, y, contentWidth, 24).fill(red);
-    doc.fillColor("#FFFFFF").font("Helvetica-Bold").fontSize(8);
-    columns.forEach((col) => doc.text(col.label, col.x + 5, y + 8, { width: col.width - 8 }));
-    y += 24;
+    const resumirContenidoPdf = (contenido) => {
+      const texto = String(contenido || "-").trim();
 
-    doc.font("Helvetica").fontSize(8).fillColor("#333333");
+      if (texto.length <= 120 || !texto.includes(",")) return texto || "-";
+
+      const partes = texto
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      if (partes.length < 4) return texto;
+
+      const conteo = new Map();
+
+      partes.forEach((item) => {
+        const clave = item.toLowerCase();
+        const actual = conteo.get(clave);
+
+        conteo.set(clave, {
+          label: actual?.label || item,
+          total: (actual?.total || 0) + 1,
+        });
+      });
+
+      const resumen = [...conteo.values()]
+        .map((item) => (item.total > 1 ? `${item.label} (${item.total})` : item.label))
+        .join(", ");
+
+      return resumen.length <= texto.length ? resumen : texto;
+    };
+
+    const dibujarHeaderPaquetes = () => {
+      doc.rect(38, y, contentWidth, 24).fill(red);
+      doc.fillColor("#FFFFFF").font("Helvetica-Bold").fontSize(8);
+      columns.forEach((col) =>
+        doc.text(col.label, col.x + 5, y + 8, { width: col.width - 8 })
+      );
+      y += 24;
+    };
+
+    dibujarHeaderPaquetes();
+
+    doc.font("Helvetica").fontSize(7.6).fillColor("#333333");
     solicitud.paquetes.forEach((paquete, index) => {
-      if (y > 680) {
+      const valores = [
+        paquete.tracking || "-",
+        paquete.hawb || "-",
+        resumirContenidoPdf(paquete.contenido),
+        String(paquete.peso || "0"),
+        formatUSD(paquete.asegurado),
+      ];
+      const rowOptions = (col) => ({ width: col.width - 10, lineGap: 1 });
+      const rowHeight = Math.max(
+        26,
+        ...valores.map((valor, colIndex) =>
+          doc.heightOfString(String(valor), rowOptions(columns[colIndex])) + 14
+        )
+      );
+
+      if (y + rowHeight > 730) {
         doc.addPage();
         y = 50;
+        dibujarHeaderPaquetes();
+        doc.font("Helvetica").fontSize(7.6).fillColor("#333333");
       }
 
       if (index % 2 === 0) {
-        doc.rect(38, y, contentWidth, 25).fill("#F9FAFB");
+        doc.rect(38, y, contentWidth, rowHeight).fill("#F9FAFB");
         doc.fillColor("#333333");
       }
 
       doc
-        .text(paquete.tracking || "-", 43, y + 8, { width: 120 })
-        .text(paquete.hawb || "-", 173, y + 8, { width: 100 })
-        .text(paquete.contenido || "-", 283, y + 8, { width: 130 })
-        .text(String(paquete.peso || "0"), 423, y + 8, { width: 45 })
-        .text(formatUSD(paquete.asegurado), 478, y + 8, { width: 60 });
+        .font("Helvetica")
+        .fontSize(7.6)
+        .fillColor("#333333");
 
-      y += 25;
+      columns.forEach((col, colIndex) => {
+        doc.text(String(valores[colIndex]), col.x + 5, y + 8, rowOptions(col));
+      });
+
+      y += rowHeight;
     });
 
     y += 22;
