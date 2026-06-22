@@ -1,3 +1,60 @@
+const getResponseFileName = (contentDisposition: string | null, fallback: string) => {
+  if (!contentDisposition) return fallback;
+
+  const encodedMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (encodedMatch?.[1]) {
+    try {
+      return decodeURIComponent(encodedMatch[1].trim());
+    } catch {
+      return fallback;
+    }
+  }
+
+  const plainMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+  return plainMatch?.[1]?.trim() || fallback;
+};
+
+const renderPdfViewer = (
+  viewerWindow: Window,
+  blobUrl: string,
+  fileName: string
+) => {
+  const viewerDocument = viewerWindow.document;
+  viewerDocument.open();
+  viewerDocument.write("<!doctype html><html><head></head><body></body></html>");
+  viewerDocument.close();
+  viewerDocument.title = fileName;
+
+  const style = viewerDocument.createElement("style");
+  style.textContent = `
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body { display: grid; grid-template-rows: 52px 1fr; background: #333; font-family: Arial, sans-serif; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 18px; background: #3f3f3f; color: #fff; }
+    strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    a { flex: 0 0 auto; border-radius: 4px; background: #8b0000; color: #fff; padding: 9px 14px; font-size: 13px; font-weight: 700; text-decoration: none; }
+    iframe { width: 100%; height: 100%; border: 0; background: #525659; }
+  `;
+  viewerDocument.head.appendChild(style);
+
+  const header = viewerDocument.createElement("header");
+  const title = viewerDocument.createElement("strong");
+  title.textContent = fileName;
+
+  const downloadLink = viewerDocument.createElement("a");
+  downloadLink.href = blobUrl;
+  downloadLink.download = fileName;
+  downloadLink.textContent = "Descargar PDF";
+
+  header.append(title, downloadLink);
+
+  const iframe = viewerDocument.createElement("iframe");
+  iframe.title = fileName;
+  iframe.src = `${blobUrl}#toolbar=0&navpanes=0`;
+
+  viewerDocument.body.append(header, iframe);
+};
+
 export const openAuthenticatedPdf = async (url: string, fileName = "rotulo.pdf") => {
   const pendingWindow = window.open("about:blank", "_blank");
 
@@ -39,16 +96,21 @@ export const openAuthenticatedPdf = async (url: string, fileName = "rotulo.pdf")
   }
 
   const blob = await response.blob();
-  const blobUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+  const resolvedFileName = getResponseFileName(
+    response.headers.get("content-disposition"),
+    fileName
+  );
+  const pdfFile = new File([blob], resolvedFileName, { type: "application/pdf" });
+  const blobUrl = URL.createObjectURL(pdfFile);
 
   if (pendingWindow) {
-    pendingWindow.location.href = blobUrl;
+    renderPdfViewer(pendingWindow, blobUrl, resolvedFileName);
   } else {
     const link = document.createElement("a");
     link.href = blobUrl;
-    link.download = fileName;
+    link.download = resolvedFileName;
     link.click();
   }
 
-  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 30 * 60_000);
 };

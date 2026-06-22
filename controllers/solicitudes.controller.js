@@ -99,6 +99,19 @@ const formatCOP = (value) =>
 
 const formatUSD = (value) => `$${Number(value || 0).toFixed(2)}`;
 
+export const crearNombrePdfSolicitud = (solicitud) => {
+  const fechaTexto = String(solicitud?.fecha || "");
+  const fechaDirecta = fechaTexto.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  const fechaObjeto = solicitud?.fecha ? new Date(solicitud.fecha) : new Date(Number.NaN);
+  const fechaIso =
+    fechaDirecta ||
+    (!Number.isNaN(fechaObjeto.getTime())
+      ? fechaObjeto.toISOString().slice(0, 10)
+      : "sin-fecha");
+
+  return `Solicitud_${solicitud?.id || "sin-numero"}_${fechaIso}.pdf`;
+};
+
 const esBlobPrivado = (valor) =>
   Boolean(valor && String(valor).startsWith("azure://"));
 
@@ -334,8 +347,16 @@ const generarPdfCobroSolicitud = (solicitud) =>
         94,
         { align: "right", width: 260 }
       );
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(8.5)
+      .fillColor(red)
+      .text(`Servicio: ${solicitud.servicio_nombre || "No especificado"}`, 280, 111, {
+        align: "right",
+        width: 260,
+      });
 
-    const infoBoxY = 132;
+    const infoBoxY = 140;
     const infoBoxX = 38;
     const infoPaddingX = 18;
     const infoTop = infoBoxY + 18;
@@ -1662,7 +1683,7 @@ export const generarPDFSolicitudCobro = async (req, res) => {
     }
 
     const pdfBuffer = await generarPdfCobroSolicitud(solicitud);
-    const fileName = `Solicitud_${solicitud.id}.pdf`;
+    const fileName = crearNombrePdfSolicitud(solicitud);
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Length", pdfBuffer.length);
@@ -1740,7 +1761,7 @@ export const enviarCobroSolicitud = async (req, res) => {
       evento: "solicitud_facturada",
       adjuntos: [
         {
-          name: `Solicitud_${solicitud.id}.pdf`,
+          name: crearNombrePdfSolicitud(solicitud),
           content: pdfBuffer.toString("base64"),
         },
       ],
