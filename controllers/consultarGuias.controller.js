@@ -259,7 +259,9 @@ export const consultarTrackingFiltrado = async (req, res) => {
         END AS cliente
 
       FROM paquetes p
-      LEFT JOIN clientes c ON p.cliente_id = c.id
+      LEFT JOIN clientes c
+        ON c.id = p.cliente_id
+        OR (p.cliente_id IS NULL AND c.codigo_referencia = p.codigo_referencia)
       LEFT JOIN estados_catalogo e ON e.id = p.estado_id
       LEFT JOIN puntos_control pc ON pc.id = e.punto_control_id
       WHERE ${where.join(" AND ")}
