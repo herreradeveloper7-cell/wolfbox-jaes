@@ -48,6 +48,7 @@ export interface SolicitudPDFData {
 
   // Totales
   totalAseguradoUSD: number;
+  totalPeso?: number;
   totalUSD: number;
   trm: number;
   totalCOP: number;
