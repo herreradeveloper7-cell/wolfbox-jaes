@@ -9,6 +9,7 @@ import PlantillaInfoCrearTracking from "../../components/tracking/PlantillaInfoC
 import ModalError from "../../components/ModalError";
 import axios from "axios";
 import { useEffect, useState} from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 
 
@@ -34,6 +35,8 @@ export default function CrearTracking() {
     const [modalVisible, setModalVisible] = useState(false);
 
     const [paquetesTracking, setPaquetesTracking] = useState<PaqueteTracking[]>([]);
+    const [paginaTracking, setPaginaTracking] = useState(1);
+    const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
 
     const [mensajeTracking, setMensajeTracking] = useState<null | { hawb: string; contenido: string; peso: string }>(null);
 
@@ -141,6 +144,7 @@ export default function CrearTracking() {
 
             return [nuevoPaquete, ...prev];
             });
+            setPaginaTracking(1);
 
             setMensajeTracking({
             hawb: paquete.hawb,
@@ -223,6 +227,17 @@ export default function CrearTracking() {
     contenido: string;
     peso: string;
     }
+
+    const totalPaginasTracking = Math.max(
+      1,
+      Math.ceil(paquetesTracking.length / registrosPorPagina)
+    );
+    const paginaTrackingSegura = Math.min(paginaTracking, totalPaginasTracking);
+    const inicioTracking = (paginaTrackingSegura - 1) * registrosPorPagina;
+    const paquetesTrackingPaginados = paquetesTracking.slice(
+      inicioTracking,
+      inicioTracking + registrosPorPagina
+    );
       
     const navigate = useNavigate();
     return (
@@ -628,6 +643,21 @@ export default function CrearTracking() {
                       Últimos paquetes procesados
                     </p>
                   </div>
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-600">
+                    Registros
+                    <select
+                      value={registrosPorPagina}
+                      onChange={(event) => {
+                        setRegistrosPorPagina(Number(event.target.value));
+                        setPaginaTracking(1);
+                      }}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-red-900 focus:outline-none focus:ring-2 focus:ring-red-900/20"
+                    >
+                      {[10, 20, 50, 100].map((cantidad) => (
+                        <option key={cantidad} value={cantidad}>{cantidad}</option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -644,7 +674,7 @@ export default function CrearTracking() {
                         </tr>
                     </thead>
                     <tbody>
-                        {paquetesTracking.map((paquete) => (
+                        {paquetesTrackingPaginados.map((paquete) => (
                         <tr key={paquete.id} className="bg-white hover:bg-gray-50 transition border border-gray-200 rounded-lg">
                             <td className="px-4 py-3 text-gray-700 font-medium">{paquete.id}</td>
                             <td className="px-4 py-3 text-gray-700 font-medium">{paquete.hawb}</td>
@@ -657,6 +687,36 @@ export default function CrearTracking() {
                         ))}
                     </tbody>
                     </table>
+                </div>
+                <div className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-gray-500">
+                    Mostrando {inicioTracking + 1} a {Math.min(inicioTracking + registrosPorPagina, paquetesTracking.length)} de {paquetesTracking.length} registros
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      title="Página anterior"
+                      aria-label="Página anterior"
+                      onClick={() => setPaginaTracking((pagina) => Math.max(1, pagina - 1))}
+                      disabled={paginaTrackingSegura === 1}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:border-red-900 hover:text-red-900 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <ChevronLeft size={17} />
+                    </button>
+                    <span className="min-w-20 text-center text-sm font-semibold text-gray-600">
+                      {paginaTrackingSegura} / {totalPaginasTracking}
+                    </span>
+                    <button
+                      type="button"
+                      title="Página siguiente"
+                      aria-label="Página siguiente"
+                      onClick={() => setPaginaTracking((pagina) => Math.min(totalPaginasTracking, pagina + 1))}
+                      disabled={paginaTrackingSegura === totalPaginasTracking}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:border-red-900 hover:text-red-900 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <ChevronRight size={17} />
+                    </button>
+                  </div>
                 </div>
                 </div>
                 )}
