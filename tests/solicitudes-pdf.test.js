@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   calcularPesoTotalSolicitud,
+  calcularTotalesActualesSolicitud,
   crearNombrePdfSolicitud,
 } from "../controllers/solicitudes.controller.js";
 
@@ -46,4 +47,36 @@ test("calcularPesoTotalSolicitud no duplica el peso del HAWB padre", () => {
     ]),
     10
   );
+});
+
+test("calcularTotalesActualesSolicitud reemplaza el total antiguo y conserva la TRM", () => {
+  assert.deepEqual(
+    calcularTotalesActualesSolicitud({
+      fleteUSD: 116,
+      seguroUSD: 5,
+      valorUSDGuardado: 137,
+      valorCOPGuardado: 493200,
+    }),
+    {
+      trm: 3600,
+      totalUSD: 121,
+      totalCOP: 435600,
+      totalUSDConCargos: 121,
+      totalCOPConCargos: 435600,
+    }
+  );
+});
+
+test("calcularTotalesActualesSolicitud agrega cargos actuales por separado", () => {
+  const totales = calcularTotalesActualesSolicitud({
+    fleteUSD: 116,
+    seguroUSD: 5,
+    valorUSDGuardado: 137,
+    valorCOPGuardado: 493200,
+    cargosUSD: 10,
+    cargosCOP: 36000,
+  });
+
+  assert.equal(totales.totalUSDConCargos, 131);
+  assert.equal(totales.totalCOPConCargos, 471600);
 });

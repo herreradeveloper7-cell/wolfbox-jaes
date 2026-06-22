@@ -120,6 +120,29 @@ export const calcularPesoTotalSolicitud = (paquetes = []) =>
       .toFixed(2)
   );
 
+export const calcularTotalesActualesSolicitud = ({
+  fleteUSD,
+  seguroUSD,
+  valorUSDGuardado,
+  valorCOPGuardado,
+  cargosUSD = 0,
+  cargosCOP = 0,
+}) => {
+  const baseUSDGuardada = Number(valorUSDGuardado || 0);
+  const baseCOPGuardada = Number(valorCOPGuardado || 0);
+  const trm = baseUSDGuardada > 0 ? baseCOPGuardada / baseUSDGuardada : 0;
+  const totalUSD = Number((Number(fleteUSD || 0) + Number(seguroUSD || 0)).toFixed(2));
+  const totalCOP = Number((totalUSD * trm).toFixed(2));
+
+  return {
+    trm: Number(trm.toFixed(2)),
+    totalUSD,
+    totalCOP,
+    totalUSDConCargos: Number((totalUSD + Number(cargosUSD || 0)).toFixed(2)),
+    totalCOPConCargos: Number((totalCOP + Number(cargosCOP || 0)).toFixed(2)),
+  };
+};
+
 const esBlobPrivado = (valor) =>
   Boolean(valor && String(valor).startsWith("azure://"));
 
@@ -290,8 +313,6 @@ const obtenerSolicitudParaCobro = async (pool, solicitudId) => {
   const seguroMinimoUSD = Number(servicio.seguro_minimo_usd || 0);
   const seguroUSD = Math.max(totalAsegurado * porcentaje, seguroMinimoUSD);
   const fleteUSD = Number(calculoFlete.fleteUSD || 0);
-  const totalUSD = Number(solicitud.valor_estimado_usd || fleteUSD + seguroUSD || 0);
-  const totalCOP = Number(solicitud.valor_moneda_local || 0);
   const totalCargosUSD = cargos.recordset.reduce(
     (sum, cargo) => sum + Number(cargo.valor_usd || 0),
     0
@@ -300,6 +321,14 @@ const obtenerSolicitudParaCobro = async (pool, solicitudId) => {
     (sum, cargo) => sum + Number(cargo.valor_cop || 0),
     0
   );
+  const totalesActuales = calcularTotalesActualesSolicitud({
+    fleteUSD,
+    seguroUSD,
+    valorUSDGuardado: solicitud.valor_estimado_usd,
+    valorCOPGuardado: solicitud.valor_moneda_local,
+    cargosUSD: totalCargosUSD,
+    cargosCOP: totalCargosCOP,
+  });
 
   return {
     ...solicitud,
@@ -309,11 +338,7 @@ const obtenerSolicitudParaCobro = async (pool, solicitudId) => {
     totalPeso: Number(totalPeso.toFixed(2)),
     seguroUSD,
     fleteUSD,
-    totalUSD,
-    totalCOP,
-    totalUSDConCargos: totalUSD + totalCargosUSD,
-    totalCOPConCargos: totalCOP + totalCargosCOP,
-    trm: totalUSD > 0 ? Number((totalCOP / totalUSD).toFixed(2)) : 0,
+    ...totalesActuales,
   };
 };
 
@@ -1479,11 +1504,6 @@ export const obtenerDetalleSolicitud = async (req, res) => {
     const seguroCalculadoUSD = totalAsegurado * porcentaje;
     const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
 
-    const totalUSDCalculado = fleteUSD + seguroUSD;
-    const totalUSD = Number(solicitudData.valor_estimado_usd || totalUSDCalculado || 0);
-    const totalCOP = Number(solicitudData.valor_moneda_local || 0);
-    const trm = totalUSD > 0 ? Number((totalCOP / totalUSD).toFixed(2)) : 0;
-
     const totalCargosUSD = cargos.recordset.reduce(
       (sum, c) => sum + Number(c.valor_usd || 0),
       0
@@ -1494,8 +1514,14 @@ export const obtenerDetalleSolicitud = async (req, res) => {
       0
     );
 
-    const totalUSDConCargos = totalUSD + totalCargosUSD;
-    const totalCOPConCargos = totalCOP + totalCargosCOP;
+    const totalesActuales = calcularTotalesActualesSolicitud({
+      fleteUSD,
+      seguroUSD,
+      valorUSDGuardado: solicitudData.valor_estimado_usd,
+      valorCOPGuardado: solicitudData.valor_moneda_local,
+      cargosUSD: totalCargosUSD,
+      cargosCOP: totalCargosCOP,
+    });
 
     res.json({
       solicitud: {
@@ -1504,11 +1530,7 @@ export const obtenerDetalleSolicitud = async (req, res) => {
         totalPeso: Number(totalPeso.toFixed(2)),
         seguroUSD,
         fleteUSD,
-        totalUSD,
-        totalCOP,
-        totalUSDConCargos,
-        totalCOPConCargos,
-        trm,
+        ...totalesActuales,
       },
       paquetes: paquetes.recordset,
       cargos: cargos.recordset,
@@ -1628,11 +1650,6 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
     const seguroCalculadoUSD = totalAsegurado * porcentaje;
     const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
 
-    const totalUSDCalculado = fleteUSD + seguroUSD;
-    const totalUSD = Number(solicitud.valor_estimado_usd || totalUSDCalculado || 0);
-    const totalCOP = Number(solicitud.valor_moneda_local || 0);
-    const trm = totalUSD > 0 ? Number((totalCOP / totalUSD).toFixed(2)) : 0;
-
     const totalCargosUSD = cargos.recordset.reduce(
       (sum, c) => sum + Number(c.valor_usd || 0),
       0
@@ -1643,8 +1660,14 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
       0
     );
 
-    const totalUSDConCargos = totalUSD + totalCargosUSD;
-    const totalCOPConCargos = totalCOP + totalCargosCOP;
+    const totalesActuales = calcularTotalesActualesSolicitud({
+      fleteUSD,
+      seguroUSD,
+      valorUSDGuardado: solicitud.valor_estimado_usd,
+      valorCOPGuardado: solicitud.valor_moneda_local,
+      cargosUSD: totalCargosUSD,
+      cargosCOP: totalCargosCOP,
+    });
 
     res.json({
       solicitud: {
@@ -1655,11 +1678,7 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
         totalPeso: Number(totalPeso.toFixed(2)),
         seguroUSD,
         fleteUSD,
-        totalUSD,
-        totalCOP,
-        totalUSDConCargos,
-        totalCOPConCargos,
-        trm,
+        ...totalesActuales,
       },
     });
   } catch (err) {
