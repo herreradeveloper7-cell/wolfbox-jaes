@@ -68,9 +68,11 @@ export default function SolicitarDespachos() {
 
   const handleImprimirSolicitud = async (solicitud: Solicitud) => {
     try {
+      const fechaSolicitud = solicitud.fecha?.match(/^\d{4}-\d{2}-\d{2}/)?.[0] || "sin-fecha";
+
       await openAuthenticatedPdf(
         `/api/solicitudes/pdf/${solicitud.id}`,
-        `Solicitud_${solicitud.id}.pdf`
+        `Solicitud_${solicitud.id}_${fechaSolicitud}.pdf`
       );
     } catch (err) {
       console.error(err);

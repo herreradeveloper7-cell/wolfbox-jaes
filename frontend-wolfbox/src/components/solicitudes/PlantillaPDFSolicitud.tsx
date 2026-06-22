@@ -296,6 +296,9 @@ const datoInfoStyle: React.CSSProperties = {
           <h3 style={{ marginBottom: "10px", color: "#8B0000" }}>TOTALES</h3>
 
           <p>
+            <strong>Peso total:</strong> {pesoTotalAgrupado.toFixed(2)} lb
+          </p>
+          <p>
             <strong>Seguro total (USD):</strong>{" "}
             ${safe(solicitud.seguroUSD).toFixed(2)}
           </p>

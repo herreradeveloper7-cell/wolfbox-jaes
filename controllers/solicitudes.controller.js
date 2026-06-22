@@ -123,6 +123,50 @@ const formatCOP = (value) =>
 
 const formatUSD = (value) => `$${Number(value || 0).toFixed(2)}`;
 
+export const crearNombrePdfSolicitud = (solicitud) => {
+  const fechaTexto = String(solicitud?.fecha || "");
+  const fechaDirecta = fechaTexto.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  const fechaObjeto = solicitud?.fecha ? new Date(solicitud.fecha) : new Date(Number.NaN);
+  const fechaIso =
+    fechaDirecta ||
+    (!Number.isNaN(fechaObjeto.getTime())
+      ? fechaObjeto.toISOString().slice(0, 10)
+      : "sin-fecha");
+
+  return `Solicitud_${solicitud?.id || "sin-numero"}_${fechaIso}.pdf`;
+};
+
+export const calcularPesoTotalSolicitud = (paquetes = []) =>
+  Number(
+    paquetes
+      .filter((paquete) => !String(paquete?.hawb || "").toUpperCase().endsWith("G"))
+      .reduce((total, paquete) => total + Number(paquete?.peso || 0), 0)
+      .toFixed(2)
+  );
+
+export const calcularTotalesActualesSolicitud = ({
+  fleteUSD,
+  seguroUSD,
+  valorUSDGuardado,
+  valorCOPGuardado,
+  cargosUSD = 0,
+  cargosCOP = 0,
+}) => {
+  const baseUSDGuardada = Number(valorUSDGuardado || 0);
+  const baseCOPGuardada = Number(valorCOPGuardado || 0);
+  const trm = baseUSDGuardada > 0 ? baseCOPGuardada / baseUSDGuardada : 0;
+  const totalUSD = Number((Number(fleteUSD || 0) + Number(seguroUSD || 0)).toFixed(2));
+  const totalCOP = Number((totalUSD * trm).toFixed(2));
+
+  return {
+    trm: Number(trm.toFixed(2)),
+    totalUSD,
+    totalCOP,
+    totalUSDConCargos: Number((totalUSD + Number(cargosUSD || 0)).toFixed(2)),
+    totalCOPConCargos: Number((totalCOP + Number(cargosCOP || 0)).toFixed(2)),
+  };
+};
+
 const esBlobPrivado = (valor) =>
   Boolean(valor && String(valor).startsWith("azure://"));
 
@@ -276,10 +320,7 @@ const obtenerSolicitudParaCobro = async (pool, solicitudId) => {
   const paquetesParaTotales = paquetes.recordset.filter(
     (p) => !String(p.hawb || "").toUpperCase().endsWith("G")
   );
-  const totalPeso = paquetesParaTotales.reduce(
-    (sum, p) => sum + Number(p.peso || 0),
-    0
-  );
+  const totalPeso = calcularPesoTotalSolicitud(paquetes.recordset);
   const totalAsegurado = paquetesParaTotales.reduce(
     (sum, p) => sum + Number(p.asegurado || 0),
     0
@@ -296,8 +337,6 @@ const obtenerSolicitudParaCobro = async (pool, solicitudId) => {
   const seguroMinimoUSD = Number(servicio.seguro_minimo_usd || 0);
   const seguroUSD = Math.max(totalAsegurado * porcentaje, seguroMinimoUSD);
   const fleteUSD = Number(calculoFlete.fleteUSD || 0);
-  const totalUSD = Number(solicitud.valor_estimado_usd || fleteUSD + seguroUSD || 0);
-  const totalCOP = Number(solicitud.valor_moneda_local || 0);
   const totalCargosUSD = cargos.recordset.reduce(
     (sum, cargo) => sum + Number(cargo.valor_usd || 0),
     0
@@ -306,19 +345,24 @@ const obtenerSolicitudParaCobro = async (pool, solicitudId) => {
     (sum, cargo) => sum + Number(cargo.valor_cop || 0),
     0
   );
+  const totalesActuales = calcularTotalesActualesSolicitud({
+    fleteUSD,
+    seguroUSD,
+    valorUSDGuardado: solicitud.valor_estimado_usd,
+    valorCOPGuardado: solicitud.valor_moneda_local,
+    cargosUSD: totalCargosUSD,
+    cargosCOP: totalCargosCOP,
+  });
 
   return {
     ...solicitud,
     servicio_nombre: servicio.servicio_nombre || "Servicio no especificado",
     paquetes: paquetes.recordset,
     cargos: cargos.recordset,
+    totalPeso: Number(totalPeso.toFixed(2)),
     seguroUSD,
     fleteUSD,
-    totalUSD,
-    totalCOP,
-    totalUSDConCargos: totalUSD + totalCargosUSD,
-    totalCOPConCargos: totalCOP + totalCargosCOP,
-    trm: totalUSD > 0 ? Number((totalCOP / totalUSD).toFixed(2)) : 0,
+    ...totalesActuales,
   };
 };
 
@@ -358,8 +402,16 @@ const generarPdfCobroSolicitud = (solicitud) =>
         94,
         { align: "right", width: 260 }
       );
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(8.5)
+      .fillColor(red)
+      .text(`Servicio: ${solicitud.servicio_nombre || "No especificado"}`, 280, 111, {
+        align: "right",
+        width: 260,
+      });
 
-    const infoBoxY = 132;
+    const infoBoxY = 140;
     const infoBoxX = 38;
     const infoPaddingX = 18;
     const infoTop = infoBoxY + 18;
@@ -558,7 +610,8 @@ const generarPdfCobroSolicitud = (solicitud) =>
       .text(`Flete (USD): ${formatUSD(solicitud.fleteUSD)}`, 54, y + 58)
       .text(`Total USD: ${formatUSD(solicitud.totalUSDConCargos)}`, 54, y + 76)
       .text(`TRM aplicada: ${solicitud.trm}`, 300, y + 40)
-      .text(`Total COP: ${formatCOP(solicitud.totalCOPConCargos)}`, 300, y + 58);
+      .text(`Total COP: ${formatCOP(solicitud.totalCOPConCargos)}`, 300, y + 58)
+      .text(`Peso total: ${Number(solicitud.totalPeso || 0).toFixed(2)} lb`, 300, y + 76);
 
     doc
       .font("Helvetica-Bold")
@@ -1452,10 +1505,7 @@ export const obtenerDetalleSolicitud = async (req, res) => {
       (p) => !String(p.hawb || "").toUpperCase().endsWith("G")
     );
 
-    const totalPeso = paquetesParaTotales.reduce(
-      (sum, p) => sum + Number(p.peso || 0),
-      0
-    );
+    const totalPeso = calcularPesoTotalSolicitud(paquetes.recordset);
 
     const totalAsegurado = paquetesParaTotales.reduce(
       (sum, p) => sum + Number(p.asegurado || 0),
@@ -1478,11 +1528,6 @@ export const obtenerDetalleSolicitud = async (req, res) => {
     const seguroCalculadoUSD = totalAsegurado * porcentaje;
     const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
 
-    const totalUSDCalculado = fleteUSD + seguroUSD;
-    const totalUSD = Number(solicitudData.valor_estimado_usd || totalUSDCalculado || 0);
-    const totalCOP = Number(solicitudData.valor_moneda_local || 0);
-    const trm = totalUSD > 0 ? Number((totalCOP / totalUSD).toFixed(2)) : 0;
-
     const totalCargosUSD = cargos.recordset.reduce(
       (sum, c) => sum + Number(c.valor_usd || 0),
       0
@@ -1493,20 +1538,23 @@ export const obtenerDetalleSolicitud = async (req, res) => {
       0
     );
 
-    const totalUSDConCargos = totalUSD + totalCargosUSD;
-    const totalCOPConCargos = totalCOP + totalCargosCOP;
+    const totalesActuales = calcularTotalesActualesSolicitud({
+      fleteUSD,
+      seguroUSD,
+      valorUSDGuardado: solicitudData.valor_estimado_usd,
+      valorCOPGuardado: solicitudData.valor_moneda_local,
+      cargosUSD: totalCargosUSD,
+      cargosCOP: totalCargosCOP,
+    });
 
     res.json({
       solicitud: {
         ...solicitudData,
         servicio_nombre: servicio.servicio_nombre || null,
+        totalPeso: Number(totalPeso.toFixed(2)),
         seguroUSD,
         fleteUSD,
-        totalUSD,
-        totalCOP,
-        totalUSDConCargos,
-        totalCOPConCargos,
-        trm,
+        ...totalesActuales,
       },
       paquetes: paquetes.recordset,
       cargos: cargos.recordset,
@@ -1598,12 +1646,13 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
 
     const servicio = servicioQuery.recordset[0] || {};
 
-    const totalPeso = paquetes.recordset.reduce(
-      (sum, p) => sum + Number(p.peso || 0),
-      0
+    const paquetesParaTotales = paquetes.recordset.filter(
+      (p) => !String(p.hawb || "").toUpperCase().endsWith("G")
     );
 
-    const totalAsegurado = paquetes.recordset.reduce(
+    const totalPeso = calcularPesoTotalSolicitud(paquetes.recordset);
+
+    const totalAsegurado = paquetesParaTotales.reduce(
       (sum, p) => sum + Number(p.asegurado || 0),
       0
     );
@@ -1625,11 +1674,6 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
     const seguroCalculadoUSD = totalAsegurado * porcentaje;
     const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
 
-    const totalUSDCalculado = fleteUSD + seguroUSD;
-    const totalUSD = Number(solicitud.valor_estimado_usd || totalUSDCalculado || 0);
-    const totalCOP = Number(solicitud.valor_moneda_local || 0);
-    const trm = totalUSD > 0 ? Number((totalCOP / totalUSD).toFixed(2)) : 0;
-
     const totalCargosUSD = cargos.recordset.reduce(
       (sum, c) => sum + Number(c.valor_usd || 0),
       0
@@ -1640,8 +1684,14 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
       0
     );
 
-    const totalUSDConCargos = totalUSD + totalCargosUSD;
-    const totalCOPConCargos = totalCOP + totalCargosCOP;
+    const totalesActuales = calcularTotalesActualesSolicitud({
+      fleteUSD,
+      seguroUSD,
+      valorUSDGuardado: solicitud.valor_estimado_usd,
+      valorCOPGuardado: solicitud.valor_moneda_local,
+      cargosUSD: totalCargosUSD,
+      cargosCOP: totalCargosCOP,
+    });
 
     res.json({
       solicitud: {
@@ -1649,13 +1699,10 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
         servicio_nombre: servicio.servicio_nombre || null,
         paquetes: paquetes.recordset,
         cargos: cargos.recordset,
+        totalPeso: Number(totalPeso.toFixed(2)),
         seguroUSD,
         fleteUSD,
-        totalUSD,
-        totalCOP,
-        totalUSDConCargos,
-        totalCOPConCargos,
-        trm,
+        ...totalesActuales,
       },
     });
   } catch (err) {
@@ -1686,7 +1733,7 @@ export const generarPDFSolicitudCobro = async (req, res) => {
     }
 
     const pdfBuffer = await generarPdfCobroSolicitud(solicitud);
-    const fileName = `Solicitud_${solicitud.id}.pdf`;
+    const fileName = crearNombrePdfSolicitud(solicitud);
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Length", pdfBuffer.length);
@@ -1764,7 +1811,7 @@ export const enviarCobroSolicitud = async (req, res) => {
       evento: "solicitud_facturada",
       adjuntos: [
         {
-          name: `Solicitud_${solicitud.id}.pdf`,
+          name: crearNombrePdfSolicitud(solicitud),
           content: pdfBuffer.toString("base64"),
         },
       ],
