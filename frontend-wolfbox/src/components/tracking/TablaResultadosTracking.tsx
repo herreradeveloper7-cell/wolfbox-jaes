@@ -5,6 +5,7 @@ import { ResultadoTracking } from "../../types/tracking";
 import ModalConfirmarEliminar from "../../components/ModalConfirmarEliminar";
 import iconTrash from "../../assets/trash-svgrepo-com.svg";
 import iconEdit from "../../assets/edit-svgrepo-com.svg";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export interface TrackingEstadoEditable {
   id: number;
@@ -23,7 +24,8 @@ interface TablaResultadosTrackingProps {
 }
 
 export default function TablaResultadosTracking({ resultados, onEditar }: TablaResultadosTrackingProps) {
-  const [registros, setRegistros] = useState("10");
+  const [registros, setRegistros] = useState(10);
+  const [paginaActual, setPaginaActual] = useState(1);
   const [busqueda, setBusqueda] = useState("");
   const [modalMensaje, setModalMensaje] = useState<string | null>(null);
   const [modalEliminarId, setModalEliminarId] = useState<number | null>(null);
@@ -34,11 +36,27 @@ export default function TablaResultadosTracking({ resultados, onEditar }: TablaR
 
   useEffect(() => {
     setResultadosLocal(resultados);
+    setPaginaActual(1);
   }, [resultados]);
 
   const resultadosFiltrados = resultadosLocal.filter((resultado) =>
     resultado.hawb.toLowerCase().includes(busqueda.toLowerCase())
   );
+  const filasFiltradas = resultadosFiltrados.flatMap((resultado) =>
+    resultado.estados.map((estado, estadoIndex) => ({
+      resultado,
+      estado,
+      estadoIndex,
+    }))
+  );
+  const totalPaginas = Math.max(1, Math.ceil(filasFiltradas.length / registros));
+  const paginaSegura = Math.min(paginaActual, totalPaginas);
+  const inicioPagina = (paginaSegura - 1) * registros;
+  const filasPaginadas = filasFiltradas.slice(inicioPagina, inicioPagina + registros);
+
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [busqueda, registros]);
 
   const handleEliminar = async (estadoId: number, hawb: string) => {
     try {
@@ -96,11 +114,12 @@ export default function TablaResultadosTracking({ resultados, onEditar }: TablaR
             className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 bg-white shadow-sm
               transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-red-900/20 focus:border-red-900 hover:border-gray-400"
             value={registros}
-            onChange={(e) => setRegistros(e.target.value)}
+            onChange={(e) => setRegistros(Number(e.target.value))}
           >
             <option value="10">10</option>
-            <option value="25">25</option>
+            <option value="20">20</option>
             <option value="50">50</option>
+            <option value="100">100</option>
           </select>
         </div>
 
@@ -127,7 +146,7 @@ export default function TablaResultadosTracking({ resultados, onEditar }: TablaR
             </tr>
           </thead>
           <tbody>
-            {resultadosFiltrados.length === 0 ? (
+            {filasFiltradas.length === 0 ? (
               <tr>
                 <td colSpan={6} className="text-center py-12 text-gray-400">
                   <div className="flex flex-col items-center gap-2">
@@ -139,8 +158,7 @@ export default function TablaResultadosTracking({ resultados, onEditar }: TablaR
                 </td>
               </tr>
             ) : (
-              resultadosFiltrados.map((resultado) =>
-                  resultado.estados.map((estado, estadoIndex) => {
+              filasPaginadas.map(({ resultado, estado, estadoIndex }) => {
                   const esUltimo = estadoIndex === 0;
                   const esUnico = resultado.estados.length === 1;
 
@@ -204,11 +222,43 @@ export default function TablaResultadosTracking({ resultados, onEditar }: TablaR
                       </tr>
                     );
                   })
-              )
             )}
           </tbody>
         </table>
       </div>
+
+      {filasFiltradas.length > 0 && (
+        <div className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-gray-500">
+            Mostrando {inicioPagina + 1} a {Math.min(inicioPagina + registros, filasFiltradas.length)} de {filasFiltradas.length} registros
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              title="Página anterior"
+              aria-label="Página anterior"
+              onClick={() => setPaginaActual((pagina) => Math.max(1, pagina - 1))}
+              disabled={paginaSegura === 1}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:border-red-900 hover:text-red-900 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronLeft size={17} />
+            </button>
+            <span className="min-w-20 text-center text-sm font-semibold text-gray-600">
+              {paginaSegura} / {totalPaginas}
+            </span>
+            <button
+              type="button"
+              title="Página siguiente"
+              aria-label="Página siguiente"
+              onClick={() => setPaginaActual((pagina) => Math.min(totalPaginas, pagina + 1))}
+              disabled={paginaSegura === totalPaginas}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:border-red-900 hover:text-red-900 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronRight size={17} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {modalMensaje && (
         <ModalConfirmacion mensaje={modalMensaje} onClose={() => setModalMensaje(null)} />
