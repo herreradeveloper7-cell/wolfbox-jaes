@@ -442,9 +442,9 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
         <img src={iconToggleMostrar} alt="Mostrar/ocultar slide" className="w-5 h-5" />
       </button>
 
-      <main className="min-w-0 flex-1 flex flex-col overflow-hidden pl-16 md:pl-0">
+      <main className="min-w-0 flex-1 flex flex-col overflow-hidden">
 
-        <header className="relative z-10 min-w-0 flex min-h-[104px] items-center justify-center bg-white px-4 py-3 shadow-md sm:min-h-[118px] md:px-6 md:py-4">
+        <header className="min-w-0 flex justify-between items-center px-6 py-4 bg-white shadow-md z-10">
         <div
           onClick={() => navegarORecargar("/dashboardUsuario")}
           className="w-auto mx-auto cursor-pointer hover:scale-105 transition-transform duration-200"
@@ -469,7 +469,7 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
           </div>
         </header>
 
-        <div className={`min-w-0 flex-1 overflow-x-hidden ${scrollable ? "overflow-y-auto" : "overflow-hidden"} p-4 md:p-6`}>
+        <div className={`min-w-0 flex-1 overflow-x-hidden ${scrollable ? "overflow-y-auto" : "overflow-hidden"} p-6`}>
           {children}
         </div>
 

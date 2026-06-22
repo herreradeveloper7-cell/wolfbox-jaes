@@ -32,6 +32,8 @@ type SolicitudReporte = {
   desbloqueada?: number | boolean | null;
 };
 
+const REPORTE_SOLICITUDES_VERSION = "solicitudes-main-20260604-2";
+
 const limpiarNombreArchivo = (valor: string) =>
   valor.replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, "_");
 
@@ -75,6 +77,14 @@ export default function ReporteSolicitudes() {
         (total, solicitud) => total + Number(solicitud.peso_total || 0),
         0
       );
+      const totalCargosUsd = solicitudes.reduce(
+        (total, solicitud) => total + Number(solicitud.cargos_usd || 0),
+        0
+      );
+      const totalCargosCop = solicitudes.reduce(
+        (total, solicitud) => total + Number(solicitud.cargos_cop || 0),
+        0
+      );
       const rows = solicitudes.map((solicitud) => ({
         "Solicitud ID": solicitud.id,
         Fecha: solicitud.fecha || "-",
@@ -99,15 +109,18 @@ export default function ReporteSolicitudes() {
       }));
       const resumen = [
         ["Reporte", "Solicitudes"],
+        ["Version reporte", REPORTE_SOLICITUDES_VERSION],
         ["Filtro", resumenFiltro],
         ["Fecha inicial", fechaDesde || "Sin filtro"],
         ["Fecha final", fechaHasta || "Sin filtro"],
         ["Total solicitudes", solicitudes.length],
         ["Peso total", Number(totalPeso.toFixed(2))],
+        ["Total cargos USD", Number(totalCargosUsd.toFixed(2))],
+        ["Total cargos COP", Number(totalCargosCop.toFixed(2))],
         ["Generado", new Date().toLocaleString("es-CO")],
       ];
       await exportarExcel(
-        `Reporte_Solicitudes_${limpiarNombreArchivo(desbloqueo)}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+        `Reporte_Solicitudes_${limpiarNombreArchivo(desbloqueo)}_${REPORTE_SOLICITUDES_VERSION}_${new Date().toISOString().slice(0, 10)}.xlsx`,
         [
           { nombre: "Resumen", filas: resumen, anchos: [22, 42] },
           {
@@ -254,3 +267,4 @@ export default function ReporteSolicitudes() {
     </UserDashboardLayout>
   );
 }
+

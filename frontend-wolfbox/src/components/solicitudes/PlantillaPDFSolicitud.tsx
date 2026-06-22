@@ -231,6 +231,20 @@ const datoInfoStyle: React.CSSProperties = {
               </tr>
             ))}
 
+            {!guiaAgrupada && (
+              <tr
+                style={{
+                  background: "#f5f5f5",
+                  color: "#222",
+                  fontWeight: "bold",
+                }}
+              >
+                <td style={td} colSpan={3}>TOTAL SOLICITUD</td>
+                <td style={td}>{pesoTotalAgrupado}</td>
+                <td style={td}>{aseguradoTotalAgrupado}</td>
+              </tr>
+            )}
+
           </tbody>
         </table>
 

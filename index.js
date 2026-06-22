@@ -33,6 +33,11 @@ import { iniciarDbKeepAlive, poolPromise } from "./config/db.js";
 
 const app = express();
 iniciarDbKeepAlive();
+const APP_VERSION =
+  process.env.RAILWAY_GIT_COMMIT_SHA ||
+  process.env.GIT_COMMIT_SHA ||
+  process.env.APP_VERSION ||
+  "local";
 
 const uploadsPath = path.resolve("uploads/comprobantes");
 if (!fs.existsSync(uploadsPath)) {
@@ -62,6 +67,7 @@ app.use(express.json({ limit: "1mb" }));
 app.use((req, res, next) => {
   const startedAt = Date.now();
   const slowRequestMs = Number(process.env.SLOW_REQUEST_MS) || 2500;
+  res.setHeader("X-Wolfbox-Version", APP_VERSION);
 
   res.on("finish", () => {
     const elapsed = Date.now() - startedAt;
@@ -82,6 +88,16 @@ app.get('/', (req, res) => {
 
 app.get("/health", (req, res) => {
   res.json({ ok: true, service: "wolfbox-api" });
+});
+
+app.get("/version", (req, res) => {
+  res.json({
+    ok: true,
+    service: "wolfbox-api",
+    version: APP_VERSION,
+    deployedAt: process.env.RAILWAY_DEPLOYMENT_ID || null,
+    environment: process.env.RAILWAY_ENVIRONMENT_NAME || process.env.NODE_ENV || null,
+  });
 });
 
 app.get("/health/db", async (req, res) => {
