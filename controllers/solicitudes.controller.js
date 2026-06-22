@@ -112,6 +112,14 @@ export const crearNombrePdfSolicitud = (solicitud) => {
   return `Solicitud_${solicitud?.id || "sin-numero"}_${fechaIso}.pdf`;
 };
 
+export const calcularPesoTotalSolicitud = (paquetes = []) =>
+  Number(
+    paquetes
+      .filter((paquete) => !String(paquete?.hawb || "").toUpperCase().endsWith("G"))
+      .reduce((total, paquete) => total + Number(paquete?.peso || 0), 0)
+      .toFixed(2)
+  );
+
 const esBlobPrivado = (valor) =>
   Boolean(valor && String(valor).startsWith("azure://"));
 
@@ -265,10 +273,7 @@ const obtenerSolicitudParaCobro = async (pool, solicitudId) => {
   const paquetesParaTotales = paquetes.recordset.filter(
     (p) => !String(p.hawb || "").toUpperCase().endsWith("G")
   );
-  const totalPeso = paquetesParaTotales.reduce(
-    (sum, p) => sum + Number(p.peso || 0),
-    0
-  );
+  const totalPeso = calcularPesoTotalSolicitud(paquetes.recordset);
   const totalAsegurado = paquetesParaTotales.reduce(
     (sum, p) => sum + Number(p.asegurado || 0),
     0
@@ -301,6 +306,7 @@ const obtenerSolicitudParaCobro = async (pool, solicitudId) => {
     servicio_nombre: servicio.servicio_nombre || "Servicio no especificado",
     paquetes: paquetes.recordset,
     cargos: cargos.recordset,
+    totalPeso: Number(totalPeso.toFixed(2)),
     seguroUSD,
     fleteUSD,
     totalUSD,
@@ -555,7 +561,8 @@ const generarPdfCobroSolicitud = (solicitud) =>
       .text(`Flete (USD): ${formatUSD(solicitud.fleteUSD)}`, 54, y + 58)
       .text(`Total USD: ${formatUSD(solicitud.totalUSDConCargos)}`, 54, y + 76)
       .text(`TRM aplicada: ${solicitud.trm}`, 300, y + 40)
-      .text(`Total COP: ${formatCOP(solicitud.totalCOPConCargos)}`, 300, y + 58);
+      .text(`Total COP: ${formatCOP(solicitud.totalCOPConCargos)}`, 300, y + 58)
+      .text(`Peso total: ${Number(solicitud.totalPeso || 0).toFixed(2)} lb`, 300, y + 76);
 
     doc
       .font("Helvetica-Bold")
@@ -1449,10 +1456,7 @@ export const obtenerDetalleSolicitud = async (req, res) => {
       (p) => !String(p.hawb || "").toUpperCase().endsWith("G")
     );
 
-    const totalPeso = paquetesParaTotales.reduce(
-      (sum, p) => sum + Number(p.peso || 0),
-      0
-    );
+    const totalPeso = calcularPesoTotalSolicitud(paquetes.recordset);
 
     const totalAsegurado = paquetesParaTotales.reduce(
       (sum, p) => sum + Number(p.asegurado || 0),
@@ -1497,6 +1501,7 @@ export const obtenerDetalleSolicitud = async (req, res) => {
       solicitud: {
         ...solicitudData,
         servicio_nombre: servicio.servicio_nombre || null,
+        totalPeso: Number(totalPeso.toFixed(2)),
         seguroUSD,
         fleteUSD,
         totalUSD,
@@ -1595,12 +1600,13 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
 
     const servicio = servicioQuery.recordset[0] || {};
 
-    const totalPeso = paquetes.recordset.reduce(
-      (sum, p) => sum + Number(p.peso || 0),
-      0
+    const paquetesParaTotales = paquetes.recordset.filter(
+      (p) => !String(p.hawb || "").toUpperCase().endsWith("G")
     );
 
-    const totalAsegurado = paquetes.recordset.reduce(
+    const totalPeso = calcularPesoTotalSolicitud(paquetes.recordset);
+
+    const totalAsegurado = paquetesParaTotales.reduce(
       (sum, p) => sum + Number(p.asegurado || 0),
       0
     );
@@ -1646,6 +1652,7 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
         servicio_nombre: servicio.servicio_nombre || null,
         paquetes: paquetes.recordset,
         cargos: cargos.recordset,
+        totalPeso: Number(totalPeso.toFixed(2)),
         seguroUSD,
         fleteUSD,
         totalUSD,
