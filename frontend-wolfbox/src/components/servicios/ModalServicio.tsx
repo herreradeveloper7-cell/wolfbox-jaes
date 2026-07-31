@@ -313,9 +313,19 @@ type ServicioForm = {
     try {
       await onSave(payload);
       onClose();
-    } catch {
-      // La pantalla contenedora muestra el mensaje devuelto por el backend.
-      // Se conserva el modal abierto para que el usuario pueda corregir los datos.
+    } catch (error: any) {
+      const campo = error?.response?.data?.campo;
+      const mensaje = error?.response?.data?.mensaje || "Revisa este campo";
+
+      if (campo) {
+        setErrors((prev: any) => ({ ...prev, [campo]: mensaje }));
+        window.setTimeout(() => {
+          document.querySelector<HTMLElement>(`[data-error-field="${campo}"]`)?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }, 100);
+      }
     }
   };
 
@@ -381,7 +391,7 @@ return (
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1" data-error-field="codigo">
             <label className="text-xs font-semibold text-gray-600 tracking-wide">
               Código
             </label>
@@ -402,7 +412,7 @@ return (
             )}
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1" data-error-field="nombre">
             <label className="text-xs font-semibold text-gray-600 tracking-wide">
               Nombre del servicio
             </label>
@@ -446,7 +456,7 @@ return (
 
         {tipoTarifa === "libra" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1" data-error-field="tarifa_por_libra">
               <label className="text-xs font-semibold text-gray-600 tracking-wide">
                 Tarifa por libra USD
               </label>
@@ -473,7 +483,7 @@ return (
         )}
 
         {tipoTarifa === "rango" && (
-          <div className="space-y-4">
+          <div className={`space-y-4 rounded-2xl ${errors.tarifas_rangos ? "border border-red-500 bg-red-50/40 p-3" : ""}`} data-error-field="tarifas_rangos">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-gray-600">Los rangos usan intervalos: mayor que el peso inicial y hasta el peso final.</p>
               <button type="button" onClick={() => setForm((prev) => ({
@@ -499,7 +509,7 @@ return (
                     {label}
                     <input type="number" min="0" step="0.01" value={rango[campo]}
                       onChange={(e) => setForm((prev) => ({ ...prev, tarifas_rangos: prev.tarifas_rangos.map((actual, i) => i === index ? { ...actual, [campo]: Number(e.target.value) } : actual) }))}
-                      className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-red-900 focus:outline-none" />
+                      className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm focus:outline-none ${errors.tarifas_rangos ? "border-red-500 focus:border-red-600" : "border-gray-300 focus:border-red-900"}`} />
                   </label>
                 ))}
                 <button type="button" onClick={() => setForm((prev) => ({ ...prev, tarifas_rangos: prev.tarifas_rangos.filter((_, i) => i !== index) }))}
@@ -508,10 +518,10 @@ return (
             ))}
             {errors.tarifas_rangos && <p className="text-xs text-red-500">{errors.tarifas_rangos}</p>}
 
-            <label className="block max-w-xs text-xs font-semibold text-gray-600">
+            <label className="block max-w-xs text-xs font-semibold text-gray-600" data-error-field="tarifa_por_libra_extra">
               Valor por libra si supera el último rango
               <input type="number" name="tarifa_por_libra_extra" value={form.tarifa_por_libra_extra || 0} onChange={handleChange}
-                min="0" step="0.01" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-red-900 focus:outline-none" />
+                min="0" step="0.01" className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm focus:outline-none ${errors.tarifa_por_libra_extra ? "border-red-500 focus:border-red-600" : "border-gray-300 focus:border-red-900"}`} />
             </label>
             {errors.tarifa_por_libra_extra && <p className="text-xs text-red-500">{errors.tarifa_por_libra_extra}</p>}
           </div>
@@ -544,7 +554,7 @@ return (
 
         {form.aplica_minimo && (
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1" data-error-field="peso_minimo">
               <label className="text-xs font-semibold tracking-wide text-gray-600">
                 Hasta cuántas libras
               </label>
@@ -697,7 +707,7 @@ return (
           </h4>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1" data-error-field="porcentaje_seguro">
               <label className="text-xs font-semibold text-gray-600 tracking-wide">
                 Porcentaje seguro %
               </label>
@@ -722,7 +732,7 @@ return (
               )}
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1" data-error-field="seguro_minimo_usd">
                 <label className="text-xs font-semibold text-gray-600 tracking-wide">
                   Seguro mínimo USD
                 </label>

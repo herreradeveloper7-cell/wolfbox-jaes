@@ -146,8 +146,10 @@ export const crearServicio = async (req, res) => {
     } = req.body;
 
     if (!codigo || !nombre || !tipo) {
+      const campo = !codigo ? "codigo" : !nombre ? "nombre" : "tipo";
       return res.status(400).json({
         ok: false,
+        campo,
         mensaje: "Código, nombre y tipo son obligatorios."
       });
     }
@@ -157,12 +159,13 @@ export const crearServicio = async (req, res) => {
     const rangos = normalizarRangosTarifa(tarifas_rangos);
     if (tipo_tarifa === "rango") {
       const validacion = validarRangosTarifa(rangos);
-      if (!validacion.ok) return res.status(400).json({ ok: false, mensaje: validacion.mensaje });
+      if (!validacion.ok) return res.status(400).json({ ok: false, campo: "tarifas_rangos", mensaje: validacion.mensaje });
     }
 
     if (!seguroMinimoValido(seguro_minimo_usd)) {
       return res.status(400).json({
         ok: false,
+        campo: "seguro_minimo_usd",
         mensaje: "El seguro mínimo es obligatorio y debe ser mayor a 0.",
       });
     }
@@ -253,6 +256,7 @@ export const actualizarServicio = async (req, res) => {
     if (!seguroMinimoValido(seguro_minimo_usd)) {
       return res.status(400).json({
         ok: false,
+        campo: "seguro_minimo_usd",
         mensaje: "El seguro mínimo es obligatorio y debe ser mayor a 0.",
       });
     }
@@ -262,7 +266,7 @@ export const actualizarServicio = async (req, res) => {
     const rangos = normalizarRangosTarifa(tarifas_rangos);
     if (tipo_tarifa === "rango") {
       const validacion = validarRangosTarifa(rangos);
-      if (!validacion.ok) return res.status(400).json({ ok: false, mensaje: validacion.mensaje });
+      if (!validacion.ok) return res.status(400).json({ ok: false, campo: "tarifas_rangos", mensaje: validacion.mensaje });
     }
     transaction = new sql.Transaction(pool);
     await transaction.begin();
