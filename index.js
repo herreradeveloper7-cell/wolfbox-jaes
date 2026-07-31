@@ -32,6 +32,9 @@ import dashboardRoutes from "./routes/dashboard.routes.js";
 import { iniciarDbKeepAlive, poolPromise } from "./config/db.js";
 
 const app = express();
+// Railway termina HTTPS en un proxy y envía la IP real en X-Forwarded-For.
+// Confiar en un solo salto permite que express-rate-limit identifique al cliente correctamente.
+app.set("trust proxy", 1);
 iniciarDbKeepAlive();
 const APP_VERSION =
   process.env.RAILWAY_GIT_COMMIT_SHA ||

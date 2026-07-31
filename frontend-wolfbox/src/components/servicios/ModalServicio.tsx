@@ -310,8 +310,13 @@ type ServicioForm = {
       peso_maximo: form.aplica_peso_maximo ? form.peso_maximo : 0,
     };
 
-    await onSave(payload);
-    onClose();
+    try {
+      await onSave(payload);
+      onClose();
+    } catch {
+      // La pantalla contenedora muestra el mensaje devuelto por el backend.
+      // Se conserva el modal abierto para que el usuario pueda corregir los datos.
+    }
   };
 
 return (
