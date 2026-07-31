@@ -215,6 +215,23 @@ export const registrarPaqueteConDeps = async (req, res, deps) => {
     transactionStarted = true;
     const requestTx = () => new dbSql.Request(transaction);
 
+    const trackingNormalizado = String(tracking || "").trim();
+    const trackingExistente = await requestTx()
+      .input("tracking", dbSql.NVarChar, trackingNormalizado)
+      .query(`
+        SELECT TOP 1 id
+        FROM paquetes WITH (UPDLOCK, HOLDLOCK)
+        WHERE UPPER(LTRIM(RTRIM(tracking))) = UPPER(@tracking)
+      `);
+
+    if (trackingExistente.recordset.length > 0) {
+      await transaction.rollback();
+      transactionStarted = false;
+      return res.status(409).json({
+        mensaje: "El tracking ya se encuentra digitado en el sistema.",
+      });
+    }
+
     const cliente = await requestTx()
       .input('codigo', dbSql.NVarChar, codigo_referencia)
       .query(`
@@ -280,7 +297,7 @@ export const registrarPaqueteConDeps = async (req, res, deps) => {
 
     const request = requestTx();
 
-    request.input('tracking', dbSql.NVarChar, tracking)
+    request.input('tracking', dbSql.NVarChar, trackingNormalizado)
       .input('hawb', dbSql.NVarChar, hawb)
       .input('tienda', dbSql.NVarChar, sqlStringOrNull(tienda))
       .input('contenido', dbSql.NVarChar, contenido)
@@ -339,12 +356,11 @@ export const registrarPaqueteConDeps = async (req, res, deps) => {
 
     await requestTx()
       .input("cliente_id", dbSql.Int, cliente_id)
-      .input("tracking", dbSql.NVarChar, tracking)
+      .input("tracking", dbSql.NVarChar, trackingNormalizado)
       .query(`
         IF OBJECT_ID('dbo.prealertas', 'U') IS NOT NULL
         BEGIN
-          UPDATE prealertas
-          SET estado = 'Digitado'
+          DELETE FROM prealertas
           WHERE cliente_id = @cliente_id
             AND UPPER(LTRIM(RTRIM(tracking))) = UPPER(LTRIM(RTRIM(@tracking)))
         END
@@ -369,7 +385,7 @@ export const registrarPaqueteConDeps = async (req, res, deps) => {
     enviarCorreoPaqueteDigitado({
       cliente: clienteData,
       paquete: {
-        tracking,
+        tracking: trackingNormalizado,
         hawb,
         tienda,
         contenido,
@@ -391,6 +407,11 @@ export const registrarPaqueteConDeps = async (req, res, deps) => {
       }
     }
     console.error('❌ Error al registrar paquete:', error);
+    if (error?.number === 2601 || error?.number === 2627) {
+      return res.status(409).json({
+        mensaje: "El tracking ya se encuentra digitado en el sistema.",
+      });
+    }
     res.status(500).json({ mensaje: 'Error al registrar paquete' });
   }
 };
@@ -688,11 +709,15 @@ export const reporteEstadoGuia = async (req, res) => {
 };
 
 export const validarTracking = async (req, res) => {
-  const { valor } = req.params;
+  const valor = String(req.params.valor || "").trim();
   const pool = await poolPromise;
   const result = await pool.request()
     .input('valor', sql.NVarChar, valor)
-    .query('SELECT 1 FROM paquetes WHERE tracking = @valor');
+    .query(`
+      SELECT TOP 1 1
+      FROM paquetes
+      WHERE UPPER(LTRIM(RTRIM(tracking))) = UPPER(@valor)
+    `);
   res.json({ existe: result.recordset.length > 0 });
 };
 

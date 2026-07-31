@@ -823,16 +823,21 @@ export default function DigitacionPaquetes() {
 
     useEffect(() => {
       const validarCampos = async () => {
-        if (paqueteFila.tracking.length > 3) {
-          const res = await fetch(`/api/paquetes/validar/tracking/${paqueteFila.tracking}`);
+        const tracking = paqueteFila.tracking.trim();
+        if (tracking.length > 3) {
+          const res = await fetch(`/api/paquetes/validar/tracking/${encodeURIComponent(tracking)}`);
           const data = await res.json();
           setTrackingExistente(data.existe);
+        } else {
+          setTrackingExistente(false);
         }
     
         if (paqueteFila.referencia.length > 3) {
           const res = await fetch(`/api/paquetes/validar/referencia/${paqueteFila.referencia}`);
           const data = await res.json();
           setReferenciaExistente(data.existe);
+        } else {
+          setReferenciaExistente(false);
         }
       };
     

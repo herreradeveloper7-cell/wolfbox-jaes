@@ -30,8 +30,10 @@ const paqueteBody = {
 
 test("registrarPaqueteConDeps registra paquete e historial en una transaccion", async () => {
   const mock = createMockSql([
+    { recordset: [] },
     { recordset: [{ id: 44 }] },
     { recordset: [{ id: 5 }] },
+    { rowsAffected: [1] },
     { rowsAffected: [1] },
     { rowsAffected: [1] },
   ]);
@@ -61,10 +63,36 @@ test("registrarPaqueteConDeps registra paquete e historial en una transaccion", 
 
   const insertHistorial = mock.calls.find((call) => call.queryText.includes("INSERT INTO historial_estados"));
   assert.equal(insertHistorial.inputs.responsable.value, "Usuario del sistema");
+
+  const eliminarPrealerta = mock.calls.find((call) => call.queryText.includes("DELETE FROM prealertas"));
+  assert.ok(eliminarPrealerta);
+  assert.equal(eliminarPrealerta.inputs.tracking.value, "TRK-001");
+});
+
+test("registrarPaqueteConDeps rechaza un tracking ya digitado", async () => {
+  const mock = createMockSql([{ recordset: [{ id: 99 }] }]);
+  const res = createMockResponse();
+
+  await registrarPaqueteConDeps(
+    { body: { ...paqueteBody, tracking: "  trk-001  " } },
+    res,
+    {
+      poolPromise: Promise.resolve({}),
+      sql: mock.sql,
+      generarHAWBUnico: async () => "COJA000000000001",
+      validarRestriccionesServicio: async () => ({ ok: true }),
+    }
+  );
+
+  assert.equal(res.statusCode, 409);
+  assert.equal(res.body.mensaje, "El tracking ya se encuentra digitado en el sistema.");
+  assert.equal(mock.transactions[0].rolledBack, true);
+  assert.equal(mock.calls[0].inputs.tracking.value, "trk-001");
+  assert.equal(mock.calls.some((call) => call.queryText.includes("INSERT INTO paquetes")), false);
 });
 
 test("registrarPaqueteConDeps revierte si el cliente no existe", async () => {
-  const mock = createMockSql([{ recordset: [] }]);
+  const mock = createMockSql([{ recordset: [] }, { recordset: [] }]);
   const res = createMockResponse();
 
   await registrarPaqueteConDeps(
@@ -85,7 +113,7 @@ test("registrarPaqueteConDeps revierte si el cliente no existe", async () => {
 });
 
 test("registrarPaqueteConDeps revierte si el servicio viola restricciones", async () => {
-  const mock = createMockSql([{ recordset: [{ id: 44 }] }]);
+  const mock = createMockSql([{ recordset: [] }, { recordset: [{ id: 44 }] }]);
   const res = createMockResponse();
 
   await registrarPaqueteConDeps(
