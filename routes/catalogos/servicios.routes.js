@@ -5,7 +5,8 @@ import {
   obtenerServicios,
   actualizarServicio,
   eliminarServicio,
-  obtenerServicioPorId
+  obtenerServicioPorId,
+  calcularTarifaServicio
 } from "../../controllers/catalogos/servicios.controller.js";
 
 const router = express.Router();
@@ -16,6 +17,7 @@ const autenticados = autorizarRoles("admin", "usuario", "cliente");
 router.use(autenticarToken);
 
 router.get("/", autenticados, obtenerServicios);
+router.post("/calcular", autenticados, calcularTarifaServicio);
 router.get("/:id", autenticados, obtenerServicioPorId);
 
 router.post("/", configuracion, crearServicio);
