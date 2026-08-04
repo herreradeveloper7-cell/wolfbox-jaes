@@ -1260,11 +1260,24 @@ export const actualizarEstadoTracking = async (req, res) => {
   }
 };
 
+export const serializarTrackingPublico = ({ respuesta, historial }) => ({
+  hawb: respuesta.hawb,
+  estado: respuesta.estado,
+  punto_control: respuesta.punto_control,
+  fecha_registro: respuesta.fecha_registro,
+  estados: historial.map((item) => ({
+    fecha: item.fecha,
+    estado: item.estado,
+    punto_control: item.punto_control,
+  })),
+});
+
 export const obtenerPaquetePorHAWB = async (req, res) => {
   const { hawb } = req.params;
 
   try {
     const pool = await poolPromise;
+    const consultaPublica = req.consultaTrackingPublica === true;
     const consultaCliente = req.usuario?.tipo === "cliente";
     const requestPaquete = pool.request().input('hawb', sql.NVarChar, hawb);
 
@@ -1349,6 +1362,20 @@ export const obtenerPaquetePorHAWB = async (req, res) => {
 
     const datosPaquete = paquete.recordset[0];
     const historial = await cargarHistorial(datosPaquete.hawb);
+
+    if (consultaPublica) {
+      return res.status(200).json([
+        serializarTrackingPublico({
+          respuesta: {
+            hawb: datosPaquete.hawb,
+            estado: datosPaquete.estado,
+            punto_control: datosPaquete.punto_control,
+            fecha_registro: datosPaquete.fecha_registro,
+          },
+          historial,
+        }),
+      ]);
+    }
 
     const requestRelacionados = pool.request().input("hawb_padre", sql.NVarChar, hawb);
     if (consultaCliente) requestRelacionados.input("cliente_id", sql.Int, req.usuario.id);

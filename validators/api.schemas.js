@@ -36,6 +36,16 @@ export const textParam = (name) =>
     [name]: requiredString(name),
   });
 
+export const hawbParam = z.object({
+  hawb: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim().toUpperCase() : value),
+    z.string()
+      .min(6, "HAWB invalido")
+      .max(50, "HAWB invalido")
+      .regex(/^[A-Z0-9-]+$/, "HAWB invalido")
+  ),
+});
+
 const email = z.string().trim().email("Correo invalido");
 const permisos = z.array(z.string().trim().min(1)).optional().default([]);
 const rolUsuario = z.enum(["admin", "usuario"]);

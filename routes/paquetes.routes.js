@@ -1,7 +1,8 @@
 import express from "express";
+import { rateLimit } from "express-rate-limit";
 import { autenticarToken, autorizarClientePropio, autorizarPermisos, autorizarRoles } from "../middleware/auth.middleware.js";
 import { validar } from "../middleware/validate.middleware.js";
-import { idParam, paqueteSchemas, textParam } from "../validators/api.schemas.js";
+import { hawbParam, idParam, paqueteSchemas, textParam } from "../validators/api.schemas.js";
 
 import {
   registrarPaquete,
@@ -25,7 +26,26 @@ import {
 
 const router = express.Router();
 
-router.get("/tracking/hawb/:hawb", validar({ params: textParam("hawb") }), obtenerPaquetePorHAWB);
+const consultaTrackingPublicoLimitada = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    ok: false,
+    mensaje: "Demasiadas consultas de tracking. Espera unos minutos e intenta nuevamente.",
+  },
+});
+
+router.get(
+  "/tracking/publico/:hawb",
+  consultaTrackingPublicoLimitada,
+  validar({ params: hawbParam }),
+  (req, res, next) => {
+    req.consultaTrackingPublica = true;
+    return obtenerPaquetePorHAWB(req, res, next);
+  }
+);
 
 router.use(autenticarToken);
 
@@ -35,9 +55,16 @@ const reportes = autorizarPermisos("Reportes");
 const autenticados = autorizarRoles("admin", "usuario", "cliente");
 
 router.get(
+  "/tracking/hawb/:hawb",
+  soloOperacion,
+  validar({ params: hawbParam }),
+  obtenerPaquetePorHAWB
+);
+
+router.get(
   "/tracking/mio/:hawb",
   autorizarRoles("cliente"),
-  validar({ params: textParam("hawb") }),
+  validar({ params: hawbParam }),
   obtenerPaquetePorHAWB
 );
 

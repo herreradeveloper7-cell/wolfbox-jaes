@@ -80,6 +80,9 @@ test("registro interno y rastreo privado no quedan expuestos publicamente", () =
 
   assert.match(auth, /router\.post\('\/registro', autenticarToken, autorizarRoles\("admin"\)/);
   assert.match(paquetes, /"\/tracking\/mio\/:hawb"[\s\S]*autorizarRoles\("cliente"\)/);
+  assertProtectedAfterRouterUse(paquetes, 'router.get(\n  "/tracking/hawb/:hawb"');
+  assert.match(paquetes, /"\/tracking\/hawb\/:hawb"[\s\S]*soloOperacion/);
+  assert.match(paquetes, /"\/tracking\/publico\/:hawb"[\s\S]*consultaTrackingPublicoLimitada/);
   assert.doesNotMatch(solicitudes, /pdf-test/);
 });
 
