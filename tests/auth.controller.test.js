@@ -92,6 +92,7 @@ test("loginGeneral autentica cliente cuando no existe usuario interno", async ()
           contrasena: hash,
           codigo_referencia: "COCLI12345",
           genero: "femenino",
+          estado: "activo",
         },
       ],
     },
@@ -116,4 +117,32 @@ test("loginGeneral autentica cliente cuando no existe usuario interno", async ()
   const payload = jwt.verify(res.body.token, process.env.JWT_SECRET);
   assert.equal(payload.tipo, "cliente");
   assert.equal(payload.codigoReferencia, "COCLI12345");
+});
+
+test("loginGeneral rechaza cliente inhabilitado aunque la contrasena sea correcta", async () => {
+  const hash = await bcrypt.hash("cliente-ok", 4);
+  const pool = createSequentialPool([
+    { recordset: [] },
+    {
+      recordset: [
+        {
+          id: 31,
+          correo: "cliente-inactivo@test.com",
+          contrasena: hash,
+          estado: "inhabilitado",
+        },
+      ],
+    },
+  ]);
+  __setPoolPromiseForTests(Promise.resolve(pool));
+
+  const req = {
+    body: { email: "cliente-inactivo@test.com", contrasena: "cliente-ok" },
+  };
+  const res = createMockResponse();
+
+  await loginGeneral(req, res);
+
+  assert.equal(res.statusCode, 403);
+  assert.match(res.body.message, /inhabilitada/i);
 });

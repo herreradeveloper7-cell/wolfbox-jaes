@@ -74,6 +74,9 @@ export const usuarioSchemas = {
 };
 
 export const clienteSchemas = {
+  estado: z.object({
+    estado: z.enum(["activo", "inactivo", "inhabilitado"]),
+  }),
   reporteCasilleros: z.object({
     fechaDesde: optionalString,
     fechaHasta: optionalString,

@@ -1,15 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
-import {
+import { createMockResponse, createNext } from "./helpers/mockExpress.js";
+import { createSequentialPool } from "./helpers/mockDb.js";
+
+process.env.NODE_ENV = "test";
+process.env.JWT_SECRET = "test-secret";
+const { __setPoolPromiseForTests } = await import("../config/db.js");
+const {
   autenticarToken,
   autorizarClientePropio,
   autorizarRoles,
   firmarToken,
-} from "../middleware/auth.middleware.js";
-import { createMockResponse, createNext } from "./helpers/mockExpress.js";
-
-process.env.JWT_SECRET = "test-secret";
+} = await import("../middleware/auth.middleware.js");
 
 test("firmarToken y autenticarToken aceptan un Bearer token valido", () => {
   const token = firmarToken({ id: 7, tipo: "admin", email: "admin@test.com" }, "1h");
@@ -47,6 +50,23 @@ test("autenticarToken responde 401 si el token es invalido", () => {
   assert.equal(next.called, false);
   assert.equal(res.statusCode, 401);
   assert.equal(res.body.message, "Token invalido o expirado");
+});
+
+test("autenticarToken invalida inmediatamente la sesion de un cliente inhabilitado", async () => {
+  const pool = createSequentialPool([
+    { recordset: [{ estado: "inhabilitado" }] },
+  ]);
+  __setPoolPromiseForTests(Promise.resolve(pool));
+  const token = firmarToken({ id: 20, tipo: "cliente" }, "1h");
+  const req = { headers: { authorization: `Bearer ${token}` } };
+  const res = createMockResponse();
+  const next = createNext();
+
+  await autenticarToken(req, res, next);
+
+  assert.equal(next.called, false);
+  assert.equal(res.statusCode, 403);
+  assert.match(res.body.message, /inhabilitada/i);
 });
 
 test("autorizarRoles permite roles configurados", () => {

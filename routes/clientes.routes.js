@@ -12,6 +12,7 @@ import {
     buscarCliente,
     buscarClienteDestinatarios,
     actualizarClienteAdmin,
+    cambiarEstadoCliente,
     reporteClientesCasilleros,
 } from '../controllers/clientes.controller.js';
 
@@ -21,6 +22,7 @@ const soloAdmin = autorizarRoles("admin");
 const soloOperacion = autorizarRoles("admin", "usuario");
 const casilleros = autorizarPermisos("Casilleros");
 const reportes = autorizarPermisos("Reportes");
+const seguridad = autorizarPermisos("Seguridad");
 const accesoPublicoLimitado = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 30,
@@ -54,6 +56,7 @@ router.put(
   actualizarPerfilCliente
 );
 router.put("/:id", casilleros, validar({ params: idParam(), body: clienteSchemas.actualizarAdmin }), actualizarClienteAdmin);
+router.patch("/:id/estado", seguridad, validar({ params: idParam(), body: clienteSchemas.estado }), cambiarEstadoCliente);
 
  
 

@@ -20,6 +20,8 @@ const normalizarCatalogo = (data: any, key: string): CatalogoItem[] => {
 
 export default function ModalCliente({ cliente, onClose }: Props) {
   const [editando, setEditando] = useState(false);
+  const [estado, setEstado] = useState(cliente?.estado || "activo");
+  const [cambiandoEstado, setCambiandoEstado] = useState(false);
   const [paises, setPaises] = useState<CatalogoItem[]>([]);
   const [regiones, setRegiones] = useState<CatalogoItem[]>([]);
   const [ciudades, setCiudades] = useState<CatalogoItem[]>([]);
@@ -64,6 +66,19 @@ export default function ModalCliente({ cliente, onClose }: Props) {
     cliente?.tipo_cliente === "empresarial"
       ? cliente?.nombre_empresa || nombreContacto
       : nombreContacto;
+
+  const puedeGestionarEstado = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("usuario") || sessionStorage.getItem("usuario");
+      const usuario = raw ? JSON.parse(raw) : null;
+      return (
+        usuario?.tipo === "admin" ||
+        (Array.isArray(usuario?.permisos) && usuario.permisos.includes("Seguridad"))
+      );
+    } catch {
+      return false;
+    }
+  }, []);
 
   useEffect(() => {
     const cargarPaises = async () => {
@@ -234,6 +249,47 @@ export default function ModalCliente({ cliente, onClose }: Props) {
     }
   };
 
+  const handleCambiarEstado = async () => {
+    const nuevoEstado = estado === "activo" ? "inhabilitado" : "activo";
+    const confirmacion = await Swal.fire({
+      icon: "warning",
+      title: nuevoEstado === "activo" ? "¿Activar cliente?" : "¿Inhabilitar cliente?",
+      text:
+        nuevoEstado === "activo"
+          ? "El cliente podrá volver a iniciar sesión."
+          : "El cliente perderá inmediatamente el acceso al sistema.",
+      showCancelButton: true,
+      confirmButtonText: nuevoEstado === "activo" ? "Sí, activar" : "Sí, inhabilitar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#5a0c0c",
+    });
+
+    if (!confirmacion.isConfirmed) return;
+
+    try {
+      setCambiandoEstado(true);
+      const { data } = await axios.patch(`/api/clientes/${cliente.id}/estado`, {
+        estado: nuevoEstado,
+      });
+      setEstado(data.cliente.estado);
+      await Swal.fire({
+        icon: "success",
+        title: "Estado actualizado",
+        text: data.mensaje,
+        confirmButtonColor: "#5a0c0c",
+      });
+    } catch (error: any) {
+      Swal.fire({
+        icon: "error",
+        title: "No se pudo cambiar el estado",
+        text: error?.response?.data?.mensaje || "Intenta nuevamente.",
+        confirmButtonColor: "#5a0c0c",
+      });
+    } finally {
+      setCambiandoEstado(false);
+    }
+  };
+
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 px-4 py-6 backdrop-blur-md animate-fade-in">
       <div className="relative w-full max-w-4xl overflow-hidden rounded-[28px] border border-white/20 bg-white shadow-[0_25px_80px_rgba(0,0,0,0.35)]">
@@ -266,6 +322,7 @@ export default function ModalCliente({ cliente, onClose }: Props) {
           {!editando ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <Info label="Tipo cliente" value={cliente.tipo_cliente} />
+              <Info label="Estado" value={estado === "activo" ? "Activo" : "Inhabilitado"} />
               <Info
                 label="Identificacion"
                 value={`${cliente.tipo_identificacion || ""} ${cliente.numero_identificacion || ""}`}
@@ -458,6 +515,19 @@ export default function ModalCliente({ cliente, onClose }: Props) {
         <div className="flex justify-end gap-4 border-t border-gray-200 bg-white/95 px-7 py-5">
           {!editando ? (
             <>
+              {puedeGestionarEstado && (
+                <button
+                  onClick={handleCambiarEstado}
+                  disabled={cambiandoEstado}
+                  className="mr-auto rounded-xl border border-[#5a0c0c] bg-white px-6 py-3 text-sm font-bold text-[#5a0c0c] transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {cambiandoEstado
+                    ? "Actualizando..."
+                    : estado === "activo"
+                      ? "Inhabilitar cliente"
+                      : "Activar cliente"}
+                </button>
+              )}
               <button
                 onClick={onClose}
                 className="rounded-xl border border-gray-300 bg-white px-6 py-3 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-100"

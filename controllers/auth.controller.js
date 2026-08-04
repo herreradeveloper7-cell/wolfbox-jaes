@@ -10,6 +10,10 @@ import {
   getLoginExpiresIn,
 } from '../utils/auth.helpers.js';
 import { enviarEmailDesdePlantilla } from '../utils/email.service.js';
+import {
+  clienteEstaActivo,
+  MENSAJE_CLIENTE_INHABILITADO,
+} from "../utils/cliente-estado.helpers.js";
 
 let passwordResetTableReady = false;
 
@@ -233,6 +237,13 @@ export const loginGeneral = async (req, res) => {
         return res.status(401).json({ ok: false, message: "Correo o contraseña incorrectos" });
       }
 
+      if (!clienteEstaActivo(cliente)) {
+        return res.status(403).json({
+          ok: false,
+          message: MENSAJE_CLIENTE_INHABILITADO,
+        });
+      }
+
       const usuarioResponse = buildClienteLoginResponse(cliente);
       const token = firmarToken(buildClienteTokenPayload(cliente), expiresIn);
 
@@ -302,6 +313,7 @@ export const solicitarRecuperacionPassword = async (req, res) => {
             nombre_empresa
           FROM clientes
           WHERE LOWER(correo) = @email
+            AND estado = 'activo'
         `);
 
       cuenta = clienteResult.recordset[0];
@@ -409,6 +421,20 @@ export const confirmarRecuperacionPassword = async (req, res) => {
         ok: false,
         mensaje: "El enlace es invalido o ya expiro.",
       });
+    }
+
+    if (reset.tipo_cuenta === "cliente") {
+      const clienteResult = await pool
+        .request()
+        .input("id", sql.Int, reset.cuenta_id)
+        .query("SELECT TOP 1 estado FROM clientes WHERE id = @id");
+
+      if (!clienteEstaActivo(clienteResult.recordset[0])) {
+        return res.status(400).json({
+          ok: false,
+          mensaje: "El enlace es invalido o ya expiro.",
+        });
+      }
     }
 
     const hashedPassword = await bcrypt.hash(contrasena, 10);

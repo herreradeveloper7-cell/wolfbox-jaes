@@ -1,4 +1,9 @@
 import jwt from "jsonwebtoken";
+import { poolPromise, sql } from "../config/db.js";
+import {
+  clienteEstaActivo,
+  MENSAJE_CLIENTE_INHABILITADO,
+} from "../utils/cliente-estado.helpers.js";
 
 const getJwtSecret = () => {
   const secret = process.env.JWT_SECRET;
@@ -14,7 +19,7 @@ const getJwtSecret = () => {
   return secret;
 };
 
-export const autenticarToken = (req, res, next) => {
+export const autenticarToken = async (req, res, next) => {
   const authHeader = req.headers.authorization || "";
   const [tipo, token] = authHeader.split(" ");
 
@@ -28,7 +33,6 @@ export const autenticarToken = (req, res, next) => {
 
   try {
     req.usuario = jwt.verify(token, getJwtSecret());
-    return next();
   } catch (error) {
     return res.status(401).json({
       ok: false,
@@ -36,6 +40,33 @@ export const autenticarToken = (req, res, next) => {
       message: "Token invalido o expirado",
     });
   }
+
+  if (req.usuario?.tipo === "cliente") {
+    try {
+      const pool = await poolPromise;
+      const result = await pool
+        .request()
+        .input("id", sql.Int, Number(req.usuario.id))
+        .query("SELECT TOP 1 estado FROM clientes WHERE id = @id");
+
+      if (!clienteEstaActivo(result.recordset[0])) {
+        return res.status(403).json({
+          ok: false,
+          mensaje: MENSAJE_CLIENTE_INHABILITADO,
+          message: MENSAJE_CLIENTE_INHABILITADO,
+        });
+      }
+    } catch (error) {
+      console.error("Error validando estado de sesion del cliente:", error);
+      return res.status(503).json({
+        ok: false,
+        mensaje: "No fue posible validar la sesion en este momento",
+        message: "No fue posible validar la sesion en este momento",
+      });
+    }
+  }
+
+  return next();
 };
 
 export const autorizarRoles = (...rolesPermitidos) => {
