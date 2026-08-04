@@ -4,6 +4,8 @@ import {
   loginGeneral,
   registrarUsuario,
   solicitarRecuperacionPassword,
+  renovarSesion,
+  cerrarSesion,
 } from "../controllers/auth.controller.js";
 import { autenticarToken, autorizarRoles } from "../middleware/auth.middleware.js";
 
@@ -13,5 +15,7 @@ router.post('/registro', autenticarToken, autorizarRoles("admin"), registrarUsua
 router.post("/login", loginGeneral);
 router.post("/password-reset/request", solicitarRecuperacionPassword);
 router.post("/password-reset/confirm", confirmarRecuperacionPassword);
+router.post("/refresh", renovarSesion);
+router.post("/logout", cerrarSesion);
 
 export default router;

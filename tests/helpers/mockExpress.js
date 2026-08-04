@@ -10,6 +10,20 @@ export const createMockResponse = () => {
       this.body = payload;
       return this;
     },
+    cookie(name, value, options) {
+      this.cookies ||= {};
+      this.cookies[name] = { value, options };
+      return this;
+    },
+    clearCookie(name, options) {
+      this.clearedCookies ||= {};
+      this.clearedCookies[name] = options;
+      return this;
+    },
+    send(payload) {
+      this.body = payload;
+      return this;
+    },
   };
 
   return res;

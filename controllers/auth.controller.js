@@ -7,13 +7,22 @@ import {
   buildClienteTokenPayload,
   buildUsuarioLoginResponse,
   buildUsuarioTokenPayload,
-  getLoginExpiresIn,
 } from '../utils/auth.helpers.js';
 import { enviarEmailDesdePlantilla } from '../utils/email.service.js';
 import {
   clienteEstaActivo,
   MENSAJE_CLIENTE_INHABILITADO,
 } from "../utils/cliente-estado.helpers.js";
+import {
+  ACCESS_TOKEN_EXPIRES_IN,
+  crearSesion,
+  eliminarRefreshCookie,
+  establecerRefreshCookie,
+  leerRefreshCookie,
+  rotarSesion,
+  revocarSesionPorRefresh,
+  revocarSesionesCuenta,
+} from "../utils/session.service.js";
 
 let passwordResetTableReady = false;
 
@@ -170,7 +179,6 @@ export const registrarUsuario = async (req, res) => {
 
 export const loginGeneral = async (req, res) => {
   const { email, contrasena, mantenerSesion } = req.body;
-  const expiresIn = getLoginExpiresIn(mantenerSesion);
   const startedAt = Date.now();
   const marca = (label) => {
     if (process.env.LOG_AUTH_TIMING === "1") {
@@ -209,7 +217,16 @@ export const loginGeneral = async (req, res) => {
 
       usuario.permisos = await obtenerPermisosUsuario(pool, usuario.id);
       const usuarioResponse = buildUsuarioLoginResponse(usuario);
-      const token = firmarToken(buildUsuarioTokenPayload(usuario), expiresIn);
+      const sesion = await crearSesion(pool, req, {
+        tipoCuenta: "usuario",
+        cuentaId: usuario.id,
+        mantenerSesion: Boolean(mantenerSesion),
+      });
+      const token = firmarToken(
+        { ...buildUsuarioTokenPayload(usuario), sid: sesion.id },
+        ACCESS_TOKEN_EXPIRES_IN
+      );
+      establecerRefreshCookie(res, sesion.refreshToken, Boolean(mantenerSesion));
 
       return res.status(200).json({
         ok: true,
@@ -245,7 +262,16 @@ export const loginGeneral = async (req, res) => {
       }
 
       const usuarioResponse = buildClienteLoginResponse(cliente);
-      const token = firmarToken(buildClienteTokenPayload(cliente), expiresIn);
+      const sesion = await crearSesion(pool, req, {
+        tipoCuenta: "cliente",
+        cuentaId: cliente.id,
+        mantenerSesion: Boolean(mantenerSesion),
+      });
+      const token = firmarToken(
+        { ...buildClienteTokenPayload(cliente), sid: sesion.id },
+        ACCESS_TOKEN_EXPIRES_IN
+      );
+      establecerRefreshCookie(res, sesion.refreshToken, Boolean(mantenerSesion));
 
       return res.status(200).json({
         ok: true,
@@ -267,6 +293,65 @@ export const loginGeneral = async (req, res) => {
       message: "Error interno del servidor"
     });
   }
+};
+
+export const renovarSesion = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const sesion = await rotarSesion(pool, leerRefreshCookie(req));
+
+    if (!sesion) {
+      eliminarRefreshCookie(res);
+      return res.status(401).json({ ok: false, message: "Sesion invalida o expirada" });
+    }
+
+    let cuenta;
+    let usuarioResponse;
+    let payload;
+
+    if (sesion.tipo_cuenta === "usuario") {
+      const result = await pool.request()
+        .input("id", sql.Int, sesion.cuenta_id)
+        .query("SELECT TOP 1 * FROM usuarios WHERE id = @id AND estado = 'activo'");
+      cuenta = result.recordset[0];
+      if (cuenta) cuenta.permisos = await obtenerPermisosUsuario(pool, cuenta.id);
+      usuarioResponse = cuenta ? buildUsuarioLoginResponse(cuenta) : null;
+      payload = cuenta ? buildUsuarioTokenPayload(cuenta) : null;
+    } else {
+      const result = await pool.request()
+        .input("id", sql.Int, sesion.cuenta_id)
+        .query("SELECT TOP 1 * FROM clientes WHERE id = @id AND estado = 'activo'");
+      cuenta = result.recordset[0];
+      usuarioResponse = cuenta ? buildClienteLoginResponse(cuenta) : null;
+      payload = cuenta ? buildClienteTokenPayload(cuenta) : null;
+    }
+
+    if (!cuenta) {
+      eliminarRefreshCookie(res);
+      return res.status(401).json({ ok: false, message: "Sesion invalida o expirada" });
+    }
+
+    const mantenerSesion = new Date(sesion.expira_en).getTime() - Date.now() > 24 * 60 * 60 * 1000;
+    establecerRefreshCookie(res, sesion.refreshToken, mantenerSesion);
+    const token = firmarToken({ ...payload, sid: sesion.id }, ACCESS_TOKEN_EXPIRES_IN);
+    return res.json({ ok: true, token, usuario: usuarioResponse });
+  } catch (error) {
+    console.error("Error renovando sesion:", error);
+    return res.status(500).json({ ok: false, message: "No fue posible renovar la sesion" });
+  }
+};
+
+export const cerrarSesion = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    await revocarSesionPorRefresh(pool, leerRefreshCookie(req));
+  } catch (error) {
+    console.error("Error cerrando sesion:", error);
+  } finally {
+    eliminarRefreshCookie(res);
+  }
+
+  return res.status(204).send();
 };
 
 export const solicitarRecuperacionPassword = async (req, res) => {
@@ -460,6 +545,14 @@ export const confirmarRecuperacionPassword = async (req, res) => {
           WHERE id = @id
         `);
     }
+
+
+    await revocarSesionesCuenta(
+      pool,
+      reset.tipo_cuenta,
+      reset.cuenta_id,
+      "contrasena_actualizada"
+    );
 
     await pool
       .request()

@@ -60,7 +60,7 @@ export default function EditarPerfilCliente() {
   const [modalAbierto, setModalAbierto] = useState(false);
 
   const guardarSesion = (cliente: PerfilCliente) => {
-    const storage = localStorage.getItem("authToken") ? localStorage : sessionStorage;
+    const storage = localStorage.getItem("cliente") ? localStorage : sessionStorage;
     const sesionActual = storage.getItem("cliente");
     let base = {};
 

@@ -5,13 +5,7 @@ import {
   buildClienteTokenPayload,
   buildUsuarioLoginResponse,
   buildUsuarioTokenPayload,
-  getLoginExpiresIn,
 } from "../utils/auth.helpers.js";
-
-test("getLoginExpiresIn respeta mantener sesion", () => {
-  assert.equal(getLoginExpiresIn(true), "30d");
-  assert.equal(getLoginExpiresIn(false), "8h");
-});
 
 test("buildUsuarioLoginResponse no expone contrasena ni campos internos", () => {
   const response = buildUsuarioLoginResponse({

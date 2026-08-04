@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import logo from "../assets/logoJaesHome.png";
 import Loader from "../components/Loader";
 import { Eye, EyeOff } from "lucide-react";
+import { establecerAccessToken } from "../api/authSession";
 
 export default function LoginPage() {
     const navigate = useNavigate();
@@ -21,6 +22,7 @@ export default function LoginPage() {
         const res = await fetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ email, contrasena: password, mantenerSesion: stayLoggedIn }),
         });
 
@@ -52,7 +54,7 @@ export default function LoginPage() {
         sessionStorage.removeItem("usuario");
         localStorage.removeItem("cliente");
         sessionStorage.removeItem("cliente");
-        storage.setItem("authToken", data.token);
+        establecerAccessToken(data.token);
 
 
         if (usuario.tipo === "cliente") {

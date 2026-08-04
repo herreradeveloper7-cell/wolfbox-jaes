@@ -12,6 +12,12 @@ import {
   ESTADOS_CLIENTE,
   MENSAJE_CLIENTE_INHABILITADO,
 } from "../utils/cliente-estado.helpers.js";
+import {
+  ACCESS_TOKEN_EXPIRES_IN,
+  crearSesion,
+  establecerRefreshCookie,
+  revocarSesionesCuenta,
+} from "../utils/session.service.js";
 
 const WHATSAPP_SERVICIO = "+57 302 8600369";
 const WHATSAPP_SERVICIO_URL = "https://wa.me/573028600369";
@@ -347,12 +353,19 @@ export const loginCliente = async (req, res) => {
       });
     }
 
+    const sesion = await crearSesion(pool, req, {
+      tipoCuenta: "cliente",
+      cuentaId: cliente.id,
+      mantenerSesion: false,
+    });
     const token = firmarToken({
       id: cliente.id,
       email: cliente.correo,
       tipo: "cliente",
       codigoReferencia: cliente.codigo_referencia,
-    });
+      sid: sesion.id,
+    }, ACCESS_TOKEN_EXPIRES_IN);
+    establecerRefreshCookie(res, sesion.refreshToken, false);
 
     return res.status(200).json({
       ok: true,
@@ -787,6 +800,10 @@ export const cambiarEstadoCliente = async (req, res) => {
         ok: false,
         mensaje: "Cliente no encontrado",
       });
+    }
+
+    if (estado !== ESTADOS_CLIENTE.ACTIVO) {
+      await revocarSesionesCuenta(pool, "cliente", id, "cliente_inhabilitado");
     }
 
     return res.status(200).json({

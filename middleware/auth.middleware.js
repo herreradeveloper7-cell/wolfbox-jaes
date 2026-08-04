@@ -19,6 +19,10 @@ const getJwtSecret = () => {
   return secret;
 };
 
+const JWT_ISSUER = process.env.JWT_ISSUER || "wolfbox-api";
+const JWT_AUDIENCE = process.env.JWT_AUDIENCE || "wolfbox-web";
+const JWT_ALGORITHM = "HS256";
+
 export const autenticarToken = async (req, res, next) => {
   const authHeader = req.headers.authorization || "";
   const [tipo, token] = authHeader.split(" ");
@@ -32,7 +36,11 @@ export const autenticarToken = async (req, res, next) => {
   }
 
   try {
-    req.usuario = jwt.verify(token, getJwtSecret());
+    req.usuario = jwt.verify(token, getJwtSecret(), {
+      algorithms: [JWT_ALGORITHM],
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+    });
   } catch (error) {
     return res.status(401).json({
       ok: false,
@@ -41,11 +49,44 @@ export const autenticarToken = async (req, res, next) => {
     });
   }
 
-  if (req.usuario?.tipo === "cliente") {
-    try {
-      const pool = await poolPromise;
-      const result = await pool
-        .request()
+  try {
+    if (!req.usuario?.sid) {
+      return res.status(401).json({
+        ok: false,
+        mensaje: "Sesion invalida o revocada",
+        message: "Sesion invalida o revocada",
+      });
+    }
+
+    const pool = await poolPromise;
+    const sesionResult = await pool
+      .request()
+      .input("id", sql.UniqueIdentifier, req.usuario.sid)
+      .query(`
+        SELECT TOP 1 tipo_cuenta, cuenta_id
+        FROM sesiones_autenticacion
+        WHERE id = @id
+          AND revocada_en IS NULL
+          AND expira_en > SYSUTCDATETIME()
+      `);
+    const sesion = sesionResult.recordset[0];
+
+    const tipoCuentaEsperado = req.usuario.tipo === "cliente" ? "cliente" : "usuario";
+
+    if (
+      !sesion ||
+      sesion.tipo_cuenta !== tipoCuentaEsperado ||
+      Number(sesion.cuenta_id) !== Number(req.usuario.id)
+    ) {
+      return res.status(401).json({
+        ok: false,
+        mensaje: "Sesion invalida o revocada",
+        message: "Sesion invalida o revocada",
+      });
+    }
+
+    if (req.usuario.tipo === "cliente") {
+      const result = await pool.request()
         .input("id", sql.Int, Number(req.usuario.id))
         .query("SELECT TOP 1 estado FROM clientes WHERE id = @id");
 
@@ -56,14 +97,34 @@ export const autenticarToken = async (req, res, next) => {
           message: MENSAJE_CLIENTE_INHABILITADO,
         });
       }
-    } catch (error) {
-      console.error("Error validando estado de sesion del cliente:", error);
-      return res.status(503).json({
-        ok: false,
-        mensaje: "No fue posible validar la sesion en este momento",
-        message: "No fue posible validar la sesion en este momento",
-      });
+    } else {
+      const usuarioResult = await pool.request()
+        .input("id", sql.Int, Number(req.usuario.id))
+        .query("SELECT TOP 1 tipo_usuario, estado FROM usuarios WHERE id = @id");
+      const usuario = usuarioResult.recordset[0];
+
+      if (!usuario || usuario.estado !== "activo") {
+        return res.status(403).json({
+          ok: false,
+          mensaje: "El usuario se encuentra inhabilitado",
+          message: "El usuario se encuentra inhabilitado",
+        });
+      }
+
+      const permisosResult = await pool.request()
+        .input("usuario_id", sql.Int, Number(req.usuario.id))
+        .query("SELECT permiso FROM permisos_usuario WHERE usuario_id = @usuario_id");
+
+      req.usuario.tipo = usuario.tipo_usuario;
+      req.usuario.permisos = permisosResult.recordset.map((item) => item.permiso);
     }
+  } catch (error) {
+    console.error("Error validando la sesion:", error);
+    return res.status(503).json({
+      ok: false,
+      mensaje: "No fue posible validar la sesion en este momento",
+      message: "No fue posible validar la sesion en este momento",
+    });
   }
 
   return next();
@@ -140,6 +201,11 @@ export const autorizarClientePropio = (obtenerValor, campoToken = "id") => {
   };
 };
 
-export const firmarToken = (payload, expiresIn = "8h") => {
-  return jwt.sign(payload, getJwtSecret(), { expiresIn });
+export const firmarToken = (payload, expiresIn = "15m") => {
+  return jwt.sign(payload, getJwtSecret(), {
+    algorithm: JWT_ALGORITHM,
+    issuer: JWT_ISSUER,
+    audience: JWT_AUDIENCE,
+    expiresIn,
+  });
 };

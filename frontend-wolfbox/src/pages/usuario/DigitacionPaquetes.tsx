@@ -12,9 +12,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
 
-const getAuthToken = () =>
-  localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
-
 const getStoredUser = () =>
   localStorage.getItem("usuario") || sessionStorage.getItem("usuario");
 
@@ -50,22 +47,8 @@ export default function DigitacionPaquetes() {
     const [servicios, setServicios] = useState<any[]>([]);
 
     const obtenerHeadersAutenticados = () => {
-      const token = getAuthToken();
-
-      if (!token) {
-        Swal.fire({
-          icon: "warning",
-          title: "Sesión expirada",
-          text: "Inicia sesión nuevamente para poder digitar paquetes.",
-          confirmButtonColor: "#991b1b",
-        });
-        navigate("/login");
-        return null;
-      }
-
       return {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       };
     };
 

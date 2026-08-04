@@ -4,6 +4,7 @@ import {
   enviarEmailDesdePlantilla,
   obtenerPlantillaEmailPorEvento,
 } from "../utils/email.service.js";
+import { revocarSesionesCuenta } from "../utils/session.service.js";
 
 const WHATSAPP_SERVICIO = "+57 302 8600369";
 const WHATSAPP_SERVICIO_URL = "https://wa.me/573028600369";
@@ -296,6 +297,7 @@ export const actualizarUsuario = async (req, res) => {
       .query(`DELETE FROM permisos_usuario WHERE usuario_id = @usuario_id`);
 
     await guardarPermisosUsuario(pool, id, tipo_usuario, permisos);
+    await revocarSesionesCuenta(pool, "usuario", id, "datos_o_permisos_actualizados");
 
     return res.json({ mensaje: "✅ Usuario actualizado correctamente" });
 
@@ -360,6 +362,7 @@ export const editarUsuario = async (req, res) => {
       .query(`DELETE FROM permisos_usuario WHERE usuario_id=@usuario_id`);
 
     await guardarPermisosUsuario(pool, id, tipo_usuario, permisos);
+    await revocarSesionesCuenta(pool, "usuario", id, "datos_o_permisos_actualizados");
 
     return res.json({ mensaje: "✅ Usuario actualizado correctamente" });
 
@@ -382,6 +385,8 @@ export const eliminarUsuario = async (req, res) => {
       .input("id", sql.Int, id)
       .query("DELETE FROM usuarios WHERE id=@id");
 
+    await revocarSesionesCuenta(pool, "usuario", id, "usuario_eliminado");
+
     return res.json({ mensaje: "✅ Usuario eliminado correctamente" });
 
   } catch (error) {
@@ -403,6 +408,10 @@ export const cambiarEstadoUsuario = async (req, res) => {
       .query(`
         UPDATE usuarios SET estado=@estado WHERE id=@id
       `);
+
+    if (estado !== "activo") {
+      await revocarSesionesCuenta(pool, "usuario", id, "usuario_inhabilitado");
+    }
 
     return res.json({
       mensaje: estado === "activo" 
