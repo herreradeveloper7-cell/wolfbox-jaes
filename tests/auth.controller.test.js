@@ -188,6 +188,34 @@ test("renovarSesion rota la cookie y emite un access token corto", async () => {
   assert.ok(payload.exp - payload.iat <= 15 * 60);
 });
 
+test("login configura cookie cross-site segura cuando SameSite es none", async () => {
+  const anterior = process.env.REFRESH_COOKIE_SAME_SITE;
+  process.env.REFRESH_COOKIE_SAME_SITE = "none";
+  const hash = await bcrypt.hash("clave-ok", 4);
+  const pool = createSequentialPool([
+    { recordset: [{
+      id: 42,
+      correo: "cross-site@test.com",
+      contrasena: hash,
+      primer_nombre: "Cross",
+      primer_apellido: "Site",
+      codigo_referencia: "JACOCROSS",
+      estado: "activo",
+    }] },
+    { recordset: [] },
+  ]);
+  __setPoolPromiseForTests(Promise.resolve(pool));
+  const req = { body: { email: "cross-site@test.com", contrasena: "clave-ok" } };
+  const res = createMockResponse();
+
+  const { loginCliente } = await import("../controllers/clientes.controller.js");
+  await loginCliente(req, res);
+
+  assert.equal(res.cookies.wolfbox_refresh.options.sameSite, "none");
+  assert.equal(res.cookies.wolfbox_refresh.options.secure, true);
+  process.env.REFRESH_COOKIE_SAME_SITE = anterior;
+});
+
 test("cerrarSesion revoca el refresh token y elimina la cookie", async () => {
   const pool = createSequentialPool([{ recordset: [] }]);
   __setPoolPromiseForTests(Promise.resolve(pool));

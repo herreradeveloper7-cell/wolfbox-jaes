@@ -21,17 +21,26 @@ const obtenerCookie = (req, nombre) => {
   return null;
 };
 
-const opcionesCookie = ({ mantenerSesion = false, eliminar = false } = {}) => ({
+const obtenerSameSiteCookie = () => {
+  const valor = String(process.env.REFRESH_COOKIE_SAME_SITE || "lax").toLowerCase();
+  return ["lax", "strict", "none"].includes(valor) ? valor : "lax";
+};
+
+const opcionesCookie = ({ mantenerSesion = false, eliminar = false } = {}) => {
+  const sameSite = obtenerSameSiteCookie();
+
+  return ({
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax",
+  secure: sameSite === "none" || process.env.NODE_ENV === "production",
+  sameSite,
   path: "/api/auth",
   ...(eliminar
     ? { expires: new Date(0) }
     : mantenerSesion
       ? { maxAge: REFRESH_PERSISTENTE_MS }
       : {}),
-});
+  });
+};
 
 export const establecerRefreshCookie = (res, token, mantenerSesion) => {
   res.cookie(REFRESH_COOKIE_NAME, token, opcionesCookie({ mantenerSesion }));
