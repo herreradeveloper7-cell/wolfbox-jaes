@@ -7,6 +7,7 @@
   import { azureStorageDisponible } from "../utils/storage.service.js";
   import { poolPromise, sql } from "../config/db.js";
   import { idParam, solicitudSchemas, textParam } from "../validators/api.schemas.js";
+  import { limitePdf, limiteReportes } from "../config/rate-limit.js";
 
   import {
     crearSolicitud,
@@ -122,12 +123,12 @@
   router.use(autenticarToken);
 
   router.post("/crear", autenticados, accesoCasilleros, limitarCreacionCliente, validar({ body: solicitudSchemas.crear }), crearSolicitud);
-  router.get("/reporte", soloOperacion, reportes, validar({ query: solicitudSchemas.reporte }), reporteSolicitudes);
+  router.get("/reporte", soloOperacion, reportes, limiteReportes, validar({ query: solicitudSchemas.reporte }), reporteSolicitudes);
   router.get("/listar", autenticados, accesoCasilleros, limitarClienteASuCasillero, obtenerSolicitudes);
   router.get("/detalle/:id", autenticados, accesoCasilleros, validar({ params: idParam() }), autorizarSolicitudPropia, obtenerDetalleSolicitud);
 
-  router.get("/pdf/:id", autenticados, accesoCasilleros, validar({ params: idParam() }), autorizarSolicitudPropia, generarPDFSolicitudCobro);
-  router.get("/pdf-data/:id", autenticados, accesoCasilleros, validar({ params: idParam() }), autorizarSolicitudPropia, obtenerDatosPDFSolicitud);
+  router.get("/pdf/:id", autenticados, accesoCasilleros, limitePdf, validar({ params: idParam() }), autorizarSolicitudPropia, generarPDFSolicitudCobro);
+  router.get("/pdf-data/:id", autenticados, accesoCasilleros, limitePdf, validar({ params: idParam() }), autorizarSolicitudPropia, obtenerDatosPDFSolicitud);
   router.post("/enviar-cobro/:id", soloCasilleros, validar({ params: idParam() }), enviarCobroSolicitud);
 
   router.put("/estado/:id", soloCasilleros, validar({ params: idParam(), body: solicitudSchemas.estado }), actualizarEstadoSolicitud);

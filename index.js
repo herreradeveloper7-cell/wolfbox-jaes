@@ -2,7 +2,6 @@ import "./env.js";
 import express from 'express';
 import cors from 'cors';
 import helmet from "helmet";
-import { rateLimit } from "express-rate-limit";
 import fs from "fs";
 import path from "path";
 import authRoutes from './routes/auth.routes.js';
@@ -30,6 +29,7 @@ import regionesRoutes from "./routes/catalogos/regiones.routes.js";
 import ciudadesRoutes from "./routes/catalogos/ciudades.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import { iniciarDbKeepAlive, poolPromise } from "./config/db.js";
+import { limiteGeneralApi, limiteHealthDb } from "./config/rate-limit.js";
 
 const app = express();
 // Railway termina HTTPS en un proxy y envía la IP real en X-Forwarded-For.
@@ -103,7 +103,7 @@ app.get("/version", (req, res) => {
   });
 });
 
-app.get("/health/db", async (req, res) => {
+app.get("/health/db", limiteHealthDb, async (req, res) => {
   try {
     const startedAt = Date.now();
     const pool = await poolPromise;
@@ -115,18 +115,8 @@ app.get("/health/db", async (req, res) => {
   }
 });
 
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 20,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  message: {
-    ok: false,
-    mensaje: "Demasiados intentos. Espera unos minutos antes de volver a intentar.",
-  },
-});
-
-app.use('/api/auth', authLimiter, authRoutes);
+app.use("/api", limiteGeneralApi);
+app.use('/api/auth', authRoutes);
 app.use('/api/paquetes', paquetesRoutes);
 app.use('/api/clientes', clientesRoutes);
 app.use("/api/guias", guiasRoutes);

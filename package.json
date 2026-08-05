@@ -36,6 +36,8 @@
     "multer": "^2.2.0",
     "pdfkit": "^0.17.2",
     "qrcode.react": "^4.2.0",
+    "rate-limit-redis": "^6.0.1",
+    "redis": "^6.2.0",
     "tailwindcss": "^4.3.3",
     "zod": "^4.4.3"
   }
