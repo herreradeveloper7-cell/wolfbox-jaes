@@ -130,7 +130,6 @@ if (typeof window !== "undefined") {
             : new Request(input, init);
 
       return new Request(base, {
-        ...init,
         credentials: "include",
         headers: withAuthHeaders(init?.headers || base.headers),
       });
