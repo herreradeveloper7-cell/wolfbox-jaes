@@ -3,7 +3,6 @@ import {
   azureStorageDisponible,
   crearUrlTemporalLectura,
   eliminarArchivoPrivado,
-  nombreSeguroArchivo,
   subirArchivoPrivado,
 } from "../utils/storage.service.js";
 
@@ -79,8 +78,7 @@ const guardarImagen = async (file) => {
     throw error;
   }
 
-  const seguro = nombreSeguroArchivo(file.originalname || "promocion.webp");
-  const blobName = `promociones/${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${seguro}`;
+  const blobName = `promociones/${file.filename}`;
   await subirArchivoPrivado({ buffer: file.buffer, blobName, contentType: file.mimetype });
   return blobName;
 };

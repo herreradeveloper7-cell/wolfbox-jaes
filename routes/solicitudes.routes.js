@@ -1,10 +1,7 @@
   import express from "express";
-  import multer from "multer";
-  import path from "path";
-  import { fileURLToPath } from "url";
   import { autenticarToken, autorizarPermisos, autorizarRoles } from "../middleware/auth.middleware.js";
   import { validar } from "../middleware/validate.middleware.js";
-  import { azureStorageDisponible } from "../utils/storage.service.js";
+  import { crearCargaSegura } from "../utils/secure-upload.js";
   import { poolPromise, sql } from "../config/db.js";
   import { idParam, solicitudSchemas, textParam } from "../validators/api.schemas.js";
   import { limitePdf, limiteReportes } from "../config/rate-limit.js";
@@ -35,33 +32,12 @@
 
   const router = express.Router();
 
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-
-  const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, path.join(process.cwd(), "uploads/comprobantes/"));
-    },
-    filename: (req, file, cb) => {
-      cb(null, Date.now() + "-" + file.originalname);
-    }
-  });
-
-  const tiposComprobantePermitidos = new Set([
-    "image/jpeg",
-    "application/pdf",
-  ]);
-
-  const upload = multer({
-    storage: azureStorageDisponible() ? multer.memoryStorage() : storage,
-    limits: { fileSize: 8 * 1024 * 1024 },
-    fileFilter: (req, file, cb) => {
-      if (tiposComprobantePermitidos.has(file.mimetype)) {
-        return cb(null, true);
-      }
-
-      return cb(new Error("Solo se permiten archivos PDF, JPG o JPEG."));
-    },
+  const cargarComprobanteSeguro = crearCargaSegura({
+    campo: "comprobante",
+    formatosPermitidos: ["jpeg", "pdf"],
+    maxBytes: 8 * 1024 * 1024,
+    directorioLocal: "uploads/comprobantes",
+    mensajeInvalido: "El archivo no es un PDF, JPG o JPEG valido.",
   });
   const soloAdmin = autorizarRoles("admin");
   const soloOperacion = autorizarRoles("admin", "usuario");
@@ -151,15 +127,7 @@
     accesoCasilleros,
     validar({ params: idParam() }),
     autorizarSolicitudPropia,
-    (req, res, next) => {
-      upload.single("comprobante")(req, res, (error) => {
-        if (!error) return next();
-
-        return res.status(400).json({
-          mensaje: error.message || "Archivo no valido.",
-        });
-      });
-    },
+    cargarComprobanteSeguro,
     subirComprobantePago
   );
 

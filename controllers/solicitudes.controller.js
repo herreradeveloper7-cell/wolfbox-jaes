@@ -24,7 +24,6 @@ import {
   crearUrlTemporalLectura,
   descargarArchivoPrivado,
   eliminarArchivoPrivado,
-  nombreSeguroArchivo,
   subirArchivoPrivado,
 } from "../utils/storage.service.js";
 const __filename = fileURLToPath(import.meta.url);
@@ -2325,8 +2324,7 @@ export const subirComprobantePago = async (req, res) => {
     let rutaArchivo = `/uploads/comprobantes/${req.file.filename}`;
 
     if (azureStorageDisponible()) {
-      const nombreSeguro = nombreSeguroArchivo(req.file.originalname || req.file.filename);
-      const blobName = `comprobantes/solicitud-${solicitudId}/${Date.now()}-${nombreSeguro}`;
+      const blobName = `comprobantes/solicitud-${solicitudId}/${req.file.filename}`;
       const resultadoStorage = await subirArchivoPrivado({
         buffer: req.file.buffer,
         blobName,

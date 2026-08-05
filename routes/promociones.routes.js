@@ -1,8 +1,8 @@
 import express from "express";
-import multer from "multer";
 import { autenticarToken, autorizarRoles } from "../middleware/auth.middleware.js";
 import { validar } from "../middleware/validate.middleware.js";
 import { promocionesSchemas } from "../validators/api.schemas.js";
+import { crearCargaSegura } from "../utils/secure-upload.js";
 import {
   actualizarPromocion,
   crearPromocion,
@@ -12,18 +12,11 @@ import {
 } from "../controllers/promociones.controller.js";
 
 const router = express.Router();
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 2 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const permitidos = new Set(["image/jpeg", "image/webp"]);
-    return permitidos.has(file.mimetype) ? cb(null, true) : cb(new Error("Solo se permiten imágenes JPG, JPEG o WEBP."));
-  },
-});
-
-const cargarImagen = (req, res, next) => upload.single("imagen")(req, res, (error) => {
-  if (!error) return next();
-  return res.status(400).json({ ok: false, mensaje: error.message || "Imagen no válida" });
+const cargarImagen = crearCargaSegura({
+  campo: "imagen",
+  formatosPermitidos: ["jpeg", "webp"],
+  maxBytes: 2 * 1024 * 1024,
+  mensajeInvalido: "El archivo no es una imagen JPG, JPEG o WEBP valida.",
 });
 
 router.use(autenticarToken);

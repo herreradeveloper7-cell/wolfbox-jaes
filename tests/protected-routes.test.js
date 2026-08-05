@@ -98,9 +98,10 @@ test("comprobantes de solicitudes restringen formato y notifican al equipo", () 
   const rutasSolicitudes = readRoute("../routes/solicitudes.routes.js");
   const controllerSolicitudes = readRoute("../controllers/solicitudes.controller.js");
 
-  assert.match(rutasSolicitudes, /const tiposComprobantePermitidos = new Set\(\[[\s\S]*"image\/jpeg"[\s\S]*"application\/pdf"/);
-  assert.doesNotMatch(rutasSolicitudes, /"image\/png"/);
-  assert.match(rutasSolicitudes, /Solo se permiten archivos PDF, JPG o JPEG/);
+  assert.match(rutasSolicitudes, /crearCargaSegura/);
+  assert.match(rutasSolicitudes, /formatosPermitidos: \["jpeg", "pdf"\]/);
+  assert.match(rutasSolicitudes, /directorioLocal: "uploads\/comprobantes"/);
+  assert.match(rutasSolicitudes, /cargarComprobanteSeguro/);
   assert.match(controllerSolicitudes, /crearNotificacionUsuarios\(\{[\s\S]*Comprobante cargado/);
   assert.match(controllerSolicitudes, /url: `\/conciliacion-pagos\?solicitud=\$\{solicitudId\}`/);
 });
