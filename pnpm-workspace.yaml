@@ -2,7 +2,6 @@ packages:
   - "."
 
 overrides:
-  body-parser: ^1.20.6
   dompurify: ^3.4.12
   ip-address: ^10.3.1
   postcss: ^8.5.25
