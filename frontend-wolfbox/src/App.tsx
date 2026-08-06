@@ -1,6 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import { Navigate } from 'react-router-dom';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Home from './pages/Home';
 import LoginPage from './pages/Login';
 import './App.css'
@@ -30,6 +30,7 @@ import AgruparSolicitud from './pages/usuario/AgruparPaquetes/AgruparSolicitud';
 import VerClientes from './pages/usuario/VerClientes';
 import ConsultarGuiaHome from './pages/consultarGuiaHome';
 import PasswordResetPage from './pages/passwordReset';
+import MfaPage from './pages/Mfa';
 import SessionExpiredOverlay from './components/SessionExpiredOverlay';
 import InactivityWatcher from './components/InactivityWatcher';
 import CrearDespachos from './pages/usuario/CrearDespachos';
@@ -40,6 +41,7 @@ import ReporteSolicitudes from './pages/usuario/Reportes/ReporteSolicitudes';
 import Transportadoras from './pages/usuario/configuracion/Transportadoras';
 import PlantillaComunicacion from './pages/usuario/configuracion/PlantillaComunicacion';
 import PromocionesTiendas from './pages/usuario/configuracion/PromocionesTiendas';
+import { renovarAccessToken } from './api/authSession';
 
 type RolInterno = "admin" | "usuario";
 type PermisoModulo =
@@ -86,11 +88,9 @@ function RutaInterna({
   roles?: RolInterno[];
   permiso?: PermisoModulo;
 }) {
-  const token =
-    localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
   const usuario = obtenerUsuarioInterno();
 
-  if (!token || !usuario) {
+  if (!usuario) {
     return <Navigate to="/login" replace />;
   }
 
@@ -120,12 +120,10 @@ const interna = (
 );
 
 function RutaCasilleroCompartida({ children }: { children: ReactNode }) {
-  const token =
-    localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
   const usuario = obtenerUsuarioInterno();
   const cliente = obtenerClienteSesion();
 
-  if (!token || (!usuario && !cliente)) {
+  if (!usuario && !cliente) {
     return <Navigate to="/login" replace />;
   }
 
@@ -139,11 +137,9 @@ function RutaCasilleroCompartida({ children }: { children: ReactNode }) {
 }
 
 function RutaCliente({ children }: { children: ReactNode }) {
-  const token =
-    localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
   const cliente = obtenerClienteSesion();
 
-  if (!token || !cliente) {
+  if (!cliente) {
     return <Navigate to="/login" replace />;
   }
 
@@ -161,12 +157,31 @@ const clienteProtegido = (children: ReactNode) => (
 
 
 function App() {
+  const [sesionLista, setSesionLista] = useState(false);
+
+  useEffect(() => {
+    const hayIdentidad = Boolean(
+      localStorage.getItem("usuario") ||
+      sessionStorage.getItem("usuario") ||
+      localStorage.getItem("cliente") ||
+      sessionStorage.getItem("cliente")
+    );
+
+    (hayIdentidad ? renovarAccessToken() : Promise.resolve(null))
+      .finally(() => setSesionLista(true));
+  }, []);
+
+  if (!sesionLista) {
+    return <div className="min-h-screen bg-slate-100" />;
+  }
+
   return (
     <>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/password-reset" element={<PasswordResetPage />} />
+        <Route path="/mfa" element={<MfaPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/confirmacion" element={<ConfirmacionPage />} />
         <Route path="/consulta-hawb" element={<ConsultarGuiaHome />} />

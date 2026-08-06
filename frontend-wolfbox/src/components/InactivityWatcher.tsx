@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
+import { cerrarSesionSegura } from "../api/authSession";
 
 const INACTIVITY_LIMIT_MS = 45 * 60 * 1000;
 
@@ -12,19 +13,12 @@ const publicPaths = new Set([
   "/password-reset",
 ]);
 
-const clearStoredSession = () => {
-  localStorage.removeItem("authToken");
-  sessionStorage.removeItem("authToken");
-  localStorage.removeItem("usuario");
-  sessionStorage.removeItem("usuario");
-  localStorage.removeItem("cliente");
-  sessionStorage.removeItem("cliente");
-};
-
 const hasActiveSession = () =>
   Boolean(
-    localStorage.getItem("authToken") ||
-      sessionStorage.getItem("authToken")
+    localStorage.getItem("usuario") ||
+      sessionStorage.getItem("usuario") ||
+      localStorage.getItem("cliente") ||
+      sessionStorage.getItem("cliente")
   );
 
 export default function InactivityWatcher() {
@@ -41,10 +35,10 @@ export default function InactivityWatcher() {
       }
     };
 
-    const expireSession = () => {
+    const expireSession = async () => {
       if (isPublicPath || !hasActiveSession()) return;
 
-      clearStoredSession();
+      await cerrarSesionSegura();
       window.dispatchEvent(new Event("wolfbox:session-expired"));
     };
 

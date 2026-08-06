@@ -8,6 +8,7 @@ import iconMujer from "../assets/female-svgrepo-com.svg";
 import arrowRight from "../assets/right-arrow.svg"; 
 import iconPorfile from "../assets/profile-circle-svgrepo-com.svg";
 import { ChevronDown, HelpCircle, MessageCircle, Sparkles, X } from "lucide-react";
+import { cerrarSesionSegura } from "../api/authSession";
 
 type Props = {
     children: ReactNode;
@@ -30,10 +31,9 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
   const [perfilOpen, setPerfilOpen] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
     const stored = localStorage.getItem("cliente") || sessionStorage.getItem("cliente");
 
-    if (!token || !stored) {
+    if (!stored) {
       localStorage.removeItem("cliente");
       sessionStorage.removeItem("cliente");
       navigate("/login");
@@ -203,11 +203,8 @@ export default function ClientDashboardLayout({ children, scrollable = false }: 
               Editar perfil
             </button>
             <button
-              onClick={() => {
-                localStorage.removeItem("cliente");
-                localStorage.removeItem("authToken");
-                sessionStorage.removeItem("cliente");
-                sessionStorage.removeItem("authToken");
+              onClick={async () => {
+                await cerrarSesionSegura();
                 navigate("/login");
               }}
               className="text-white text-left w-full px-6 py-2 hover:bg-red-900 transition duration-200 cursor-pointer"

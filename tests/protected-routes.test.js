@@ -80,6 +80,9 @@ test("registro interno y rastreo privado no quedan expuestos publicamente", () =
 
   assert.match(auth, /router\.post\('\/registro', autenticarToken, autorizarRoles\("admin"\)/);
   assert.match(paquetes, /"\/tracking\/mio\/:hawb"[\s\S]*autorizarRoles\("cliente"\)/);
+  assertProtectedAfterRouterUse(paquetes, 'router.get(\n  "/tracking/hawb/:hawb"');
+  assert.match(paquetes, /"\/tracking\/hawb\/:hawb"[\s\S]*soloOperacion/);
+  assert.match(paquetes, /"\/tracking\/publico\/:hawb"[\s\S]*limiteTrackingPublico/);
   assert.doesNotMatch(solicitudes, /pdf-test/);
 });
 
@@ -95,9 +98,10 @@ test("comprobantes de solicitudes restringen formato y notifican al equipo", () 
   const rutasSolicitudes = readRoute("../routes/solicitudes.routes.js");
   const controllerSolicitudes = readRoute("../controllers/solicitudes.controller.js");
 
-  assert.match(rutasSolicitudes, /const tiposComprobantePermitidos = new Set\(\[[\s\S]*"image\/jpeg"[\s\S]*"application\/pdf"/);
-  assert.doesNotMatch(rutasSolicitudes, /"image\/png"/);
-  assert.match(rutasSolicitudes, /Solo se permiten archivos PDF, JPG o JPEG/);
+  assert.match(rutasSolicitudes, /crearCargaSegura/);
+  assert.match(rutasSolicitudes, /formatosPermitidos: \["jpeg", "pdf"\]/);
+  assert.match(rutasSolicitudes, /directorioLocal: "uploads\/comprobantes"/);
+  assert.match(rutasSolicitudes, /cargarComprobanteSeguro/);
   assert.match(controllerSolicitudes, /crearNotificacionUsuarios\(\{[\s\S]*Comprobante cargado/);
   assert.match(controllerSolicitudes, /url: `\/conciliacion-pagos\?solicitud=\$\{solicitudId\}`/);
 });

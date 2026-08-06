@@ -7,34 +7,22 @@ import {
   buildClienteTokenPayload,
   buildUsuarioLoginResponse,
   buildUsuarioTokenPayload,
-  getLoginExpiresIn,
 } from '../utils/auth.helpers.js';
 import { enviarEmailDesdePlantilla } from '../utils/email.service.js';
-
-let passwordResetTableReady = false;
-
-const asegurarTablaPasswordReset = async (pool) => {
-  if (passwordResetTableReady) return;
-
-  await pool.request().query(`
-    IF OBJECT_ID('dbo.password_reset_tokens', 'U') IS NULL
-    BEGIN
-      CREATE TABLE dbo.password_reset_tokens (
-        id INT IDENTITY(1,1) PRIMARY KEY,
-        tipo_cuenta NVARCHAR(30) NOT NULL,
-        cuenta_id INT NOT NULL,
-        email NVARCHAR(180) NOT NULL,
-        token_hash NVARCHAR(128) NOT NULL,
-        expira_en DATETIME2 NOT NULL,
-        usado BIT NOT NULL DEFAULT 0,
-        fecha_creacion DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-        fecha_uso DATETIME2 NULL
-      );
-    END;
-  `);
-
-  passwordResetTableReady = true;
-};
+import {
+  clienteEstaActivo,
+  MENSAJE_CLIENTE_INHABILITADO,
+} from "../utils/cliente-estado.helpers.js";
+import {
+  ACCESS_TOKEN_EXPIRES_IN,
+  crearSesion,
+  eliminarRefreshCookie,
+  establecerRefreshCookie,
+  leerRefreshCookie,
+  rotarSesion,
+  revocarSesionPorRefresh,
+} from "../utils/session.service.js";
+import { responderPasswordInvalida, validarPasswordNueva } from "../utils/password-policy.js";
 
 const hashToken = (token) =>
   crypto.createHash("sha256").update(token).digest("hex");
@@ -80,26 +68,11 @@ const obtenerPlantillaPorEvento = async (pool, claveEvento) => {
       .request()
       .input("clave_evento", sql.NVarChar(120), claveEvento)
       .query(`
-        IF OBJECT_ID('dbo.plantillas_comunicacion', 'U') IS NULL
-        BEGIN
-          SELECT TOP 0
-            CAST(NULL AS INT) AS id,
-            CAST(NULL AS NVARCHAR(180)) AS email_remitente,
-            CAST(NULL AS NVARCHAR(250)) AS asunto,
-            CAST(NULL AS NVARCHAR(MAX)) AS cuerpo;
-        END
-        ELSE
-        BEGIN
-          SELECT TOP 1
-            id,
-            email_remitente,
-            asunto,
-            cuerpo
-          FROM plantillas_comunicacion
-          WHERE clave_evento = @clave_evento
-            AND activo = 1
-          ORDER BY fecha_actualizacion DESC, fecha_creacion DESC, id DESC;
-        END
+        SELECT TOP 1 id, email_remitente, asunto, cuerpo
+        FROM plantillas_comunicacion
+        WHERE clave_evento = @clave_evento
+          AND activo = 1
+        ORDER BY fecha_actualizacion DESC, fecha_creacion DESC, id DESC;
       `);
 
     return result.recordset[0] || null;
@@ -123,6 +96,17 @@ Ingresa al siguiente enlace para crear una nueva contraseña:
 Este enlace vence en {{expira_minutos}} minutos. Si no solicitaste este cambio, puedes ignorar este correo.`,
 });
 
+const crearPlantillaFallbackPasswordActualizada = () => ({
+  id: null,
+  email_remitente: process.env.BREVO_DEFAULT_SENDER_EMAIL,
+  asunto: "Tu contraseña de JAES Cargo fue actualizada",
+  cuerpo: `Hola {{cliente_nombre}},
+
+La contraseña de tu cuenta fue actualizada correctamente.
+
+Todas las sesiones que estaban abiertas fueron cerradas por seguridad. Si no realizaste este cambio, comunícate inmediatamente con JAES Cargo.`,
+});
+
 function generarCodigoReferencia(nombre) {
   const letras = nombre.trim().toUpperCase().slice(0, 3);
   const numeros = Math.floor(10000 + Math.random() * 90000);
@@ -134,6 +118,9 @@ export const registrarUsuario = async (req, res) => {
 
   try {
     const pool = await poolPromise;
+
+    const passwordValida = await validarPasswordNueva(contraseña, { email: correo, nombre });
+    if (!passwordValida.ok) return responderPasswordInvalida(res, passwordValida);
 
     const correoExistente = await pool.request()
       .input('correo', sql.NVarChar, correo)
@@ -166,7 +153,6 @@ export const registrarUsuario = async (req, res) => {
 
 export const loginGeneral = async (req, res) => {
   const { email, contrasena, mantenerSesion } = req.body;
-  const expiresIn = getLoginExpiresIn(mantenerSesion);
   const startedAt = Date.now();
   const marca = (label) => {
     if (process.env.LOG_AUTH_TIMING === "1") {
@@ -204,8 +190,33 @@ export const loginGeneral = async (req, res) => {
       }
 
       usuario.permisos = await obtenerPermisosUsuario(pool, usuario.id);
+      if (usuario.tipo_usuario === "admin" && process.env.MFA_ADMIN_REQUIRED === "1") {
+        const configurado = Boolean(usuario.mfa_habilitado);
+        const desafio_mfa = firmarToken({
+          id: usuario.id,
+          email: usuario.correo,
+          tipo: "admin",
+          mfa_scope: configurado ? "login" : "setup",
+          mantenerSesion: Boolean(mantenerSesion),
+        }, "5m");
+        return res.status(200).json({
+          ok: true,
+          mfa_required: configurado,
+          mfa_setup_required: !configurado,
+          desafio_mfa,
+        });
+      }
       const usuarioResponse = buildUsuarioLoginResponse(usuario);
-      const token = firmarToken(buildUsuarioTokenPayload(usuario), expiresIn);
+      const sesion = await crearSesion(pool, req, {
+        tipoCuenta: "usuario",
+        cuentaId: usuario.id,
+        mantenerSesion: Boolean(mantenerSesion),
+      });
+      const token = firmarToken(
+        { ...buildUsuarioTokenPayload(usuario), sid: sesion.id },
+        ACCESS_TOKEN_EXPIRES_IN
+      );
+      establecerRefreshCookie(res, sesion.refreshToken, Boolean(mantenerSesion));
 
       return res.status(200).json({
         ok: true,
@@ -233,8 +244,24 @@ export const loginGeneral = async (req, res) => {
         return res.status(401).json({ ok: false, message: "Correo o contraseña incorrectos" });
       }
 
+      if (!clienteEstaActivo(cliente)) {
+        return res.status(403).json({
+          ok: false,
+          message: MENSAJE_CLIENTE_INHABILITADO,
+        });
+      }
+
       const usuarioResponse = buildClienteLoginResponse(cliente);
-      const token = firmarToken(buildClienteTokenPayload(cliente), expiresIn);
+      const sesion = await crearSesion(pool, req, {
+        tipoCuenta: "cliente",
+        cuentaId: cliente.id,
+        mantenerSesion: Boolean(mantenerSesion),
+      });
+      const token = firmarToken(
+        { ...buildClienteTokenPayload(cliente), sid: sesion.id },
+        ACCESS_TOKEN_EXPIRES_IN
+      );
+      establecerRefreshCookie(res, sesion.refreshToken, Boolean(mantenerSesion));
 
       return res.status(200).json({
         ok: true,
@@ -258,6 +285,65 @@ export const loginGeneral = async (req, res) => {
   }
 };
 
+export const renovarSesion = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const sesion = await rotarSesion(pool, leerRefreshCookie(req));
+
+    if (!sesion) {
+      eliminarRefreshCookie(res);
+      return res.status(401).json({ ok: false, message: "Sesion invalida o expirada" });
+    }
+
+    let cuenta;
+    let usuarioResponse;
+    let payload;
+
+    if (sesion.tipo_cuenta === "usuario") {
+      const result = await pool.request()
+        .input("id", sql.Int, sesion.cuenta_id)
+        .query("SELECT TOP 1 * FROM usuarios WHERE id = @id AND estado = 'activo'");
+      cuenta = result.recordset[0];
+      if (cuenta) cuenta.permisos = await obtenerPermisosUsuario(pool, cuenta.id);
+      usuarioResponse = cuenta ? buildUsuarioLoginResponse(cuenta) : null;
+      payload = cuenta ? buildUsuarioTokenPayload(cuenta) : null;
+    } else {
+      const result = await pool.request()
+        .input("id", sql.Int, sesion.cuenta_id)
+        .query("SELECT TOP 1 * FROM clientes WHERE id = @id AND estado = 'activo'");
+      cuenta = result.recordset[0];
+      usuarioResponse = cuenta ? buildClienteLoginResponse(cuenta) : null;
+      payload = cuenta ? buildClienteTokenPayload(cuenta) : null;
+    }
+
+    if (!cuenta) {
+      eliminarRefreshCookie(res);
+      return res.status(401).json({ ok: false, message: "Sesion invalida o expirada" });
+    }
+
+    const mantenerSesion = new Date(sesion.expira_en).getTime() - Date.now() > 24 * 60 * 60 * 1000;
+    establecerRefreshCookie(res, sesion.refreshToken, mantenerSesion);
+    const token = firmarToken({ ...payload, sid: sesion.id }, ACCESS_TOKEN_EXPIRES_IN);
+    return res.json({ ok: true, token, usuario: usuarioResponse });
+  } catch (error) {
+    console.error("Error renovando sesion:", error);
+    return res.status(500).json({ ok: false, message: "No fue posible renovar la sesion" });
+  }
+};
+
+export const cerrarSesion = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    await revocarSesionPorRefresh(pool, leerRefreshCookie(req));
+  } catch (error) {
+    console.error("Error cerrando sesion:", error);
+  } finally {
+    eliminarRefreshCookie(res);
+  }
+
+  return res.status(204).send();
+};
+
 export const solicitarRecuperacionPassword = async (req, res) => {
   const email = String(req.body.email || "").trim().toLowerCase();
   const respuestaGenerica = {
@@ -271,7 +357,6 @@ export const solicitarRecuperacionPassword = async (req, res) => {
 
   try {
     const pool = await poolPromise;
-    await asegurarTablaPasswordReset(pool);
 
     const usuarioResult = await pool
       .request()
@@ -302,6 +387,7 @@ export const solicitarRecuperacionPassword = async (req, res) => {
             nombre_empresa
           FROM clientes
           WHERE LOWER(correo) = @email
+            AND estado = 'activo'
         `);
 
       cuenta = clienteResult.recordset[0];
@@ -378,24 +464,34 @@ export const confirmarRecuperacionPassword = async (req, res) => {
   const token = String(req.body.token || "").trim();
   const contrasena = String(req.body.contrasena || "");
 
-  if (!token || contrasena.length < 6) {
+  if (!token) {
     return res.status(400).json({
       ok: false,
-      mensaje: "Token y contrasena valida son requeridos.",
+      mensaje: "Token y contraseña válida son requeridos.",
     });
   }
 
+  let transaction;
+  let transactionStarted = false;
+
   try {
     const pool = await poolPromise;
-    await asegurarTablaPasswordReset(pool);
 
+    const passwordValida = await validarPasswordNueva(contrasena);
+    if (!passwordValida.ok) return responderPasswordInvalida(res, passwordValida);
+
+    const hashedPassword = await bcrypt.hash(contrasena, 10);
     const tokenHash = hashToken(token);
-    const tokenResult = await pool
-      .request()
+    transaction = new sql.Transaction(pool);
+    await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+    transactionStarted = true;
+    const request = () => new sql.Request(transaction);
+
+    const tokenResult = await request()
       .input("token_hash", sql.NVarChar(128), tokenHash)
       .query(`
         SELECT TOP 1 id, tipo_cuenta, cuenta_id
-        FROM password_reset_tokens
+        FROM password_reset_tokens WITH (UPDLOCK, HOLDLOCK)
         WHERE token_hash = @token_hash
           AND usado = 0
           AND expira_en > SYSUTCDATETIME()
@@ -405,17 +501,57 @@ export const confirmarRecuperacionPassword = async (req, res) => {
     const reset = tokenResult.recordset[0];
 
     if (!reset) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         ok: false,
         mensaje: "El enlace es invalido o ya expiro.",
       });
     }
 
-    const hashedPassword = await bcrypt.hash(contrasena, 10);
+    let cuenta;
+    if (reset.tipo_cuenta === "cliente") {
+      const clienteResult = await request()
+        .input("id", sql.Int, reset.cuenta_id)
+        .query(`
+          SELECT TOP 1
+            estado, correo, primer_nombre, segundo_nombre,
+            primer_apellido, segundo_apellido, nombre_empresa
+          FROM clientes WITH (UPDLOCK, HOLDLOCK)
+          WHERE id = @id
+        `);
+      cuenta = clienteResult.recordset[0];
+
+      if (!clienteEstaActivo(cuenta)) {
+        await transaction.rollback();
+        transactionStarted = false;
+        return res.status(400).json({
+          ok: false,
+          mensaje: "El enlace es invalido o ya expiro.",
+        });
+      }
+    } else if (reset.tipo_cuenta === "usuario") {
+      const usuarioResult = await request()
+        .input("id", sql.Int, reset.cuenta_id)
+        .query(`
+          SELECT TOP 1 estado, correo, nombre
+          FROM usuarios WITH (UPDLOCK, HOLDLOCK)
+          WHERE id = @id
+        `);
+      cuenta = usuarioResult.recordset[0];
+      if (!cuenta || cuenta.estado !== "activo") {
+        await transaction.rollback();
+        transactionStarted = false;
+        return res.status(400).json({ ok: false, mensaje: "El enlace es invalido o ya expiro." });
+      }
+    } else {
+      await transaction.rollback();
+      transactionStarted = false;
+      return res.status(400).json({ ok: false, mensaje: "El enlace es invalido o ya expiro." });
+    }
 
     if (reset.tipo_cuenta === "usuario") {
-      await pool
-        .request()
+      await request()
         .input("id", sql.Int, reset.cuenta_id)
         .input("contrasena", sql.VarChar, hashedPassword)
         .query(`
@@ -424,8 +560,7 @@ export const confirmarRecuperacionPassword = async (req, res) => {
           WHERE id = @id
         `);
     } else {
-      await pool
-        .request()
+      await request()
         .input("id", sql.Int, reset.cuenta_id)
         .input("contrasena", sql.VarChar, hashedPassword)
         .query(`
@@ -435,22 +570,72 @@ export const confirmarRecuperacionPassword = async (req, res) => {
         `);
     }
 
-    await pool
-      .request()
+    const consumo = await request()
       .input("id", sql.Int, reset.id)
       .query(`
         UPDATE password_reset_tokens
         SET usado = 1,
             fecha_uso = SYSUTCDATETIME()
         WHERE id = @id
+          AND usado = 0
+          AND expira_en > SYSUTCDATETIME()
       `);
+
+    if (consumo.rowsAffected[0] !== 1) {
+      throw Object.assign(new Error("El token de recuperación ya fue consumido."), {
+        codigoPublico: "RESET_TOKEN_CONSUMED",
+      });
+    }
+
+    await request()
+      .input("tipo_cuenta", sql.NVarChar(20), reset.tipo_cuenta)
+      .input("cuenta_id", sql.Int, reset.cuenta_id)
+      .input("motivo", sql.NVarChar(100), "contrasena_actualizada")
+      .query(`
+        UPDATE sesiones_autenticacion
+        SET revocada_en = COALESCE(revocada_en, SYSUTCDATETIME()),
+            motivo_revocacion = COALESCE(motivo_revocacion, @motivo)
+        WHERE tipo_cuenta = @tipo_cuenta
+          AND cuenta_id = @cuenta_id
+          AND revocada_en IS NULL
+      `);
+
+    await transaction.commit();
+    transactionStarted = false;
+
+    const nombre = reset.tipo_cuenta === "cliente"
+      ? obtenerNombreCliente(cuenta)
+      : cuenta.nombre || "Usuario";
+    try {
+      const plantilla =
+        (await obtenerPlantillaPorEvento(pool, "password_actualizada")) ||
+        crearPlantillaFallbackPasswordActualizada();
+      await enviarEmailDesdePlantilla({
+        plantilla,
+        destinatarios: [{ email: cuenta.correo, name: nombre }],
+        variables: { cliente_nombre: nombre, email: cuenta.correo },
+        evento: "password_actualizada",
+      });
+    } catch (emailError) {
+      console.error("Password actualizada, pero fallo la notificacion:", emailError.message);
+    }
 
     return res.json({
       ok: true,
       mensaje: "Contrasena actualizada correctamente.",
     });
   } catch (error) {
+    if (transactionStarted) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error("Error revirtiendo recuperacion de password:", rollbackError);
+      }
+    }
     console.error("Error confirmando recuperacion de password:", error);
+    if (error.codigoPublico === "RESET_TOKEN_CONSUMED") {
+      return res.status(400).json({ ok: false, mensaje: "El enlace es invalido o ya expiro." });
+    }
     return res.status(500).json({
       ok: false,
       mensaje: "No fue posible actualizar la contrasena.",

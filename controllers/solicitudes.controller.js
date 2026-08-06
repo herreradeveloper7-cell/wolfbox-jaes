@@ -12,73 +12,32 @@ import {
 } from "../utils/email.service.js";
 import { crearNotificacionUsuarios } from "../utils/notificaciones.service.js";
 import {
+  calcularFleteServicio,
+  calcularSeguroServicio,
+} from "../utils/tarifas.helpers.js";
+import {
+  obtenerRangosPorServicios,
+} from "./catalogos/servicios.controller.js";
+import {
   azureStorageDisponible,
   crearUrlTemporalLectura,
   descargarArchivoPrivado,
   eliminarArchivoPrivado,
-  nombreSeguroArchivo,
   subirArchivoPrivado,
 } from "../utils/storage.service.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const calcularFleteServicio = (servicio, pesoTotal) => {
-  const aplicaPesoMaximo = Boolean(servicio.aplica_peso_maximo);
-  const pesoMaximo = Number(servicio.peso_maximo || 0);
-
-  if (aplicaPesoMaximo && pesoMaximo > 0 && pesoTotal > pesoMaximo) {
-    return {
-      ok: false,
-      mensaje: `El servicio ${servicio.nombre} solo permite hasta ${pesoMaximo} lb. Peso actual: ${pesoTotal} lb.`,
-      fleteUSD: 0,
-    };
-  }
-
-  const aplicaMinimo = Boolean(servicio.aplica_minimo);
-  const pesoMinimo = Number(servicio.peso_minimo || 0);
-  const tarifaMinimaUSD = Number(servicio.tarifa_minima_usd || 0);
-
-  if (aplicaMinimo && pesoMinimo > 0 && tarifaMinimaUSD > 0 && pesoTotal <= pesoMinimo) {
-    return {
-      ok: true,
-      fleteUSD: tarifaMinimaUSD,
-    };
-  }
-
-  const tarifa1 = Number(servicio.tarifa_fija_1lb || 0);
-  const tarifa2a5 = Number(servicio.tarifa_fija_2a5 || 0);
-  const tarifa6a10 = Number(servicio.tarifa_fija_6a10 || 0);
-  const tarifaExtra = Number(servicio.tarifa_por_libra_extra || 0);
-  const tarifaLibra = Number(servicio.tarifa_por_libra_cc || 0);
-
-  const tieneRangos =
-    tarifa1 > 0 || tarifa2a5 > 0 || tarifa6a10 > 0 || tarifaExtra > 0;
-
-  if (tieneRangos) {
-    if (pesoTotal <= 1) return { ok: true, fleteUSD: tarifa1 };
-    if (pesoTotal <= 5) return { ok: true, fleteUSD: tarifa2a5 };
-    if (pesoTotal <= 10) return { ok: true, fleteUSD: tarifa6a10 };
-
-    return {
-      ok: true,
-      fleteUSD: tarifa6a10 + (pesoTotal - 10) * tarifaExtra,
-    };
-  }
-
-  if (tarifaLibra > 0) {
-    const pesoFacturable = pesoTotal < 10 ? 10 : pesoTotal;
-
-    return {
-      ok: true,
-      fleteUSD: pesoFacturable * tarifaLibra,
-    };
-  }
-
-  return {
-    ok: false,
-    mensaje: `El servicio ${servicio.nombre} no tiene una tarifa válida configurada.`,
-    fleteUSD: 0,
-  };
+const obtenerRangosEnTransaccion = async (request, servicioId) => {
+  const result = await request()
+    .input("servicio_id_rangos", sql.Int, Number(servicioId))
+    .query(`
+      SELECT id, servicio_id, peso_desde, peso_hasta, valor_usd, orden
+      FROM servicio_tarifas_rangos
+      WHERE servicio_id = @servicio_id_rangos
+      ORDER BY orden, peso_desde
+    `);
+  return result.recordset;
 };
 
 export const normalizarHawbsAgrupacion = (hawbs) => {
@@ -238,11 +197,13 @@ const obtenerSolicitudParaCobro = async (pool, solicitudId) => {
     .query(`
       SELECT
         s.id,
+        s.servicio_id,
         s.fecha,
         s.estado,
         s.valor_estimado_usd,
         s.valor_moneda_local,
-        s.servicio_id,
+        s.flete_usd AS flete_usd_guardado,
+        s.seguro_usd AS seguro_usd_guardado,
         CASE
           WHEN LOWER(ISNULL(c.tipo_cliente, '')) = 'empresarial' THEN
             COALESCE(NULLIF(c.nombre_empresa, ''), CONCAT(c.primer_nombre, ' ', c.primer_apellido))
@@ -317,6 +278,7 @@ const obtenerSolicitudParaCobro = async (pool, solicitudId) => {
     `);
 
   const servicio = servicioQuery.recordset[0] || {};
+  servicio.tarifas_rangos = (await obtenerRangosPorServicios(pool, [solicitud.servicio_id])).get(Number(solicitud.servicio_id)) || [];
   const paquetesParaTotales = paquetes.recordset.filter(
     (p) => !String(p.hawb || "").toUpperCase().endsWith("G")
   );
@@ -327,16 +289,14 @@ const obtenerSolicitudParaCobro = async (pool, solicitudId) => {
   );
   const calculoFlete = calcularFleteServicio(servicio, totalPeso);
 
-  if (!calculoFlete.ok) {
+  if (solicitud.flete_usd_guardado == null && !calculoFlete.ok) {
     const error = new Error(calculoFlete.mensaje);
     error.statusCode = 400;
     throw error;
   }
 
-  const porcentaje = Number(servicio.porcentaje_seguro || 0) / 100;
-  const seguroMinimoUSD = Number(servicio.seguro_minimo_usd || 0);
-  const seguroUSD = Math.max(totalAsegurado * porcentaje, seguroMinimoUSD);
-  const fleteUSD = Number(calculoFlete.fleteUSD || 0);
+  const seguroUSD = solicitud.seguro_usd_guardado ?? calcularSeguroServicio(servicio, totalAsegurado);
+  const fleteUSD = Number(solicitud.flete_usd_guardado ?? calculoFlete.fleteUSD ?? 0);
   const totalCargosUSD = cargos.recordset.reduce(
     (sum, cargo) => sum + Number(cargo.valor_usd || 0),
     0
@@ -859,6 +819,7 @@ export const crearSolicitud = async (req, res) => {
     }
 
     const servicio = datosServicio.recordset[0];
+    servicio.tarifas_rangos = await obtenerRangosEnTransaccion(request, servicio_id);
 
 
     if (!servicio.codigo) {
@@ -896,11 +857,7 @@ export const crearSolicitud = async (req, res) => {
     const fleteUSD = calculoFlete.fleteUSD;
 
 
-    const porcentaje = Number(servicio.porcentaje_seguro || 0) / 100;
-    const seguroMinimoUSD = Number(servicio.seguro_minimo_usd || 0);
-
-    const seguroCalculadoUSD = asegurado_total * porcentaje;
-    const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
+    const seguroUSD = calcularSeguroServicio(servicio, asegurado_total);
 
     const valor_estimado_usd = fleteUSD + seguroUSD;
 
@@ -923,16 +880,20 @@ export const crearSolicitud = async (req, res) => {
       .input("observaciones", sql.NVarChar(255), observaciones || "")
       .input("valor_estimado_usd", sql.Decimal(10, 2), valor_estimado_usd)
       .input("valor_moneda_local", sql.Decimal(10, 2), valor_moneda_local)
+      .input("flete_usd", sql.Decimal(10, 2), fleteUSD)
+      .input("seguro_usd", sql.Decimal(10, 2), seguroUSD)
       .input("servicio_id", sql.Int, servicio_id)
       .query(`
         INSERT INTO solicitudes (
           cliente_id, usuario_id, destinatario, medio_pago,
-          observaciones, valor_estimado_usd, valor_moneda_local, servicio_id
+          observaciones, valor_estimado_usd, valor_moneda_local, servicio_id,
+          flete_usd, seguro_usd
         )
         OUTPUT INSERTED.id
         VALUES (
           @cliente_id, @usuario_id, @destinatario, @medio_pago,
-          @observaciones, @valor_estimado_usd, @valor_moneda_local, @servicio_id
+          @observaciones, @valor_estimado_usd, @valor_moneda_local, @servicio_id,
+          @flete_usd, @seguro_usd
         )
       `);
 
@@ -1155,12 +1116,15 @@ export const reporteSolicitudes = async (req, res) => {
       )
       SELECT
         s.id,
+        s.servicio_id,
         CONVERT(varchar, s.fecha, 120) AS fecha,
         s.estado AS estado_solicitud,
         s.medio_pago,
         s.observaciones,
         s.valor_estimado_usd,
         s.valor_moneda_local,
+        s.flete_usd AS flete_usd_guardado,
+        s.seguro_usd AS seguro_usd_guardado,
         c.codigo_referencia AS codigo_casillero,
         CASE
           WHEN LOWER(ISNULL(c.tipo_cliente, '')) = 'empresarial' THEN
@@ -1213,12 +1177,15 @@ export const reporteSolicitudes = async (req, res) => {
       ORDER BY s.fecha DESC
     `);
 
+    const rangosServicios = await obtenerRangosPorServicios(
+      pool,
+      [...new Set(result.recordset.map((solicitud) => Number(solicitud.servicio_id)).filter(Boolean))]
+    );
     const solicitudes = result.recordset.map((solicitud) => {
+      solicitud.tarifas_rangos = rangosServicios.get(Number(solicitud.servicio_id)) || [];
       const calculoFlete = calcularFleteServicio(solicitud, Number(solicitud.peso_total || 0));
-      const porcentaje = Number(solicitud.porcentaje_seguro || 0) / 100;
-      const seguroMinimoUSD = Number(solicitud.seguro_minimo_usd || 0);
-      const seguroCalculadoUSD = Number(solicitud.asegurado_total || 0) * porcentaje;
-      const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
+      const seguroUSD = Number(solicitud.seguro_usd_guardado ?? calcularSeguroServicio(solicitud, solicitud.asegurado_total));
+      const fleteUSD = Number(solicitud.flete_usd_guardado ?? (calculoFlete.ok ? calculoFlete.fleteUSD : 0));
 
       const {
         servicio_codigo,
@@ -1247,11 +1214,11 @@ export const reporteSolicitudes = async (req, res) => {
             ? Number((valorCOPGuardado / valorUSDGuardado).toFixed(2))
             : 0;
         })(),
-        flete_usd: calculoFlete.ok ? Number(calculoFlete.fleteUSD.toFixed(2)) : 0,
+        flete_usd: Number(fleteUSD.toFixed(2)),
         seguro_usd: Number(seguroUSD.toFixed(2)),
         valor_estimado_usd: Number(
           (
-            (calculoFlete.ok ? Number(calculoFlete.fleteUSD || 0) : 0) +
+            fleteUSD +
             seguroUSD +
             Number(data.cargos_usd || 0)
           ).toFixed(2)
@@ -1262,7 +1229,7 @@ export const reporteSolicitudes = async (req, res) => {
               const valorUSDGuardado = Number(data.valor_estimado_usd || 0);
               const valorCOPGuardado = Number(data.valor_moneda_local || 0);
               const trm = valorUSDGuardado > 0 ? valorCOPGuardado / valorUSDGuardado : 0;
-              const baseUSD = (calculoFlete.ok ? Number(calculoFlete.fleteUSD || 0) : 0) + seguroUSD;
+              const baseUSD = fleteUSD + seguroUSD;
               return baseUSD * trm + Number(data.cargos_cop || 0);
             })()
           ).toFixed(2)
@@ -1288,11 +1255,24 @@ export const actualizarEstadoSolicitud = async (req, res) => {
 
   try {
     const pool = await poolPromise;
-    await pool
+    const cambio = await pool
       .request()
       .input("estado", sql.VarChar, estado)
       .input("id", sql.Int, id)
-      .query(`UPDATE solicitudes SET estado=@estado WHERE id=@id`);
+      .query(`
+        SELECT id, estado FROM solicitudes WHERE id=@id;
+        UPDATE solicitudes SET estado=@estado
+        OUTPUT INSERTED.id, INSERTED.estado
+        WHERE id=@id;
+      `);
+
+    res.locals.auditoria = {
+      accion: "cambiar_estado_solicitud",
+      recurso: "solicitudes",
+      recursoId: String(id),
+      antes: cambio.recordsets?.[0]?.[0] || null,
+      despues: cambio.recordsets?.[1]?.[0] || null,
+    };
 
     res.json({ mensaje: "✅ Estado actualizado" });
   } catch (error) {
@@ -1317,7 +1297,7 @@ export const eliminarSolicitud = async (req, res) => {
     const check = await request()
       .input("id", sql.Int, id)
       .query(`
-        SELECT id 
+        SELECT *
         FROM solicitudes 
         WHERE id = @id
       `);
@@ -1346,6 +1326,10 @@ export const eliminarSolicitud = async (req, res) => {
       `);
 
     const paquetes = validacion.recordset;
+    const antes = {
+      solicitud: check.recordset[0],
+      paquetes,
+    };
 
     const tieneGuiaPadre = paquetes.some(p => p.hawb?.endsWith("G"));
 
@@ -1391,6 +1375,14 @@ export const eliminarSolicitud = async (req, res) => {
     await transaction.commit();
     transactionStarted = false;
 
+    res.locals.auditoria = {
+      accion: "eliminar_solicitud",
+      recurso: "solicitudes",
+      recursoId: String(id),
+      antes,
+      despues: null,
+    };
+
     return res.json({
       ok: true,
       mensaje: `Solicitud #${id} eliminada correctamente.`
@@ -1432,6 +1424,8 @@ export const obtenerDetalleSolicitud = async (req, res) => {
           s.observaciones,
           s.valor_estimado_usd,
           s.valor_moneda_local,
+          s.flete_usd AS flete_usd_guardado,
+          s.seguro_usd AS seguro_usd_guardado,
           s.servicio_id,
           CONCAT(c.primer_nombre, ' ', c.primer_apellido) AS cliente,
           c.codigo_referencia
@@ -1500,6 +1494,7 @@ export const obtenerDetalleSolicitud = async (req, res) => {
       `);
 
     const servicio = servicioQuery.recordset[0] || {};
+    servicio.tarifas_rangos = (await obtenerRangosPorServicios(pool, [solicitudData.servicio_id])).get(Number(solicitudData.servicio_id)) || [];
 
     const paquetesParaTotales = paquetes.recordset.filter(
       (p) => !String(p.hawb || "").toUpperCase().endsWith("G")
@@ -1514,19 +1509,16 @@ export const obtenerDetalleSolicitud = async (req, res) => {
 
     const calculoFlete = calcularFleteServicio(servicio, totalPeso);
 
-    if (!calculoFlete.ok) {
+    if (solicitudData.flete_usd_guardado == null && !calculoFlete.ok) {
       return res.status(400).json({
         ok: false,
         mensaje: calculoFlete.mensaje,
       });
     }
 
-    const fleteUSD = calculoFlete.fleteUSD;
+    const fleteUSD = Number(solicitudData.flete_usd_guardado ?? calculoFlete.fleteUSD);
 
-    const porcentaje = Number(servicio.porcentaje_seguro || 0) / 100;
-    const seguroMinimoUSD = Number(servicio.seguro_minimo_usd || 0);
-    const seguroCalculadoUSD = totalAsegurado * porcentaje;
-    const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
+    const seguroUSD = Number(solicitudData.seguro_usd_guardado ?? calcularSeguroServicio(servicio, totalAsegurado));
 
     const totalCargosUSD = cargos.recordset.reduce(
       (sum, c) => sum + Number(c.valor_usd || 0),
@@ -1581,6 +1573,8 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
           s.estado,
           s.valor_estimado_usd,
           s.valor_moneda_local,
+          s.flete_usd AS flete_usd_guardado,
+          s.seguro_usd AS seguro_usd_guardado,
           s.servicio_id,
           CONCAT(c.primer_nombre, ' ', c.primer_apellido) AS cliente_nombre,
           c.codigo_referencia AS codigoCasillero,
@@ -1645,6 +1639,7 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
       `);
 
     const servicio = servicioQuery.recordset[0] || {};
+    servicio.tarifas_rangos = (await obtenerRangosPorServicios(pool, [solicitud.servicio_id])).get(Number(solicitud.servicio_id)) || [];
 
     const paquetesParaTotales = paquetes.recordset.filter(
       (p) => !String(p.hawb || "").toUpperCase().endsWith("G")
@@ -1659,20 +1654,16 @@ export const obtenerDatosPDFSolicitud = async (req, res) => {
 
     const calculoFlete = calcularFleteServicio(servicio, totalPeso);
 
-    if (!calculoFlete.ok) {
+    if (solicitud.flete_usd_guardado == null && !calculoFlete.ok) {
       return res.status(400).json({
         ok: false,
         mensaje: calculoFlete.mensaje,
       });
     }
 
-    const fleteUSD = calculoFlete.fleteUSD;
+    const fleteUSD = Number(solicitud.flete_usd_guardado ?? calculoFlete.fleteUSD);
 
-    const porcentaje = Number(servicio.porcentaje_seguro || 0) / 100;
-    const seguroMinimoUSD = Number(servicio.seguro_minimo_usd || 0);
-
-    const seguroCalculadoUSD = totalAsegurado * porcentaje;
-    const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
+    const seguroUSD = Number(solicitud.seguro_usd_guardado ?? calcularSeguroServicio(servicio, totalAsegurado));
 
     const totalCargosUSD = cargos.recordset.reduce(
       (sum, c) => sum + Number(c.valor_usd || 0),
@@ -2114,6 +2105,7 @@ export const editarSolicitudCompleta = async (req, res) => {
       .input("id", sql.Int, id)
       .query(`
         SELECT
+          s.servicio_id,
           s.valor_estimado_usd,
           s.valor_moneda_local,
           srv.nombre AS servicio_nombre,
@@ -2148,6 +2140,7 @@ export const editarSolicitudCompleta = async (req, res) => {
         LEFT JOIN paquetes p ON p.solicitud_id = s.id
         WHERE s.id = @id
         GROUP BY
+          s.servicio_id,
           s.valor_estimado_usd,
           s.valor_moneda_local,
           srv.nombre,
@@ -2175,6 +2168,11 @@ export const editarSolicitudCompleta = async (req, res) => {
       throw error;
     }
 
+    datosTotales.tarifas_rangos = await obtenerRangosEnTransaccion(
+      request,
+      datosTotales.servicio_id
+    );
+
     const calculoFlete = calcularFleteServicio(datosTotales, Number(datosTotales.peso_total || 0));
 
     if (!calculoFlete.ok) {
@@ -2183,10 +2181,7 @@ export const editarSolicitudCompleta = async (req, res) => {
       throw error;
     }
 
-    const porcentaje = Number(datosTotales.porcentaje_seguro || 0) / 100;
-    const seguroMinimoUSD = Number(datosTotales.seguro_minimo_usd || 0);
-    const seguroCalculadoUSD = Number(datosTotales.asegurado_total || 0) * porcentaje;
-    const seguroUSD = Math.max(seguroCalculadoUSD, seguroMinimoUSD);
+    const seguroUSD = calcularSeguroServicio(datosTotales, datosTotales.asegurado_total);
     const valorEstimadoUSD = Number((Number(calculoFlete.fleteUSD || 0) + seguroUSD).toFixed(2));
     const valorUSDAnterior = Number(datosTotales.valor_estimado_usd || 0);
     const valorCOPAnterior = Number(datosTotales.valor_moneda_local || 0);
@@ -2202,10 +2197,14 @@ export const editarSolicitudCompleta = async (req, res) => {
       .input("id", sql.Int, id)
       .input("valor_estimado_usd", sql.Decimal(10, 2), valorEstimadoUSD)
       .input("valor_moneda_local", sql.Decimal(18, 2), valorMonedaLocal)
+      .input("flete_usd", sql.Decimal(10, 2), calculoFlete.fleteUSD)
+      .input("seguro_usd", sql.Decimal(10, 2), seguroUSD)
       .query(`
         UPDATE solicitudes
         SET valor_estimado_usd = @valor_estimado_usd,
-            valor_moneda_local = @valor_moneda_local
+            valor_moneda_local = @valor_moneda_local,
+            flete_usd = @flete_usd,
+            seguro_usd = @seguro_usd
         WHERE id = @id
       `);
 
@@ -2345,8 +2344,7 @@ export const subirComprobantePago = async (req, res) => {
     let rutaArchivo = `/uploads/comprobantes/${req.file.filename}`;
 
     if (azureStorageDisponible()) {
-      const nombreSeguro = nombreSeguroArchivo(req.file.originalname || req.file.filename);
-      const blobName = `comprobantes/solicitud-${solicitudId}/${Date.now()}-${nombreSeguro}`;
+      const blobName = `comprobantes/solicitud-${solicitudId}/${req.file.filename}`;
       const resultadoStorage = await subirArchivoPrivado({
         buffer: req.file.buffer,
         blobName,

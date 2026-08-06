@@ -136,6 +136,11 @@ export default function EditarUsuario() {
     e.preventDefault();
     if (!id || emailExistente || isSubmitting) return;
 
+    if (formData.password && formData.password.length < 12) {
+      await Swal.fire("Contraseña muy corta", "La nueva contraseña debe tener mínimo 12 caracteres.", "warning");
+      return;
+    }
+
     const result = await Swal.fire({
       icon: "question",
       title: "Guardar cambios?",

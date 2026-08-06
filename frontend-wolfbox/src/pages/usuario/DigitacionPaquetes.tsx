@@ -12,9 +12,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
 
-const getAuthToken = () =>
-  localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
-
 const getStoredUser = () =>
   localStorage.getItem("usuario") || sessionStorage.getItem("usuario");
 
@@ -50,22 +47,8 @@ export default function DigitacionPaquetes() {
     const [servicios, setServicios] = useState<any[]>([]);
 
     const obtenerHeadersAutenticados = () => {
-      const token = getAuthToken();
-
-      if (!token) {
-        Swal.fire({
-          icon: "warning",
-          title: "Sesión expirada",
-          text: "Inicia sesión nuevamente para poder digitar paquetes.",
-          confirmButtonColor: "#991b1b",
-        });
-        navigate("/login");
-        return null;
-      }
-
       return {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       };
     };
 
@@ -823,16 +806,21 @@ export default function DigitacionPaquetes() {
 
     useEffect(() => {
       const validarCampos = async () => {
-        if (paqueteFila.tracking.length > 3) {
-          const res = await fetch(`/api/paquetes/validar/tracking/${paqueteFila.tracking}`);
+        const tracking = paqueteFila.tracking.trim();
+        if (tracking.length > 3) {
+          const res = await fetch(`/api/paquetes/validar/tracking/${encodeURIComponent(tracking)}`);
           const data = await res.json();
           setTrackingExistente(data.existe);
+        } else {
+          setTrackingExistente(false);
         }
     
         if (paqueteFila.referencia.length > 3) {
           const res = await fetch(`/api/paquetes/validar/referencia/${paqueteFila.referencia}`);
           const data = await res.json();
           setReferenciaExistente(data.existe);
+        } else {
+          setReferenciaExistente(false);
         }
       };
     

@@ -59,9 +59,14 @@ export default function ConfigTarifas() {
       }
       cargarServicios();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Error guardando servicio:", error);
-      Swal.fire("Error", "No se pudo guardar el servicio", "error");
+      const mensaje =
+        error?.response?.data?.mensaje ||
+        error?.response?.data?.error ||
+        "No se pudo guardar el servicio";
+      await Swal.fire("Error", mensaje, "error");
+      throw error;
     }
   };
 

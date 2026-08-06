@@ -19,7 +19,7 @@ export default function ModalCrearSolicitud({
   const [formValues, setFormValues] = useState(
     paquetesSeleccionados.map((p) => ({
       ...p,
-      asegurado: p.asegurado || 100.0,
+      asegurado: p.asegurado ?? 0,
     }))
   );
 
@@ -33,6 +33,7 @@ export default function ModalCrearSolicitud({
   const [cargandoServicio, setCargandoServicio] = useState(true);
 
   const [errorDestinatario, setErrorDestinatario] = useState(false);
+  const [cotizacion, setCotizacion] = useState({ ok: false, mensaje: "Calculando tarifa...", fleteUSD: 0, seguroUSD: 0, totalUSD: 0 });
 
 
   const servicioId = paquetesSeleccionados[0]?.servicio_id;
@@ -89,6 +90,37 @@ export default function ModalCrearSolicitud({
 
 
 
+  const totalPeso = formValues.reduce((acc, p) => acc + Number(p.peso), 0);
+  const totalValorAsegurado = formValues.reduce(
+    (acc, p) => acc + Number(p.asegurado),
+    0
+  );
+
+  useEffect(() => {
+    if (!servicioId) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const { data } = await axios.post("/api/servicios/calcular", {
+          servicio_id: servicioId,
+          peso_total: totalPeso,
+          valor_asegurado: totalValorAsegurado,
+        }, { signal: controller.signal });
+        setCotizacion(data);
+      } catch (error: any) {
+        if (error?.code !== "ERR_CANCELED") {
+          setCotizacion({ ok: false, mensaje: error?.response?.data?.mensaje || "No fue posible calcular la tarifa.", fleteUSD: 0, seguroUSD: 0, totalUSD: 0 });
+        }
+      }
+    }, 250);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [servicioId, totalPeso, totalValorAsegurado]);
+
+  const fleteUSD = Number(cotizacion.fleteUSD || 0);
+  const seguroUSD = Number(cotizacion.seguroUSD || 0);
+  const totalUSD = Number(cotizacion.totalUSD || 0);
+  const totalCOP = trmActual > 0 ? totalUSD * trmActual : 0;
+
   if (cargandoServicio) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
@@ -98,88 +130,6 @@ export default function ModalCrearSolicitud({
       </div>
     );
   }
-
-  const porcentajeSeguro = Number(servicio?.porcentaje_seguro || 0);
-
-  const totalPeso = formValues.reduce((acc, p) => acc + Number(p.peso), 0);
-  const totalValorAsegurado = formValues.reduce(
-    (acc, p) => acc + Number(p.asegurado),
-    0
-  );
-
-  const calcularFleteServicio = (servicio: any, pesoTotal: number) => {
-  const aplicaPesoMaximo = Boolean(servicio?.aplica_peso_maximo);
-  const pesoMaximo = Number(servicio?.peso_maximo || 0);
-
-  if (aplicaPesoMaximo && pesoMaximo > 0 && pesoTotal > pesoMaximo) {
-    return {
-      ok: false,
-      mensaje: `El servicio ${servicio?.nombre} solo permite hasta ${pesoMaximo} lb. Peso actual: ${pesoTotal} lb.`,
-      fleteUSD: 0,
-    };
-  }
-
-  const aplicaMinimo = Boolean(servicio?.aplica_minimo);
-  const pesoMinimo = Number(servicio?.peso_minimo || 0);
-  const tarifaMinimaUSD = Number(servicio?.tarifa_minima_usd || 0);
-
-  if (
-    aplicaMinimo &&
-    pesoMinimo > 0 &&
-    tarifaMinimaUSD > 0 &&
-    pesoTotal <= pesoMinimo
-  ) {
-    return {
-      ok: true,
-      mensaje: "",
-      fleteUSD: tarifaMinimaUSD,
-    };
-  }
-
-  const tarifa1 = Number(servicio?.tarifa_fija_1lb || 0);
-  const tarifa2a5 = Number(servicio?.tarifa_fija_2a5 || 0);
-  const tarifa6a10 = Number(servicio?.tarifa_fija_6a10 || 0);
-  const tarifaExtra = Number(servicio?.tarifa_por_libra_extra || 0);
-  const tarifaLibra = Number(servicio?.tarifa_por_libra_cc || 0);
-
-  const tieneRangos =
-      tarifa1 > 0 || tarifa2a5 > 0 || tarifa6a10 > 0 || tarifaExtra > 0;
-
-    if (tieneRangos) {
-      if (pesoTotal <= 1) return { ok: true, mensaje: "", fleteUSD: tarifa1 };
-      if (pesoTotal <= 5) return { ok: true, mensaje: "", fleteUSD: tarifa2a5 };
-      if (pesoTotal <= 10) return { ok: true, mensaje: "", fleteUSD: tarifa6a10 };
-
-      return {
-        ok: true,
-        mensaje: "",
-        fleteUSD: tarifa6a10 + (pesoTotal - 10) * tarifaExtra,
-      };
-    }
-
-    if (tarifaLibra > 0) {
-      const pesoFacturable = pesoTotal < 10 ? 10 : pesoTotal;
-
-      return {
-        ok: true,
-        mensaje: "",
-        fleteUSD: pesoFacturable * tarifaLibra,
-      };
-    }
-
-    return {
-      ok: false,
-      mensaje: `El servicio ${servicio?.nombre} no tiene una tarifa válida configurada.`,
-      fleteUSD: 0,
-    };
-  };
-
-  const calculoFlete = calcularFleteServicio(servicio, totalPeso);
-  const fleteUSD = calculoFlete.fleteUSD;
-
-  const seguroUSD = totalValorAsegurado * (porcentajeSeguro / 100);
-  const totalUSD = fleteUSD + seguroUSD;
-  const totalCOP = trmActual > 0 ? totalUSD * trmActual : 0;
 
 
 
@@ -197,8 +147,8 @@ export default function ModalCrearSolicitud({
       return;
     }
 
-    if (!calculoFlete.ok) {
-      alert(calculoFlete.mensaje);
+    if (!cotizacion.ok) {
+      alert(cotizacion.mensaje);
       return;
     }
 

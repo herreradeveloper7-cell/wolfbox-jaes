@@ -13,6 +13,7 @@ import iconReport from "../assets/report-file-svgrepo-com (1).svg";
 import iconSecurity from "../assets/security-shield-svgrepo-com.svg"
 import iconSettings from "../assets/settings-svgrepo-com.svg"
 import NotificationBell from "../components/notificaciones/NotificationBell";
+import { cerrarSesionSegura } from "../api/authSession";
 
 type Props = {
     children: ReactNode;
@@ -43,10 +44,9 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
   const [configuracionOpen, setConfiguracionOpen] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
     const stored = localStorage.getItem("usuario") || sessionStorage.getItem("usuario");
 
-    if (!token || !stored) {
+    if (!stored) {
       localStorage.removeItem("usuario");
       sessionStorage.removeItem("usuario");
       navigate("/login");
@@ -407,11 +407,8 @@ export default function UserDashboardLayout({ children, scrollable = false }: Pr
           <div className={`transition-all duration-500 overflow-hidden bg-[#2d0101] w-full ${perfilOpen && sidebarOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}>
             <button onClick={() => navegarORecargar("/perfil")} className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer">Ver Perfil</button>
             <button
-              onClick={() => {
-                localStorage.removeItem("usuario");
-                localStorage.removeItem("authToken");
-                sessionStorage.removeItem("usuario");
-                sessionStorage.removeItem("authToken");
+              onClick={async () => {
+                await cerrarSesionSegura();
                 navigate("/login");
               }}
               className="text-white text-left w-full px-6 py-2 hover:bg-red-900 cursor-pointer"

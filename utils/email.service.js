@@ -2,32 +2,6 @@ import { poolPromise, sql } from "../config/db.js";
 
 const BREVO_EMAIL_URL = "https://api.brevo.com/v3/smtp/email";
 
-let logsTableReady = false;
-
-const asegurarTablaLogs = async (pool) => {
-  if (logsTableReady) return;
-
-  await pool.request().query(`
-    IF OBJECT_ID('dbo.email_logs', 'U') IS NULL
-    BEGIN
-      CREATE TABLE dbo.email_logs (
-        id INT IDENTITY(1,1) PRIMARY KEY,
-        plantilla_id INT NULL,
-        evento NVARCHAR(120) NULL,
-        destinatario NVARCHAR(180) NOT NULL,
-        asunto NVARCHAR(250) NOT NULL,
-        proveedor NVARCHAR(80) NOT NULL DEFAULT 'brevo',
-        estado NVARCHAR(30) NOT NULL,
-        message_id NVARCHAR(180) NULL,
-        error NVARCHAR(MAX) NULL,
-        fecha_envio DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
-      );
-    END;
-  `);
-
-  logsTableReady = true;
-};
-
 const guardarLogEmail = async ({
   plantillaId = null,
   evento = null,
@@ -40,7 +14,6 @@ const guardarLogEmail = async ({
 }) => {
   try {
     const pool = await poolPromise;
-    await asegurarTablaLogs(pool);
 
     await pool
       .request()
@@ -235,26 +208,11 @@ export const obtenerPlantillaEmailPorEvento = async (claveEvento) => {
       .request()
       .input("clave_evento", sql.NVarChar(120), claveEvento)
       .query(`
-        IF OBJECT_ID('dbo.plantillas_comunicacion', 'U') IS NULL
-        BEGIN
-          SELECT TOP 0
-            CAST(NULL AS INT) AS id,
-            CAST(NULL AS NVARCHAR(180)) AS email_remitente,
-            CAST(NULL AS NVARCHAR(250)) AS asunto,
-            CAST(NULL AS NVARCHAR(MAX)) AS cuerpo;
-        END
-        ELSE
-        BEGIN
-          SELECT TOP 1
-            id,
-            email_remitente,
-            asunto,
-            cuerpo
-          FROM plantillas_comunicacion
-          WHERE clave_evento = @clave_evento
-            AND activo = 1
-          ORDER BY fecha_actualizacion DESC, fecha_creacion DESC, id DESC;
-        END
+        SELECT TOP 1 id, email_remitente, asunto, cuerpo
+        FROM plantillas_comunicacion
+        WHERE clave_evento = @clave_evento
+          AND activo = 1
+        ORDER BY fecha_actualizacion DESC, fecha_creacion DESC, id DESC;
       `);
 
     return result.recordset[0] || null;

@@ -3,7 +3,6 @@ import {
   azureStorageDisponible,
   crearUrlTemporalLectura,
   eliminarArchivoPrivado,
-  nombreSeguroArchivo,
   subirArchivoPrivado,
 } from "../utils/storage.service.js";
 
@@ -11,37 +10,6 @@ let cacheActivas = { expiresAt: 0, data: null };
 
 const invalidarCache = () => {
   cacheActivas = { expiresAt: 0, data: null };
-};
-
-const asegurarTabla = async (pool) => {
-  await pool.request().query(`
-    IF OBJECT_ID('dbo.promociones_tiendas', 'U') IS NULL
-    BEGIN
-      CREATE TABLE dbo.promociones_tiendas (
-        id INT IDENTITY(1,1) PRIMARY KEY,
-        tienda NVARCHAR(120) NOT NULL,
-        titulo NVARCHAR(180) NOT NULL,
-        descripcion NVARCHAR(600) NOT NULL,
-        categoria NVARCHAR(100) NULL,
-        evento NVARCHAR(100) NULL,
-        url_destino NVARCHAR(1000) NOT NULL,
-        imagen_blob NVARCHAR(500) NULL,
-        imagen_url NVARCHAR(1000) NULL,
-        fecha_inicio DATETIME2 NOT NULL,
-        fecha_fin DATETIME2 NOT NULL,
-        publicada BIT NOT NULL CONSTRAINT DF_promociones_publicada DEFAULT 0,
-        destacada BIT NOT NULL CONSTRAINT DF_promociones_destacada DEFAULT 0,
-        orden INT NOT NULL CONSTRAINT DF_promociones_orden DEFAULT 0,
-        creado_por INT NULL,
-        fecha_creacion DATETIME2 NOT NULL CONSTRAINT DF_promociones_fecha DEFAULT SYSUTCDATETIME(),
-        fecha_actualizacion DATETIME2 NOT NULL CONSTRAINT DF_promociones_actualizacion DEFAULT SYSUTCDATETIME(),
-        CONSTRAINT CK_promociones_fechas CHECK (fecha_fin > fecha_inicio)
-      );
-
-      CREATE INDEX IX_promociones_vigencia
-        ON dbo.promociones_tiendas (publicada, fecha_inicio, fecha_fin, destacada, orden);
-    END
-  `);
 };
 
 const estadoSql = `CASE
@@ -79,8 +47,7 @@ const guardarImagen = async (file) => {
     throw error;
   }
 
-  const seguro = nombreSeguroArchivo(file.originalname || "promocion.webp");
-  const blobName = `promociones/${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${seguro}`;
+  const blobName = `promociones/${file.filename}`;
   await subirArchivoPrivado({ buffer: file.buffer, blobName, contentType: file.mimetype });
   return blobName;
 };
@@ -91,7 +58,6 @@ export const listarPromocionesAdmin = async (req, res) => {
     const limite = Math.min(Math.max(Number(req.query.limite) || 10, 1), 100);
     const offset = (pagina - 1) * limite;
     const pool = await poolPromise;
-    await asegurarTabla(pool);
     const request = pool.request().input("offset", sql.Int, offset).input("limite", sql.Int, limite);
     const filtros = [];
 
@@ -128,7 +94,6 @@ export const listarPromocionesActivas = async (_req, res) => {
       return res.json(cacheActivas.data);
     }
     const pool = await poolPromise;
-    await asegurarTabla(pool);
     const result = await pool.request().query(`
       SELECT TOP 6 id, tienda, titulo, descripcion, categoria, evento, url_destino,
         imagen_blob, imagen_url, fecha_inicio, fecha_fin, destacada
@@ -153,7 +118,6 @@ export const crearPromocion = async (req, res) => {
   try {
     imagenBlob = await guardarImagen(req.file);
     const pool = await poolPromise;
-    await asegurarTabla(pool);
     const result = await pool.request()
       .input("tienda", sql.NVarChar(120), req.body.tienda)
       .input("titulo", sql.NVarChar(180), req.body.titulo)
@@ -191,7 +155,6 @@ export const actualizarPromocion = async (req, res) => {
   let nuevoBlob = null;
   try {
     const pool = await poolPromise;
-    await asegurarTabla(pool);
     const actual = await pool.request().input("id", sql.Int, req.params.id)
       .query("SELECT TOP 1 imagen_blob, imagen_url FROM promociones_tiendas WHERE id = @id");
     if (!actual.recordset.length) return res.status(404).json({ ok: false, mensaje: "Promoción no encontrada" });
@@ -229,7 +192,6 @@ export const actualizarPromocion = async (req, res) => {
 export const eliminarPromocion = async (req, res) => {
   try {
     const pool = await poolPromise;
-    await asegurarTabla(pool);
     const result = await pool.request().input("id", sql.Int, req.params.id)
       .query("DELETE FROM promociones_tiendas OUTPUT DELETED.imagen_blob WHERE id = @id");
     if (!result.recordset.length) return res.status(404).json({ ok: false, mensaje: "Promoción no encontrada" });

@@ -3,35 +3,6 @@ import { enviarEmailDesdePlantilla } from "../utils/email.service.js";
 import fs from "fs";
 import path from "path";
 
-let tablaVerificada = false;
-
-const asegurarTablaPlantillas = async (pool) => {
-  if (tablaVerificada) return;
-
-  await pool.request().query(`
-    IF OBJECT_ID('dbo.plantillas_comunicacion', 'U') IS NULL
-    BEGIN
-      CREATE TABLE dbo.plantillas_comunicacion (
-        id INT IDENTITY(1,1) PRIMARY KEY,
-        clave_evento NVARCHAR(120) NULL,
-        nombre NVARCHAR(150) NOT NULL,
-        email_remitente NVARCHAR(180) NOT NULL,
-        asunto NVARCHAR(250) NOT NULL,
-        cuerpo NVARCHAR(MAX) NOT NULL,
-        activo BIT NOT NULL DEFAULT 1,
-        creado_por NVARCHAR(150) NULL,
-        fecha_creacion DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-        fecha_actualizacion DATETIME2 NULL
-      );
-    END;
-
-    IF COL_LENGTH('dbo.plantillas_comunicacion', 'clave_evento') IS NULL
-      ALTER TABLE dbo.plantillas_comunicacion ADD clave_evento NVARCHAR(120) NULL;
-  `);
-
-  tablaVerificada = true;
-};
-
 const obtenerResponsable = (req) =>
   req.usuario?.nombre || req.usuario?.email || req.usuario?.id || "Sistema";
 
@@ -78,7 +49,6 @@ export const listarPlantillasComunicacion = async (req, res) => {
     );
 
     const pool = await poolPromise;
-    await asegurarTablaPlantillas(pool);
 
     const where = incluirInactivas ? "" : "WHERE activo = 1";
     const result = await pool.request().query(`
@@ -118,7 +88,6 @@ export const crearPlantillaComunicacion = async (req, res) => {
     }
 
     const pool = await poolPromise;
-    await asegurarTablaPlantillas(pool);
 
     await pool
       .request()
@@ -162,7 +131,6 @@ export const actualizarPlantillaComunicacion = async (req, res) => {
     }
 
     const pool = await poolPromise;
-    await asegurarTablaPlantillas(pool);
 
     await pool
       .request()
@@ -205,7 +173,6 @@ export const inhabilitarPlantillaComunicacion = async (req, res) => {
     }
 
     const pool = await poolPromise;
-    await asegurarTablaPlantillas(pool);
 
     await pool
       .request()
@@ -240,7 +207,6 @@ export const enviarPruebaPlantillaComunicacion = async (req, res) => {
     }
 
     const pool = await poolPromise;
-    await asegurarTablaPlantillas(pool);
 
     const result = await pool
       .request()
@@ -362,40 +328,22 @@ export const listarLogsEmail = async (req, res) => {
     const where = filtros.length ? `WHERE ${filtros.join(" AND ")}` : "";
 
     const result = await request.query(`
-      IF OBJECT_ID('dbo.email_logs', 'U') IS NULL
-      BEGIN
-        SELECT TOP 0
-          CAST(NULL AS INT) AS id,
-          CAST(NULL AS INT) AS plantilla_id,
-          CAST(NULL AS NVARCHAR(150)) AS plantilla_nombre,
-          CAST(NULL AS NVARCHAR(120)) AS evento,
-          CAST(NULL AS NVARCHAR(180)) AS destinatario,
-          CAST(NULL AS NVARCHAR(250)) AS asunto,
-          CAST(NULL AS NVARCHAR(80)) AS proveedor,
-          CAST(NULL AS NVARCHAR(30)) AS estado,
-          CAST(NULL AS NVARCHAR(180)) AS message_id,
-          CAST(NULL AS NVARCHAR(MAX)) AS error,
-          CAST(NULL AS DATETIME2) AS fecha_envio;
-      END
-      ELSE
-      BEGIN
-        SELECT TOP (${top})
-          el.id,
-          el.plantilla_id,
-          pc.nombre AS plantilla_nombre,
-          el.evento,
-          el.destinatario,
-          el.asunto,
-          el.proveedor,
-          el.estado,
-          el.message_id,
-          el.error,
-          el.fecha_envio
-        FROM email_logs el
-        LEFT JOIN plantillas_comunicacion pc ON pc.id = el.plantilla_id
-        ${where}
-        ORDER BY el.fecha_envio DESC, el.id DESC;
-      END
+      SELECT TOP (${top})
+        el.id,
+        el.plantilla_id,
+        pc.nombre AS plantilla_nombre,
+        el.evento,
+        el.destinatario,
+        el.asunto,
+        el.proveedor,
+        el.estado,
+        el.message_id,
+        el.error,
+        el.fecha_envio
+      FROM email_logs el
+      LEFT JOIN plantillas_comunicacion pc ON pc.id = el.plantilla_id
+      ${where}
+      ORDER BY el.fecha_envio DESC, el.id DESC;
     `);
 
     res.json({ ok: true, logs: result.recordset });

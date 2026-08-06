@@ -6,7 +6,6 @@ import {
   crearUrlTemporalLectura,
   descargarArchivoPrivado,
   eliminarArchivoPrivado,
-  nombreSeguroArchivo,
   subirArchivoPrivado,
 } from "../utils/storage.service.js";
 import fs from "fs";
@@ -15,6 +14,21 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const obtenerSnapshotAutorizacion = async (transaction, solicitudId) => {
+  const result = await new sql.Request(transaction)
+    .input("audit_solicitud_id", sql.Int, Number(solicitudId))
+    .query(`
+      SELECT id, estado, comprobante_pago_url FROM solicitudes WHERE id = @audit_solicitud_id;
+      SELECT p.id, p.hawb, p.estado_id, ec.nombre AS estado
+      FROM paquetes p
+      LEFT JOIN estados_catalogo ec ON ec.id = p.estado_id
+      WHERE p.solicitud_id = @audit_solicitud_id AND p.hawb_padre IS NULL
+      ORDER BY p.id;
+    `);
+  const solicitud = result.recordsets?.[0]?.[0];
+  return solicitud ? { ...solicitud, paquetes: result.recordsets?.[1] || [] } : null;
+};
 
 const eliminarArchivoComprobante = (rutaRelativa) => {
   if (!rutaRelativa || !String(rutaRelativa).startsWith("/uploads/comprobantes/")) {
@@ -73,6 +87,7 @@ export const autorizarSolicitud = async (req, res) => {
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
+    const antes = await obtenerSnapshotAutorizacion(transaction, id);
 
     const request = new sql.Request(transaction);
 
@@ -125,7 +140,16 @@ export const autorizarSolicitud = async (req, res) => {
       WHERE id = @id
     `);
 
+    const despues = await obtenerSnapshotAutorizacion(transaction, id);
     await transaction.commit();
+
+    res.locals.auditoria = {
+      accion: "autorizar_pago",
+      recurso: "solicitudes",
+      recursoId: String(id),
+      antes,
+      despues,
+    };
 
     crearNotificacionUsuarios({
       tipo: "success",
@@ -164,6 +188,7 @@ export const quitarAutorizacionSolicitud = async (req, res) => {
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
+    const antes = await obtenerSnapshotAutorizacion(transaction, id);
 
     const request = new sql.Request(transaction);
 
@@ -215,7 +240,16 @@ export const quitarAutorizacionSolicitud = async (req, res) => {
       WHERE id = @id
     `);
 
+    const despues = await obtenerSnapshotAutorizacion(transaction, id);
     await transaction.commit();
+
+    res.locals.auditoria = {
+      accion: "quitar_autorizacion_pago",
+      recurso: "solicitudes",
+      recursoId: String(id),
+      antes,
+      despues,
+    };
 
     crearNotificacionUsuarios({
       tipo: "warning",
@@ -291,8 +325,7 @@ export const subirComprobante = async (req, res) => {
     let rutaArchivo = `/uploads/comprobantes/${req.file.filename}`;
 
     if (azureStorageDisponible()) {
-      const nombreSeguro = nombreSeguroArchivo(req.file.originalname || req.file.filename);
-      const blobName = `comprobantes/solicitud-${id}/${Date.now()}-${nombreSeguro}`;
+      const blobName = `comprobantes/solicitud-${id}/${req.file.filename}`;
       const resultadoStorage = await subirArchivoPrivado({
         buffer: req.file.buffer,
         blobName,

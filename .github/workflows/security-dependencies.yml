@@ -1,0 +1,42 @@
+name: Security dependencies
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - feature/developer
+  schedule:
+    - cron: "17 10 * * 1"
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.5.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            frontend-wolfbox/pnpm-lock.yaml
+      - name: Install backend dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Audit backend runtime dependencies
+        run: pnpm audit --prod --audit-level high
+      - name: Install frontend dependencies
+        working-directory: frontend-wolfbox
+        run: pnpm install --frozen-lockfile
+      - name: Audit frontend dependencies
+        # Las excepciones permitidas están limitadas por ID y documentadas en
+        # SECURITY_DEPENDENCY_EXCEPTIONS.md.
+        run: node scripts/audit-frontend-dependencies.mjs
+      - name: Test backend
+        run: pnpm test
+      - name: Build frontend
+        working-directory: frontend-wolfbox
+        run: pnpm run build

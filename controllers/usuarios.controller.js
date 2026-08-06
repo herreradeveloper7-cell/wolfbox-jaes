@@ -4,6 +4,8 @@ import {
   enviarEmailDesdePlantilla,
   obtenerPlantillaEmailPorEvento,
 } from "../utils/email.service.js";
+import { revocarSesionesCuenta } from "../utils/session.service.js";
+import { responderPasswordInvalida, validarPasswordNueva } from "../utils/password-policy.js";
 
 const WHATSAPP_SERVICIO = "+57 302 8600369";
 const WHATSAPP_SERVICIO_URL = "https://wa.me/573028600369";
@@ -121,11 +123,29 @@ const guardarPermisosUsuario = async (pool, usuarioId, rol, permisosSeleccionado
   }
 };
 
+const obtenerSnapshotUsuario = async (pool, usuarioId) => {
+  const result = await pool.request()
+    .input("audit_usuario_id", sql.Int, Number(usuarioId))
+    .query(`
+      SELECT id, nombre, correo, tipo_usuario, genero, estado
+      FROM usuarios WHERE id = @audit_usuario_id;
+      SELECT permiso FROM permisos_usuario
+      WHERE usuario_id = @audit_usuario_id ORDER BY permiso;
+    `);
+  const usuario = result.recordsets?.[0]?.[0];
+  return usuario
+    ? { ...usuario, permisos: (result.recordsets?.[1] || []).map((item) => item.permiso) }
+    : null;
+};
+
 export const crearUsuario = async (req, res) => {
   try {
     const { nombre, email, password, tipo, permisos, genero } = req.body;
 
     const pool = await poolPromise; 
+
+    const passwordValida = await validarPasswordNueva(password, { email, nombre });
+    if (!passwordValida.ok) return responderPasswordInvalida(res, passwordValida);
 
     const existe = await pool.request()
       .input("correo", sql.VarChar, email)
@@ -151,6 +171,13 @@ export const crearUsuario = async (req, res) => {
     const usuarioId = insertUser.recordset[0].id;
 
     await guardarPermisosUsuario(pool, usuarioId, tipo, permisos);
+
+    res.locals.auditoria = {
+      accion: "crear_usuario",
+      recurso: "usuarios",
+      recursoId: String(usuarioId),
+      despues: await obtenerSnapshotUsuario(pool, usuarioId),
+    };
 
     enviarCorreoAperturaUsuario({
       email,
@@ -256,6 +283,7 @@ export const actualizarUsuario = async (req, res) => {
     const { nombre, email, tipo_usuario, genero, permisos, password } = req.body;
 
     const pool = await poolPromise;
+    const antes = await obtenerSnapshotUsuario(pool, id);
 
     const checkEmail = await pool.request()
       .input("correo", sql.VarChar, email)
@@ -271,6 +299,8 @@ export const actualizarUsuario = async (req, res) => {
 
     let hashedPassword = null;
     if (password && password.trim() !== "") {
+      const passwordValida = await validarPasswordNueva(password, { email, nombre });
+      if (!passwordValida.ok) return responderPasswordInvalida(res, passwordValida);
       hashedPassword = await bcrypt.hash(password, 10);
     }
 
@@ -296,6 +326,15 @@ export const actualizarUsuario = async (req, res) => {
       .query(`DELETE FROM permisos_usuario WHERE usuario_id = @usuario_id`);
 
     await guardarPermisosUsuario(pool, id, tipo_usuario, permisos);
+    await revocarSesionesCuenta(pool, "usuario", id, "datos_o_permisos_actualizados");
+
+    res.locals.auditoria = {
+      accion: "actualizar_usuario",
+      recurso: "usuarios",
+      recursoId: String(id),
+      antes,
+      despues: await obtenerSnapshotUsuario(pool, id),
+    };
 
     return res.json({ mensaje: "✅ Usuario actualizado correctamente" });
 
@@ -311,6 +350,7 @@ export const editarUsuario = async (req, res) => {
     const { nombre, email, password, tipo_usuario, genero, permisos } = req.body;
 
     const pool = await poolPromise;
+    const antes = await obtenerSnapshotUsuario(pool, id);
 
     const validarCorreo = await pool.request()
       .input("correo", sql.VarChar, email)
@@ -325,6 +365,8 @@ export const editarUsuario = async (req, res) => {
     }
 
     if (password && password.trim() !== "") {
+      const passwordValida = await validarPasswordNueva(password, { email, nombre });
+      if (!passwordValida.ok) return responderPasswordInvalida(res, passwordValida);
       const hashedPassword = await bcrypt.hash(password, 10);
       await pool.request()
         .input("id", sql.Int, id)
@@ -360,6 +402,15 @@ export const editarUsuario = async (req, res) => {
       .query(`DELETE FROM permisos_usuario WHERE usuario_id=@usuario_id`);
 
     await guardarPermisosUsuario(pool, id, tipo_usuario, permisos);
+    await revocarSesionesCuenta(pool, "usuario", id, "datos_o_permisos_actualizados");
+
+    res.locals.auditoria = {
+      accion: "actualizar_usuario",
+      recurso: "usuarios",
+      recursoId: String(id),
+      antes,
+      despues: await obtenerSnapshotUsuario(pool, id),
+    };
 
     return res.json({ mensaje: "✅ Usuario actualizado correctamente" });
 
@@ -373,6 +424,7 @@ export const eliminarUsuario = async (req, res) => {
   const { id } = req.params;
   try {
     const pool = await poolPromise;
+    const antes = await obtenerSnapshotUsuario(pool, id);
 
     await pool.request()
       .input("usuario_id", sql.Int, id)
@@ -381,6 +433,16 @@ export const eliminarUsuario = async (req, res) => {
     await pool.request()
       .input("id", sql.Int, id)
       .query("DELETE FROM usuarios WHERE id=@id");
+
+    await revocarSesionesCuenta(pool, "usuario", id, "usuario_eliminado");
+
+    res.locals.auditoria = {
+      accion: "eliminar_usuario",
+      recurso: "usuarios",
+      recursoId: String(id),
+      antes,
+      despues: null,
+    };
 
     return res.json({ mensaje: "✅ Usuario eliminado correctamente" });
 
@@ -397,12 +459,25 @@ export const cambiarEstadoUsuario = async (req, res) => {
     const { estado } = req.body;
 
     const pool = await poolPromise;
+    const antes = await obtenerSnapshotUsuario(pool, id);
     await pool.request()
       .input("id", sql.Int, id)
       .input("estado", sql.VarChar, estado)
       .query(`
         UPDATE usuarios SET estado=@estado WHERE id=@id
       `);
+
+    if (estado !== "activo") {
+      await revocarSesionesCuenta(pool, "usuario", id, "usuario_inhabilitado");
+    }
+
+    res.locals.auditoria = {
+      accion: "cambiar_estado_usuario",
+      recurso: "usuarios",
+      recursoId: String(id),
+      antes,
+      despues: await obtenerSnapshotUsuario(pool, id),
+    };
 
     return res.json({
       mensaje: estado === "activo" 

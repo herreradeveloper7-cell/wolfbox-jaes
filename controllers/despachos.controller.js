@@ -15,70 +15,6 @@ const getResponsable = (req) =>
   req.usuario?.id ||
   "Sistema";
 
-const ensureDespachosSchema = async (pool) => {
-  await pool.request().query(`
-    IF OBJECT_ID('dbo.despachos', 'U') IS NULL
-    BEGIN
-      CREATE TABLE dbo.despachos (
-        id INT IDENTITY(1,1) PRIMARY KEY,
-        codigo NVARCHAR(40) NOT NULL,
-        nombre NVARCHAR(120) NULL,
-        observaciones NVARCHAR(500) NULL,
-        oficina_id INT NULL,
-        oficina NVARCHAR(120) NULL,
-        transportadora_id INT NULL,
-        transportadora_nombre NVARCHAR(150) NULL,
-        fecha_operativa NVARCHAR(30) NULL,
-        estado NVARCHAR(20) NOT NULL CONSTRAINT DF_despachos_estado DEFAULT 'abierto',
-        creado_por NVARCHAR(120) NULL,
-        fecha_creacion DATETIME2 NOT NULL CONSTRAINT DF_despachos_fecha DEFAULT SYSUTCDATETIME(),
-        fecha_cierre DATETIME2 NULL,
-        actualizado_en DATETIME2 NULL
-      );
-    END
-
-    IF COL_LENGTH('dbo.despachos', 'oficina') IS NULL
-      ALTER TABLE dbo.despachos ADD oficina NVARCHAR(120) NULL;
-
-    IF COL_LENGTH('dbo.despachos', 'oficina_id') IS NULL
-      ALTER TABLE dbo.despachos ADD oficina_id INT NULL;
-
-    IF COL_LENGTH('dbo.despachos', 'transportadora_id') IS NULL
-      ALTER TABLE dbo.despachos ADD transportadora_id INT NULL;
-
-    IF COL_LENGTH('dbo.despachos', 'transportadora_nombre') IS NULL
-      ALTER TABLE dbo.despachos ADD transportadora_nombre NVARCHAR(150) NULL;
-
-    IF COL_LENGTH('dbo.despachos', 'fecha_operativa') IS NULL
-      ALTER TABLE dbo.despachos ADD fecha_operativa NVARCHAR(30) NULL;
-
-    IF OBJECT_ID('dbo.despacho_paquetes', 'U') IS NULL
-    BEGIN
-      CREATE TABLE dbo.despacho_paquetes (
-        id INT IDENTITY(1,1) PRIMARY KEY,
-        despacho_id INT NOT NULL,
-        paquete_id INT NOT NULL,
-        hawb NVARCHAR(50) NOT NULL,
-        agregado_por NVARCHAR(120) NULL,
-        fecha_agregado DATETIME2 NOT NULL CONSTRAINT DF_despacho_paquetes_fecha DEFAULT SYSUTCDATETIME(),
-        CONSTRAINT FK_despacho_paquetes_despachos
-          FOREIGN KEY (despacho_id) REFERENCES dbo.despachos(id) ON DELETE CASCADE
-      );
-    END
-
-    IF NOT EXISTS (
-      SELECT 1
-      FROM sys.indexes
-      WHERE name = 'UX_despacho_paquetes_hawb'
-        AND object_id = OBJECT_ID('dbo.despacho_paquetes')
-    )
-    BEGIN
-      CREATE UNIQUE INDEX UX_despacho_paquetes_hawb
-      ON dbo.despacho_paquetes(hawb);
-    END
-  `);
-};
-
 const obtenerDespachoAbierto = async (request, id) => {
   const despacho = await request()
     .input("id", sql.Int, id)
@@ -195,7 +131,6 @@ export const listarDespachos = async (req, res) => {
       fechaHasta,
     } = req.query;
     const pool = await poolPromise;
-    await ensureDespachosSchema(pool);
 
     const request = pool.request();
     const where = [];
@@ -300,7 +235,6 @@ export const crearDespacho = async (req, res) => {
     } = req.body;
     const responsable = getResponsable(req);
     const pool = await poolPromise;
-    await ensureDespachosSchema(pool);
 
     const codigo = `DESP-${Date.now()}`;
     if (!Number(oficina_id) || !Number(transportadora_id)) {
@@ -370,7 +304,6 @@ export const obtenerDetalleDespacho = async (req, res) => {
   try {
     const { id } = req.params;
     const pool = await poolPromise;
-    await ensureDespachosSchema(pool);
 
     const despacho = await pool
       .request()
@@ -482,7 +415,6 @@ export const editarDespacho = async (req, res) => {
       fecha,
     } = req.body;
     const pool = await poolPromise;
-    await ensureDespachosSchema(pool);
 
     transaction = new sql.Transaction(pool);
     await transaction.begin();
@@ -563,7 +495,6 @@ export const cambiarEstadoDespacho = async (req, res) => {
     }
 
     const pool = await poolPromise;
-    await ensureDespachosSchema(pool);
 
     const result = await pool
       .request()
@@ -602,7 +533,6 @@ export const eliminarDespacho = async (req, res) => {
   try {
     const { id } = req.params;
     const pool = await poolPromise;
-    await ensureDespachosSchema(pool);
 
     transaction = new sql.Transaction(pool);
     await transaction.begin();
@@ -658,7 +588,6 @@ export const agregarHawbADespacho = async (req, res) => {
     const responsable = getResponsable(req);
 
     const pool = await poolPromise;
-    await ensureDespachosSchema(pool);
 
     transaction = new sql.Transaction(pool);
     await transaction.begin();
@@ -797,7 +726,6 @@ export const quitarHawbDeDespacho = async (req, res) => {
     const { id, hawb } = req.params;
     const responsable = getResponsable(req);
     const pool = await poolPromise;
-    await ensureDespachosSchema(pool);
 
     transaction = new sql.Transaction(pool);
     await transaction.begin();

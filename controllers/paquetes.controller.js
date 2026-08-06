@@ -215,6 +215,23 @@ export const registrarPaqueteConDeps = async (req, res, deps) => {
     transactionStarted = true;
     const requestTx = () => new dbSql.Request(transaction);
 
+    const trackingNormalizado = String(tracking || "").trim();
+    const trackingExistente = await requestTx()
+      .input("tracking", dbSql.NVarChar, trackingNormalizado)
+      .query(`
+        SELECT TOP 1 id
+        FROM paquetes WITH (UPDLOCK, HOLDLOCK)
+        WHERE UPPER(LTRIM(RTRIM(tracking))) = UPPER(@tracking)
+      `);
+
+    if (trackingExistente.recordset.length > 0) {
+      await transaction.rollback();
+      transactionStarted = false;
+      return res.status(409).json({
+        mensaje: "El tracking ya se encuentra digitado en el sistema.",
+      });
+    }
+
     const cliente = await requestTx()
       .input('codigo', dbSql.NVarChar, codigo_referencia)
       .query(`
@@ -280,7 +297,7 @@ export const registrarPaqueteConDeps = async (req, res, deps) => {
 
     const request = requestTx();
 
-    request.input('tracking', dbSql.NVarChar, tracking)
+    request.input('tracking', dbSql.NVarChar, trackingNormalizado)
       .input('hawb', dbSql.NVarChar, hawb)
       .input('tienda', dbSql.NVarChar, sqlStringOrNull(tienda))
       .input('contenido', dbSql.NVarChar, contenido)
@@ -339,12 +356,11 @@ export const registrarPaqueteConDeps = async (req, res, deps) => {
 
     await requestTx()
       .input("cliente_id", dbSql.Int, cliente_id)
-      .input("tracking", dbSql.NVarChar, tracking)
+      .input("tracking", dbSql.NVarChar, trackingNormalizado)
       .query(`
         IF OBJECT_ID('dbo.prealertas', 'U') IS NOT NULL
         BEGIN
-          UPDATE prealertas
-          SET estado = 'Digitado'
+          DELETE FROM prealertas
           WHERE cliente_id = @cliente_id
             AND UPPER(LTRIM(RTRIM(tracking))) = UPPER(LTRIM(RTRIM(@tracking)))
         END
@@ -369,7 +385,7 @@ export const registrarPaqueteConDeps = async (req, res, deps) => {
     enviarCorreoPaqueteDigitado({
       cliente: clienteData,
       paquete: {
-        tracking,
+        tracking: trackingNormalizado,
         hawb,
         tienda,
         contenido,
@@ -391,6 +407,11 @@ export const registrarPaqueteConDeps = async (req, res, deps) => {
       }
     }
     console.error('❌ Error al registrar paquete:', error);
+    if (error?.number === 2601 || error?.number === 2627) {
+      return res.status(409).json({
+        mensaje: "El tracking ya se encuentra digitado en el sistema.",
+      });
+    }
     res.status(500).json({ mensaje: 'Error al registrar paquete' });
   }
 };
@@ -688,11 +709,15 @@ export const reporteEstadoGuia = async (req, res) => {
 };
 
 export const validarTracking = async (req, res) => {
-  const { valor } = req.params;
+  const valor = String(req.params.valor || "").trim();
   const pool = await poolPromise;
   const result = await pool.request()
     .input('valor', sql.NVarChar, valor)
-    .query('SELECT 1 FROM paquetes WHERE tracking = @valor');
+    .query(`
+      SELECT TOP 1 1
+      FROM paquetes
+      WHERE UPPER(LTRIM(RTRIM(tracking))) = UPPER(@valor)
+    `);
   res.json({ existe: result.recordset.length > 0 });
 };
 
@@ -1110,8 +1135,25 @@ export const anularGuia = async (req, res) => {
         (@hawb, @estado_id, @punto_control, @observaciones, @responsable)
       `);
 
+    const despuesResult = await request()
+      .input("audit_hawb", sql.NVarChar, hawb)
+      .query(`
+        SELECT p.id, p.hawb, p.estado_id, e.nombre AS estado_actual, p.punto_control
+        FROM paquetes p
+        LEFT JOIN estados_catalogo e ON e.id = p.estado_id
+        WHERE p.hawb = @audit_hawb
+      `);
+
     await transaction.commit();
     transactionStarted = false;
+
+    res.locals.auditoria = {
+      accion: "anular_guia",
+      recurso: "paquetes",
+      recursoId: hawb,
+      antes: paquete,
+      despues: despuesResult.recordset[0] || null,
+    };
 
     return res.status(200).json({
       mensaje: "Guía anulada correctamente",
@@ -1235,11 +1277,24 @@ export const actualizarEstadoTracking = async (req, res) => {
   }
 };
 
+export const serializarTrackingPublico = ({ respuesta, historial }) => ({
+  hawb: respuesta.hawb,
+  estado: respuesta.estado,
+  punto_control: respuesta.punto_control,
+  fecha_registro: respuesta.fecha_registro,
+  estados: historial.map((item) => ({
+    fecha: item.fecha,
+    estado: item.estado,
+    punto_control: item.punto_control,
+  })),
+});
+
 export const obtenerPaquetePorHAWB = async (req, res) => {
   const { hawb } = req.params;
 
   try {
     const pool = await poolPromise;
+    const consultaPublica = req.consultaTrackingPublica === true;
     const consultaCliente = req.usuario?.tipo === "cliente";
     const requestPaquete = pool.request().input('hawb', sql.NVarChar, hawb);
 
@@ -1324,6 +1379,20 @@ export const obtenerPaquetePorHAWB = async (req, res) => {
 
     const datosPaquete = paquete.recordset[0];
     const historial = await cargarHistorial(datosPaquete.hawb);
+
+    if (consultaPublica) {
+      return res.status(200).json([
+        serializarTrackingPublico({
+          respuesta: {
+            hawb: datosPaquete.hawb,
+            estado: datosPaquete.estado,
+            punto_control: datosPaquete.punto_control,
+            fecha_registro: datosPaquete.fecha_registro,
+          },
+          historial,
+        }),
+      ]);
+    }
 
     const requestRelacionados = pool.request().input("hawb_padre", sql.NVarChar, hawb);
     if (consultaCliente) requestRelacionados.input("cliente_id", sql.Int, req.usuario.id);

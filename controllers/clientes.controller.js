@@ -1,5 +1,6 @@
 import { sql, poolPromise } from "../config/db.js";
 import bcrypt from "bcrypt";
+import { responderPasswordInvalida, validarPasswordNueva } from "../utils/password-policy.js";
 import { firmarToken } from "../middleware/auth.middleware.js";
 import fs from "fs";
 import path from "path";
@@ -7,6 +8,17 @@ import {
   enviarEmailDesdePlantilla,
   obtenerPlantillaEmailPorEvento,
 } from "../utils/email.service.js";
+import {
+  clienteEstaActivo,
+  ESTADOS_CLIENTE,
+  MENSAJE_CLIENTE_INHABILITADO,
+} from "../utils/cliente-estado.helpers.js";
+import {
+  ACCESS_TOKEN_EXPIRES_IN,
+  crearSesion,
+  establecerRefreshCookie,
+  revocarSesionesCuenta,
+} from "../utils/session.service.js";
 
 const WHATSAPP_SERVICIO = "+57 302 8600369";
 const WHATSAPP_SERVICIO_URL = "https://wa.me/573028600369";
@@ -181,6 +193,12 @@ export const registrarCliente = async (req, res) => {
       tipo_cliente,
     } = req.body;
 
+    const passwordValida = await validarPasswordNueva(contrasena, {
+      email,
+      nombre: tipo_cliente === "personal" ? `${primerNombre || ""} ${primerApellido || ""}` : razonSocial,
+    });
+    if (!passwordValida.ok) return responderPasswordInvalida(res, passwordValida);
+
     const hashedPassword = await bcrypt.hash(contrasena, 10);
 
     let codigoReferencia = "";
@@ -226,7 +244,7 @@ export const registrarCliente = async (req, res) => {
           correo, contrasena,
           fecha_nacimiento, pais, region, ciudad, direccion,
           indicativo, celular, telefono_fijo,
-          genero, nombre_empresa, codigo_referencia, tipo_cliente
+          genero, nombre_empresa, codigo_referencia, tipo_cliente, estado
         )
         OUTPUT INSERTED.id
         VALUES (
@@ -236,7 +254,7 @@ export const registrarCliente = async (req, res) => {
           @correo, @contrasena,
           @fecha_nacimiento, @pais, @region, @ciudad, @direccion,
           @indicativo, @celular, @telefono_fijo,
-          @genero, @nombre_empresa, @codigo_referencia, @tipo_cliente
+          @genero, @nombre_empresa, @codigo_referencia, @tipo_cliente, 'activo'
         )
       `);
 
@@ -335,12 +353,26 @@ export const loginCliente = async (req, res) => {
       return res.status(401).json({ ok: false, message: "Correo o contraseña incorrectos" });
     }
 
+    if (!clienteEstaActivo(cliente)) {
+      return res.status(403).json({
+        ok: false,
+        message: MENSAJE_CLIENTE_INHABILITADO,
+      });
+    }
+
+    const sesion = await crearSesion(pool, req, {
+      tipoCuenta: "cliente",
+      cuentaId: cliente.id,
+      mantenerSesion: false,
+    });
     const token = firmarToken({
       id: cliente.id,
       email: cliente.correo,
       tipo: "cliente",
       codigoReferencia: cliente.codigo_referencia,
-    });
+      sid: sesion.id,
+    }, ACCESS_TOKEN_EXPIRES_IN);
+    establecerRefreshCookie(res, sesion.refreshToken, false);
 
     return res.status(200).json({
       ok: true,
@@ -551,6 +583,7 @@ export const buscarCliente = async (req, res) => {
           nombre_empresa,
           codigo_referencia,
           tipo_cliente,
+          estado,
           fecha_creacion
         FROM clientes
         WHERE 
@@ -748,6 +781,51 @@ export const actualizarClienteAdmin = async (req, res) => {
     return res.status(500).json({
       ok: false,
       mensaje: "Error actualizando cliente",
+    });
+  }
+};
+
+export const cambiarEstadoCliente = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const estado = String(req.body.estado || "").trim().toLowerCase();
+    const pool = await poolPromise;
+
+    const result = await pool
+      .request()
+      .input("id", sql.Int, id)
+      .input("estado", sql.NVarChar(20), estado)
+      .query(`
+        UPDATE clientes
+        SET estado = @estado
+        OUTPUT INSERTED.id, INSERTED.estado
+        WHERE id = @id
+      `);
+
+    if (!result.recordset[0]) {
+      return res.status(404).json({
+        ok: false,
+        mensaje: "Cliente no encontrado",
+      });
+    }
+
+    if (estado !== ESTADOS_CLIENTE.ACTIVO) {
+      await revocarSesionesCuenta(pool, "cliente", id, "cliente_inhabilitado");
+    }
+
+    return res.status(200).json({
+      ok: true,
+      mensaje:
+        estado === ESTADOS_CLIENTE.ACTIVO
+          ? "Cliente activado correctamente"
+          : "Cliente inhabilitado correctamente",
+      cliente: result.recordset[0],
+    });
+  } catch (error) {
+    console.error("Error cambiando estado del cliente:", error);
+    return res.status(500).json({
+      ok: false,
+      mensaje: "No fue posible cambiar el estado del cliente",
     });
   }
 };

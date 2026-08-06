@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import logo from "../assets/logoJaesHome.png";
 import Loader from "../components/Loader";
 import { Eye, EyeOff } from "lucide-react";
+import { establecerAccessToken } from "../api/authSession";
 
 export default function LoginPage() {
     const navigate = useNavigate();
@@ -21,6 +22,7 @@ export default function LoginPage() {
         const res = await fetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ email, contrasena: password, mantenerSesion: stayLoggedIn }),
         });
 
@@ -37,6 +39,13 @@ export default function LoginPage() {
         }
 
         setLoginError("");
+        if (data.mfa_required || data.mfa_setup_required) {
+          sessionStorage.setItem("mfaChallenge", data.desafio_mfa);
+          sessionStorage.setItem("mfaMode", data.mfa_setup_required ? "setup" : "login");
+          sessionStorage.setItem("mfaPersist", stayLoggedIn ? "1" : "0");
+          navigate("/mfa");
+          return;
+        }
         if (!data.token) {
           setLoginError("No se recibió token de autenticación. Intenta iniciar sesión nuevamente.");
           setLoading(false);
@@ -52,7 +61,7 @@ export default function LoginPage() {
         sessionStorage.removeItem("usuario");
         localStorage.removeItem("cliente");
         sessionStorage.removeItem("cliente");
-        storage.setItem("authToken", data.token);
+        establecerAccessToken(data.token);
 
 
         if (usuario.tipo === "cliente") {

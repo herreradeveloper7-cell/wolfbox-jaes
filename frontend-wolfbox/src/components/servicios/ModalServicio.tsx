@@ -21,6 +21,7 @@ type ServicioForm = {
   tarifa_fija_2a5?: number;
   tarifa_fija_6a10?: number;
   tarifa_por_libra_extra?: number;
+  tarifas_rangos: Array<{ peso_desde: number; peso_hasta: number; valor_usd: number }>;
   aplica_minimo?: boolean;
   peso_minimo?: number;
   tarifa_minima_usd?: number;
@@ -49,6 +50,7 @@ type ServicioForm = {
     tarifa_fija_2a5: 0,
     tarifa_fija_6a10: 0,
     tarifa_por_libra_extra: 0,
+    tarifas_rangos: [],
     aplica_minimo: false,
     peso_minimo: 0,
     tarifa_minima_usd: 0,
@@ -63,6 +65,16 @@ type ServicioForm = {
 
   useEffect(() => {
     if (initialData) {
+      const rangosGuardados = Array.isArray(initialData.tarifas_rangos)
+        ? initialData.tarifas_rangos
+        : [];
+      const rangosCompatibles = rangosGuardados.length
+        ? rangosGuardados
+        : [
+            { peso_desde: 0, peso_hasta: 1, valor_usd: initialData.tarifa_fija_1lb },
+            { peso_desde: 1, peso_hasta: 5, valor_usd: initialData.tarifa_fija_2a5 },
+            { peso_desde: 5, peso_hasta: 10, valor_usd: initialData.tarifa_fija_6a10 },
+          ].filter((rango) => Number(rango.valor_usd || 0) > 0);
       setForm({
         codigo: initialData.codigo || "",
         nombre: initialData.nombre || "",
@@ -78,6 +90,11 @@ type ServicioForm = {
         tarifa_fija_2a5: Number(initialData.tarifa_fija_2a5 || 0),
         tarifa_fija_6a10: Number(initialData.tarifa_fija_6a10 || 0),
         tarifa_por_libra_extra: Number(initialData.tarifa_por_libra_extra || 0),
+        tarifas_rangos: rangosCompatibles.map((rango: any) => ({
+              peso_desde: Number(rango.peso_desde || 0),
+              peso_hasta: Number(rango.peso_hasta || 0),
+              valor_usd: Number(rango.valor_usd || 0),
+            })),
 
         aplica_minimo: Boolean(initialData.aplica_minimo),
         peso_minimo: Number(initialData.peso_minimo || 0),
@@ -87,7 +104,7 @@ type ServicioForm = {
         peso_maximo: Number(initialData.peso_maximo || 0),
       });
 
-      if (Number(initialData.tarifa_por_libra_cc || 0) > 0) {
+      if (Number(initialData.tarifa_por_libra_cc || 0) > 0 && !rangosCompatibles.length) {
         setTipoTarifa("libra");
       } else {
         setTipoTarifa("rango");
@@ -105,6 +122,7 @@ type ServicioForm = {
         tarifa_fija_2a5: 0,
         tarifa_fija_6a10: 0,
         tarifa_por_libra_extra: 0,
+        tarifas_rangos: [],
         aplica_minimo: false,
         peso_minimo: 0,
         tarifa_minima_usd: 0,
@@ -199,23 +217,23 @@ type ServicioForm = {
       Number(form.peso_minimo) > 0 &&
       Number(form.tarifa_minima_usd) > 0;
 
-    if (!usaTarifaFijaMinima && Number(form.tarifa_por_libra) <= 0) {
+    if (tipoTarifa === "libra" && !usaTarifaFijaMinima && Number(form.tarifa_por_libra) <= 0) {
       errs.tarifa_por_libra =
         "La tarifa por libra debe ser mayor a 0 si no usas tarifa fija mínima";
     }
 
     if (tipoTarifa === "rango" && !usaTarifaFijaMinima) {
-      if (Number(form.tarifa_fija_1lb) <= 0) {
-        errs.tarifa_fija_1lb = "La tarifa 1 lb debe ser mayor a 0";
-      }
-
-      if (Number(form.tarifa_fija_2a5) <= 0) {
-        errs.tarifa_fija_2a5 = "La tarifa 2 a 5 lb debe ser mayor a 0";
-      }
-
-      if (Number(form.tarifa_fija_6a10) <= 0) {
-        errs.tarifa_fija_6a10 = "La tarifa 6 a 10 lb debe ser mayor a 0";
-      }
+      if (!form.tarifas_rangos.length) errs.tarifas_rangos = "Agrega al menos un rango";
+      const ordenados = [...form.tarifas_rangos].sort((a, b) => a.peso_desde - b.peso_desde);
+      ordenados.forEach((rango, index) => {
+        if (Number(rango.peso_desde) < 0 || Number(rango.peso_hasta) <= Number(rango.peso_desde)) {
+          errs.tarifas_rangos = "Cada rango debe tener un peso final mayor al inicial";
+        }
+        if (Number(rango.valor_usd) <= 0) errs.tarifas_rangos = "El valor de cada rango debe ser mayor a 0";
+        if (index > 0 && Number(rango.peso_desde) < Number(ordenados[index - 1].peso_hasta)) {
+          errs.tarifas_rangos = "Los rangos no pueden superponerse";
+        }
+      });
 
       if (Number(form.tarifa_por_libra_extra) <= 0) {
         errs.tarifa_por_libra_extra = "La libra extra debe ser mayor a 0";
@@ -226,8 +244,8 @@ type ServicioForm = {
       errs.porcentaje_seguro = "El porcentaje de seguro no puede ser negativo";
     }
 
-    if (Number(form.seguro_minimo_usd) < 0) {
-      errs.seguro_minimo_usd = "El seguro mínimo no puede ser negativo";
+    if (Number(form.seguro_minimo_usd) <= 0) {
+      errs.seguro_minimo_usd = "El seguro mínimo es obligatorio y debe ser mayor a 0";
     }
 
     if (form.aplica_minimo) {
@@ -266,6 +284,7 @@ type ServicioForm = {
     const payload = {
       ...form,
       tipo: form.nombre,
+      tipo_tarifa: tipoTarifa,
 
       tarifa_por_libra_cc:
         tipoTarifa === "libra" ? form.tarifa_por_libra : null,
@@ -281,6 +300,7 @@ type ServicioForm = {
 
       tarifa_por_libra_extra:
         tipoTarifa === "rango" ? form.tarifa_por_libra_extra : null,
+      tarifas_rangos: tipoTarifa === "rango" ? form.tarifas_rangos : [],
       
       aplica_minimo: form.aplica_minimo ? 1 : 0,
       peso_minimo: form.aplica_minimo ? form.peso_minimo : 0,
@@ -290,8 +310,23 @@ type ServicioForm = {
       peso_maximo: form.aplica_peso_maximo ? form.peso_maximo : 0,
     };
 
-    await onSave(payload);
-    onClose();
+    try {
+      await onSave(payload);
+      onClose();
+    } catch (error: any) {
+      const campo = error?.response?.data?.campo;
+      const mensaje = error?.response?.data?.mensaje || "Revisa este campo";
+
+      if (campo) {
+        setErrors((prev: any) => ({ ...prev, [campo]: mensaje }));
+        window.setTimeout(() => {
+          document.querySelector<HTMLElement>(`[data-error-field="${campo}"]`)?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }, 100);
+      }
+    }
   };
 
 return (
@@ -356,7 +391,7 @@ return (
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1" data-error-field="codigo">
             <label className="text-xs font-semibold text-gray-600 tracking-wide">
               Código
             </label>
@@ -377,7 +412,7 @@ return (
             )}
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1" data-error-field="nombre">
             <label className="text-xs font-semibold text-gray-600 tracking-wide">
               Nombre del servicio
             </label>
@@ -421,7 +456,7 @@ return (
 
         {tipoTarifa === "libra" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1" data-error-field="tarifa_por_libra">
               <label className="text-xs font-semibold text-gray-600 tracking-wide">
                 Tarifa por libra USD
               </label>
@@ -448,38 +483,47 @@ return (
         )}
 
         {tipoTarifa === "rango" && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {[
-              { label: "Tarifa fija 1 lb", name: "tarifa_fija_1lb", placeholder: "Ej: 7" },
-              { label: "Tarifa fija 2 a 5 lb", name: "tarifa_fija_2a5", placeholder: "Ej: 15" },
-              { label: "Tarifa fija 6 a 10 lb", name: "tarifa_fija_6a10", placeholder: "Ej: 20" },
-              { label: "Libra extra", name: "tarifa_por_libra_extra", placeholder: "Ej: 2" },
-            ].map((item) => (
-              <div key={item.name} className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-gray-600 tracking-wide">
-                  {item.label}
-                </label>
+          <div className={`space-y-4 rounded-2xl ${errors.tarifas_rangos ? "border border-red-500 bg-red-50/40 p-3" : ""}`} data-error-field="tarifas_rangos">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-gray-600">Los rangos usan intervalos: mayor que el peso inicial y hasta el peso final.</p>
+              <button type="button" onClick={() => setForm((prev) => ({
+                ...prev,
+                tarifas_rangos: [...prev.tarifas_rangos, {
+                  peso_desde: prev.tarifas_rangos[prev.tarifas_rangos.length - 1]?.peso_hasta || 0,
+                  peso_hasta: (prev.tarifas_rangos[prev.tarifas_rangos.length - 1]?.peso_hasta || 0) + 1,
+                  valor_usd: 0,
+                }],
+              }))} className="rounded-xl bg-red-900 px-4 py-2 text-xs font-bold text-white hover:bg-red-950">
+                + Agregar rango
+              </button>
+            </div>
 
-                <input
-                  type="number"
-                  name={item.name}
-                  value={form[item.name as keyof ServicioForm] as number}
-                  onChange={handleChange}
-                  className={`w-full px-3 py-2 rounded-xl text-sm bg-white shadow-sm transition border ${
-                    errors[item.name]
-                      ? "border-red-500 focus:ring-2 focus:ring-red-500/30"
-                      : "border-gray-300 focus:ring-2 focus:ring-red-900/20 focus:border-red-900 hover:border-gray-400"
-                  } focus:outline-none`}
-                  min="0"
-                  step="0.01"
-                  placeholder={item.placeholder}
-                />
-
-                {errors[item.name] && (
-                  <p className="text-red-500 text-xs mt-1">{errors[item.name]}</p>
-                )}
+            {form.tarifas_rangos.map((rango, index) => (
+              <div key={index} className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-3 md:grid-cols-[1fr_1fr_1fr_auto]">
+                {([
+                  ["Peso inicial (lb)", "peso_desde"],
+                  ["Peso final (lb)", "peso_hasta"],
+                  ["Valor fijo (USD)", "valor_usd"],
+                ] as const).map(([label, campo]) => (
+                  <label key={campo} className="text-xs font-semibold text-gray-600">
+                    {label}
+                    <input type="number" min="0" step="0.01" value={rango[campo]}
+                      onChange={(e) => setForm((prev) => ({ ...prev, tarifas_rangos: prev.tarifas_rangos.map((actual, i) => i === index ? { ...actual, [campo]: Number(e.target.value) } : actual) }))}
+                      className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm focus:outline-none ${errors.tarifas_rangos ? "border-red-500 focus:border-red-600" : "border-gray-300 focus:border-red-900"}`} />
+                  </label>
+                ))}
+                <button type="button" onClick={() => setForm((prev) => ({ ...prev, tarifas_rangos: prev.tarifas_rangos.filter((_, i) => i !== index) }))}
+                  className="self-end rounded-xl border border-red-200 px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-50">Eliminar</button>
               </div>
             ))}
+            {errors.tarifas_rangos && <p className="text-xs text-red-500">{errors.tarifas_rangos}</p>}
+
+            <label className="block max-w-xs text-xs font-semibold text-gray-600" data-error-field="tarifa_por_libra_extra">
+              Valor por libra si supera el último rango
+              <input type="number" name="tarifa_por_libra_extra" value={form.tarifa_por_libra_extra || 0} onChange={handleChange}
+                min="0" step="0.01" className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm focus:outline-none ${errors.tarifa_por_libra_extra ? "border-red-500 focus:border-red-600" : "border-gray-300 focus:border-red-900"}`} />
+            </label>
+            {errors.tarifa_por_libra_extra && <p className="text-xs text-red-500">{errors.tarifa_por_libra_extra}</p>}
           </div>
         )}
 
@@ -510,7 +554,7 @@ return (
 
         {form.aplica_minimo && (
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1" data-error-field="peso_minimo">
               <label className="text-xs font-semibold tracking-wide text-gray-600">
                 Hasta cuántas libras
               </label>
@@ -663,7 +707,7 @@ return (
           </h4>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1" data-error-field="porcentaje_seguro">
               <label className="text-xs font-semibold text-gray-600 tracking-wide">
                 Porcentaje seguro %
               </label>
@@ -688,7 +732,7 @@ return (
               )}
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1" data-error-field="seguro_minimo_usd">
                 <label className="text-xs font-semibold text-gray-600 tracking-wide">
                   Seguro mínimo USD
                 </label>
@@ -722,63 +766,11 @@ return (
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
               <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
-                <p className="text-xs text-gray-500">
-                  Ejemplo con 10 lb
-                  {form.aplica_peso_maximo && Number(form.peso_maximo) > 0
-                    ? ` / Máx. ${form.peso_maximo} lb`
-                    : ""}
-                </p>
+                <p className="text-xs text-gray-500">Regla configurada</p>
                 <p className="font-bold text-gray-800">
-                  {(() => {
-                  const pesoEjemplo = 10;
-
-                  if (
-                    form.aplica_peso_maximo &&
-                    Number(form.peso_maximo) > 0 &&
-                    pesoEjemplo > Number(form.peso_maximo)
-                  ) {
-                    return (
-                      <span className="text-red-700">
-                        No aplica para {pesoEjemplo} lb
-                      </span>
-                    );
-                  }
-
-                  if (
-                    form.aplica_minimo &&
-                    Number(form.peso_minimo) > 0 &&
-                    Number(form.tarifa_minima_usd) > 0 &&
-                    pesoEjemplo <= Number(form.peso_minimo)
-                  ) {
-                    return <>USD {Number(form.tarifa_minima_usd).toFixed(2)}</>;
-                  }
-
-                  if (tipoTarifa === "rango") {
-                    if (pesoEjemplo <= 1) {
-                      return <>USD {Number(form.tarifa_fija_1lb || 0).toFixed(2)}</>;
-                    }
-
-                    if (pesoEjemplo <= 5) {
-                      return <>USD {Number(form.tarifa_fija_2a5 || 0).toFixed(2)}</>;
-                    }
-
-                    if (pesoEjemplo <= 10) {
-                      return <>USD {Number(form.tarifa_fija_6a10 || 0).toFixed(2)}</>;
-                    }
-
-                    return (
-                      <>
-                        USD{" "}
-                        {(
-                          Number(form.tarifa_fija_6a10 || 0) +
-                          (pesoEjemplo - 10) * Number(form.tarifa_por_libra_extra || 0)
-                        ).toFixed(2)}
-                      </>
-                    );
-                  }
-
-                    return <>USD {(Number(form.tarifa_por_libra || 0) * pesoEjemplo).toFixed(2)}</>;
-                  })()}
+                  {tipoTarifa === "rango"
+                    ? `${form.tarifas_rangos.length} rango(s); sobre el último: peso total × USD ${Number(form.tarifa_por_libra_extra || 0).toFixed(2)}`
+                    : `Peso facturable × USD ${Number(form.tarifa_por_libra || 0).toFixed(2)}`}
                 </p>
               </div>
 

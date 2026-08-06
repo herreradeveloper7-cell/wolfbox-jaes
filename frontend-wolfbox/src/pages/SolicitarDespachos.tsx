@@ -167,12 +167,7 @@ export default function SolicitarDespachos() {
 
       const { data } = await axios.post(
         `/api/solicitudes/comprobante/${solicitud.id}`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
+        formData
       );
 
       setSolicitudes((prev) =>

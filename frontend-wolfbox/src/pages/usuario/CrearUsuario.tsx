@@ -171,11 +171,11 @@ export default function CrearUsuario() {
       return;
     }
 
-    if (formData.password.length < 6) {
+    if (formData.password.length < 12) {
       Swal.fire({
         icon: "warning",
         title: "Contraseña muy corta",
-        text: "Debe tener mínimo 6 caracteres",
+        text: "Debe tener mínimo 12 caracteres",
         confirmButtonColor: "#b91c1c",
       });
       return;
@@ -326,13 +326,13 @@ export default function CrearUsuario() {
 
               {formData.password && (
                 <div className="mt-1">
-                  {formData.password.length < 6 && (
+                  {formData.password.length < 12 && (
                     <p className="text-red-600 text-xs font-semibold">Seguridad: ❌ Débil</p>
                   )}
-                  {formData.password.length >= 6 && formData.password.length < 10 && (
+                  {formData.password.length >= 12 && formData.password.length < 16 && (
                     <p className="text-yellow-500 text-xs font-semibold">Seguridad: 🟡 Media</p>
                   )}
-                  {formData.password.length >= 10 && (
+                  {formData.password.length >= 16 && (
                     <p className="text-green-600 text-xs font-semibold">Seguridad: 🟢 Alta</p>
                   )}
                 </div>

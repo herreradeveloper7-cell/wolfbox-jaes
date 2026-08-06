@@ -3,30 +3,20 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import iconSearchTracking from "../assets/search-alt-2-svgrepo-com (1).svg";
 
 type EstadoTracking = {
-  id: number;
   fecha: string;
   estado: string | null;
   punto_control: string | null;
-  observaciones: string | null;
-  responsable: string | null;
 };
 
 type GuiaPublica = {
   hawb: string;
-  tracking: string | null;
-  contenido: string | null;
-  peso: number | null;
-  tienda: string | null;
-  notas: string | null;
-  cliente: string | null;
-  codigo_referencia: string | null;
   estado: string | null;
   punto_control: string | null;
   fecha_registro: string | null;
   estados: EstadoTracking[];
 };
 
-const API_URL = "/api/paquetes/tracking/hawb";
+const API_URL = "/api/paquetes/tracking/publico";
 
 export default function ConsultarGuiaHome() {
   const navigate = useNavigate();
@@ -183,7 +173,7 @@ export default function ConsultarGuiaHome() {
                     Seguimiento rápido y seguro
                   </h2>
                   <p className="mt-2 max-w-md text-sm font-medium leading-5 text-slate-500">
-                    El resultado mostrará estado actual, punto de control, datos principales y línea de tiempo del HAWB consultado.
+                    El resultado mostrará el estado actual, punto de control y línea de tiempo del HAWB consultado.
                   </p>
                   {mensaje && (
                     <div className="mt-4 w-full max-w-md border-l-4 border-red-900 bg-red-900/5 px-4 py-2.5 text-left">
@@ -211,24 +201,13 @@ export default function ConsultarGuiaHome() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                     <InfoCard label="Punto de control" value={guia.punto_control ?? ultimoEstado?.punto_control ?? "Sin registro"} />
-                    <InfoCard label="Tracking" value={guia.tracking ?? "No disponible"} />
-                    <InfoCard label="Peso" value={guia.peso ? `${guia.peso} LBS` : "No disponible"} />
                     <InfoCard label="Fecha registro" value={guia.fecha_registro ?? "No disponible"} />
+                    <InfoCard label="Estado actual" value={guia.estado ?? "En proceso"} />
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-                    <div className="rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm">
-                      <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">
-                        Detalle de la guía
-                      </p>
-                      <div className="mt-3 space-y-2.5 text-sm">
-                        <DetailRow label="Tienda" value={guia.tienda ?? "No disponible"} />
-                        <DetailRow label="Contenido" value={guia.contenido ?? "No disponible"} />
-                      </div>
-                    </div>
-
+                  <div>
                     <div className="rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm">
                       <div className="flex items-center justify-between gap-3">
                         <div>
@@ -256,7 +235,7 @@ export default function ConsultarGuiaHome() {
                         )}
 
                         {estados.map((item, index) => (
-                          <div key={item.id} className="relative flex gap-3">
+                          <div key={`${item.fecha}-${item.estado}-${index}`} className="relative flex gap-3">
                             <div className="flex flex-col items-center">
                               <span className={`h-3 w-3 rounded-full ${index === 0 ? "bg-red-900" : "bg-gray-300"}`} />
                               {index < estados.length - 1 && <span className="mt-2 h-full min-h-14 w-px bg-gray-200" />}
@@ -269,9 +248,6 @@ export default function ConsultarGuiaHome() {
                               <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-red-900">
                                 {item.punto_control ?? "Sin punto de control"}
                               </p>
-                              {item.observaciones && (
-                                <p className="mt-2 text-sm leading-5 text-slate-600">{item.observaciones}</p>
-                              )}
                             </div>
                           </div>
                         ))}
@@ -297,15 +273,6 @@ function InfoCard({ label, value }: { label: string; value: string }) {
     <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">{label}</p>
       <p className="mt-1.5 break-words text-xs font-bold leading-5 text-slate-800">{value}</p>
-    </div>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col gap-1 border-b border-gray-100 pb-2.5 last:border-b-0 last:pb-0 sm:flex-row sm:justify-between">
-      <span className="font-bold text-slate-500">{label}</span>
-      <span className="max-w-full break-words font-semibold text-slate-800 sm:max-w-[60%] sm:text-right">{value}</span>
     </div>
   );
 }

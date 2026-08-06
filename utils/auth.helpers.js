@@ -1,5 +1,3 @@
-export const getLoginExpiresIn = (mantenerSesion) => (mantenerSesion ? "30d" : "8h");
-
 export const buildUsuarioLoginResponse = (usuario) => ({
   id: usuario.id,
   nombre: usuario.nombre,
