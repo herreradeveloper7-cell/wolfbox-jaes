@@ -68,9 +68,34 @@ export const buildConciliacionQuery = ({ fechaInicio, fechaFin, cliente, solicit
     inputs.push({ name: "cliente", type: "VarChar", value: `%${cliente}%` });
   }
 
-  if (solicitud) {
-    query += ` AND s.id = @solicitud`;
-    inputs.push({ name: "solicitud", type: "Int", value: solicitud });
+  const referencia = String(solicitud ?? "").trim();
+
+  if (referencia) {
+    if (/^\d+$/.test(referencia)) {
+      query += `
+        AND (
+          s.id = @solicitud
+          OR EXISTS (
+            SELECT 1
+            FROM paquetes paquete_busqueda
+            WHERE paquete_busqueda.solicitud_id = s.id
+              AND UPPER(LTRIM(RTRIM(paquete_busqueda.hawb))) = @hawb
+          )
+        )
+      `;
+      inputs.push({ name: "solicitud", type: "Int", value: Number(referencia) });
+      inputs.push({ name: "hawb", type: "VarChar", value: referencia });
+    } else {
+      query += `
+        AND EXISTS (
+          SELECT 1
+          FROM paquetes paquete_busqueda
+          WHERE paquete_busqueda.solicitud_id = s.id
+            AND UPPER(LTRIM(RTRIM(paquete_busqueda.hawb))) = @hawb
+        )
+      `;
+      inputs.push({ name: "hawb", type: "VarChar", value: referencia.toUpperCase() });
+    }
   }
 
   query += ` ORDER BY s.fecha DESC`;

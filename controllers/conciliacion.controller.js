@@ -52,6 +52,13 @@ export const buscarConciliacion = async (req, res) => {
   try {
 
     const { fechaInicio, fechaFin, cliente, solicitud } = req.query;
+    const referencia = String(solicitud ?? "").trim();
+
+    if (referencia && (referencia.length > 100 || !/^[A-Za-z0-9._-]+$/.test(referencia))) {
+      return res.status(400).json({
+        mensaje: "Ingresa un numero de solicitud o un HAWB valido.",
+      });
+    }
 
     const pool = await poolPromise;
     const request = pool.request();
@@ -60,7 +67,7 @@ export const buscarConciliacion = async (req, res) => {
       fechaInicio,
       fechaFin,
       cliente,
-      solicitud,
+      solicitud: referencia,
     });
 
     inputs.forEach(({ name, type, value }) => {
@@ -73,7 +80,7 @@ export const buscarConciliacion = async (req, res) => {
 
   } catch (error) {
     console.error("Error conciliación:", error);
-    res.status(500).json({ error: "Error consultando conciliación" });
+    res.status(500).json({ mensaje: "Error consultando conciliacion." });
   }
 };
 

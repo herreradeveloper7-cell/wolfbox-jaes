@@ -26,7 +26,28 @@ test("buildConciliacionQuery agrega filtros parametrizados", () => {
     { name: "fechaInicio", type: "Date", value: "2026-01-01" },
     { name: "fechaFin", type: "Date", value: "2026-01-31" },
     { name: "cliente", type: "VarChar", value: "%COABC%" },
-    { name: "solicitud", type: "Int", value: "55" },
+    { name: "solicitud", type: "Int", value: 55 },
+    { name: "hawb", type: "VarChar", value: "55" },
+  ]);
+});
+
+test("buildConciliacionQuery busca referencias alfanumericas por HAWB", () => {
+  const { query, inputs } = buildConciliacionQuery({ solicitud: " coja109311080g " });
+
+  assert.match(query, /EXISTS/);
+  assert.match(query, /paquete_busqueda\.hawb/);
+  assert.deepEqual(inputs, [
+    { name: "hawb", type: "VarChar", value: "COJA109311080G" },
+  ]);
+});
+
+test("buildConciliacionQuery busca una referencia numerica como solicitud o HAWB", () => {
+  const { query, inputs } = buildConciliacionQuery({ solicitud: "001120" });
+
+  assert.match(query, /s\.id = @solicitud/);
+  assert.deepEqual(inputs, [
+    { name: "solicitud", type: "Int", value: 1120 },
+    { name: "hawb", type: "VarChar", value: "001120" },
   ]);
 });
 

@@ -37,8 +37,26 @@ export default function ConciliacionPago() {
             const res = await fetch(`/api/conciliacion?${params.toString()}`);
             const data = await res.json();
 
+            if (!res.ok) {
+                setSolicitudes([]);
+                await Swal.fire({
+                    icon: "error",
+                    title: "Busqueda no valida",
+                    text: data?.mensaje || "No fue posible realizar la busqueda.",
+                });
+                return;
+            }
+
             if (Array.isArray(data)) {
                 setSolicitudes(data);
+
+                if (filtrosBusqueda.solicitud?.trim() && data.length === 0) {
+                    await Swal.fire({
+                        icon: "info",
+                        title: "Sin resultados",
+                        text: "No encontramos una solicitud asociada al numero o HAWB ingresado.",
+                    });
+                }
             } else {
                 setSolicitudes([]);
             }
@@ -345,12 +363,12 @@ export default function ConciliacionPago() {
 
                     <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50/80 p-5 shadow-sm">
                     <label className="text-sm font-bold text-gray-700">
-                        Número de solicitud
+                        Número de solicitud o HAWB
                     </label>
 
                     <input
                         type="text"
-                        placeholder="Ej: 1025"
+                        placeholder="Ej: 1025 o COJA109311080G"
                         className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm outline-none transition-all duration-200 placeholder:text-gray-400 hover:border-gray-400 focus:border-red-950 focus:ring-4 focus:ring-red-950/10"
                         value={filtros.solicitud}
                         onChange={(e) =>
