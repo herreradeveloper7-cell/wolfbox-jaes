@@ -1135,8 +1135,25 @@ export const anularGuia = async (req, res) => {
         (@hawb, @estado_id, @punto_control, @observaciones, @responsable)
       `);
 
+    const despuesResult = await request()
+      .input("audit_hawb", sql.NVarChar, hawb)
+      .query(`
+        SELECT p.id, p.hawb, p.estado_id, e.nombre AS estado_actual, p.punto_control
+        FROM paquetes p
+        LEFT JOIN estados_catalogo e ON e.id = p.estado_id
+        WHERE p.hawb = @audit_hawb
+      `);
+
     await transaction.commit();
     transactionStarted = false;
+
+    res.locals.auditoria = {
+      accion: "anular_guia",
+      recurso: "paquetes",
+      recursoId: hawb,
+      antes: paquete,
+      despues: despuesResult.recordset[0] || null,
+    };
 
     return res.status(200).json({
       mensaje: "Guía anulada correctamente",

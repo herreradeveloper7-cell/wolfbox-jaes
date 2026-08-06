@@ -47,6 +47,20 @@ const guardarRangos = async (transaction, servicioId, rangos) => {
   }
 };
 
+const obtenerSnapshotServicio = async (request, servicioId) => {
+  const result = await request
+    .input("audit_servicio_id", sql.Int, Number(servicioId))
+    .query(`
+      SELECT * FROM servicios WHERE id = @audit_servicio_id;
+      SELECT id, servicio_id, peso_desde, peso_hasta, valor_usd, orden
+      FROM servicio_tarifas_rangos
+      WHERE servicio_id = @audit_servicio_id
+      ORDER BY orden, peso_desde;
+    `);
+  const servicio = result.recordsets?.[0]?.[0];
+  return servicio ? { ...servicio, tarifas_rangos: result.recordsets?.[1] || [] } : null;
+};
+
 const seguroMinimoValido = (valor) =>
   Number.isFinite(Number(valor)) && Number(valor) > 0;
 
@@ -180,7 +194,15 @@ export const crearServicio = async (req, res) => {
       `);
 
     await guardarRangos(transaction, creado.recordset[0].id, rangos);
+    const despues = await obtenerSnapshotServicio(new sql.Request(transaction), creado.recordset[0].id);
     await transaction.commit();
+
+    res.locals.auditoria = {
+      accion: "crear_tarifa_servicio",
+      recurso: "servicios",
+      recursoId: String(creado.recordset[0].id),
+      despues,
+    };
 
     res.json({
       ok: true,
@@ -239,6 +261,7 @@ export const actualizarServicio = async (req, res) => {
     }
     transaction = new sql.Transaction(pool);
     await transaction.begin();
+    const antes = await obtenerSnapshotServicio(new sql.Request(transaction), id);
 
     await new sql.Request(transaction)
       .input("id", sql.Int, id)
@@ -281,7 +304,16 @@ export const actualizarServicio = async (req, res) => {
       `);
 
     await guardarRangos(transaction, Number(id), rangos);
+    const despues = await obtenerSnapshotServicio(new sql.Request(transaction), id);
     await transaction.commit();
+
+    res.locals.auditoria = {
+      accion: "actualizar_tarifa_servicio",
+      recurso: "servicios",
+      recursoId: String(id),
+      antes,
+      despues,
+    };
 
     res.json({ ok: true, mensaje: "Servicio actualizado correctamente." });
 
@@ -301,6 +333,7 @@ export const eliminarServicio = async (req, res) => {
     const { id } = req.params;
 
     const pool = await poolPromise;
+    const antes = await obtenerSnapshotServicio(pool.request(), id);
 
     const usados = await pool.request()
       .input("id", sql.Int, id)
@@ -316,6 +349,14 @@ export const eliminarServicio = async (req, res) => {
     await pool.request()
       .input("id", sql.Int, id)
       .query(`DELETE FROM servicios WHERE id = @id`);
+
+    res.locals.auditoria = {
+      accion: "eliminar_tarifa_servicio",
+      recurso: "servicios",
+      recursoId: String(id),
+      antes,
+      despues: null,
+    };
 
     res.json({ ok: true, mensaje: "Servicio eliminado correctamente." });
 

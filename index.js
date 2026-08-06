@@ -30,6 +30,7 @@ import ciudadesRoutes from "./routes/catalogos/ciudades.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import { iniciarDbKeepAlive, poolPromise } from "./config/db.js";
 import { limiteGeneralApi, limiteHealthDb } from "./config/rate-limit.js";
+import { auditarMutaciones, contextoRequest } from "./middleware/auditoria.middleware.js";
 
 const app = express();
 // Railway termina HTTPS en un proxy y envía la IP real en X-Forwarded-For.
@@ -66,6 +67,7 @@ app.use(cors({
   exposedHeaders: ["Content-Disposition"],
 }));
 app.use(express.json({ limit: "1mb" }));
+app.use(contextoRequest);
 
 app.use((req, res, next) => {
   const startedAt = Date.now();
@@ -115,6 +117,7 @@ app.get("/health/db", limiteHealthDb, async (req, res) => {
   }
 });
 
+app.use("/api", auditarMutaciones);
 app.use("/api", limiteGeneralApi);
 app.use('/api/auth', authRoutes);
 app.use('/api/paquetes', paquetesRoutes);

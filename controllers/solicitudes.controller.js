@@ -1255,11 +1255,24 @@ export const actualizarEstadoSolicitud = async (req, res) => {
 
   try {
     const pool = await poolPromise;
-    await pool
+    const cambio = await pool
       .request()
       .input("estado", sql.VarChar, estado)
       .input("id", sql.Int, id)
-      .query(`UPDATE solicitudes SET estado=@estado WHERE id=@id`);
+      .query(`
+        SELECT id, estado FROM solicitudes WHERE id=@id;
+        UPDATE solicitudes SET estado=@estado
+        OUTPUT INSERTED.id, INSERTED.estado
+        WHERE id=@id;
+      `);
+
+    res.locals.auditoria = {
+      accion: "cambiar_estado_solicitud",
+      recurso: "solicitudes",
+      recursoId: String(id),
+      antes: cambio.recordsets?.[0]?.[0] || null,
+      despues: cambio.recordsets?.[1]?.[0] || null,
+    };
 
     res.json({ mensaje: "✅ Estado actualizado" });
   } catch (error) {
@@ -1284,7 +1297,7 @@ export const eliminarSolicitud = async (req, res) => {
     const check = await request()
       .input("id", sql.Int, id)
       .query(`
-        SELECT id 
+        SELECT *
         FROM solicitudes 
         WHERE id = @id
       `);
@@ -1313,6 +1326,10 @@ export const eliminarSolicitud = async (req, res) => {
       `);
 
     const paquetes = validacion.recordset;
+    const antes = {
+      solicitud: check.recordset[0],
+      paquetes,
+    };
 
     const tieneGuiaPadre = paquetes.some(p => p.hawb?.endsWith("G"));
 
@@ -1357,6 +1374,14 @@ export const eliminarSolicitud = async (req, res) => {
 
     await transaction.commit();
     transactionStarted = false;
+
+    res.locals.auditoria = {
+      accion: "eliminar_solicitud",
+      recurso: "solicitudes",
+      recursoId: String(id),
+      antes,
+      despues: null,
+    };
 
     return res.json({
       ok: true,
