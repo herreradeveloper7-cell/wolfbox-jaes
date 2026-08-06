@@ -30,6 +30,7 @@ import AgruparSolicitud from './pages/usuario/AgruparPaquetes/AgruparSolicitud';
 import VerClientes from './pages/usuario/VerClientes';
 import ConsultarGuiaHome from './pages/consultarGuiaHome';
 import PasswordResetPage from './pages/passwordReset';
+import MfaPage from './pages/Mfa';
 import SessionExpiredOverlay from './components/SessionExpiredOverlay';
 import InactivityWatcher from './components/InactivityWatcher';
 import CrearDespachos from './pages/usuario/CrearDespachos';
@@ -180,6 +181,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/password-reset" element={<PasswordResetPage />} />
+        <Route path="/mfa" element={<MfaPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/confirmacion" element={<ConfirmacionPage />} />
         <Route path="/consulta-hawb" element={<ConsultarGuiaHome />} />

@@ -100,7 +100,11 @@ export const autenticarToken = async (req, res, next) => {
     } else {
       const usuarioResult = await pool.request()
         .input("id", sql.Int, Number(req.usuario.id))
-        .query("SELECT TOP 1 tipo_usuario, estado FROM usuarios WHERE id = @id");
+        .query(
+          process.env.MFA_ADMIN_REQUIRED === "1"
+            ? "SELECT TOP 1 tipo_usuario, estado, mfa_habilitado FROM usuarios WHERE id = @id"
+            : "SELECT TOP 1 tipo_usuario, estado FROM usuarios WHERE id = @id"
+        );
       const usuario = usuarioResult.recordset[0];
 
       if (!usuario || usuario.estado !== "activo") {
@@ -108,6 +112,19 @@ export const autenticarToken = async (req, res, next) => {
           ok: false,
           mensaje: "El usuario se encuentra inhabilitado",
           message: "El usuario se encuentra inhabilitado",
+        });
+      }
+
+      if (
+        process.env.MFA_ADMIN_REQUIRED === "1" &&
+        usuario.tipo_usuario === "admin" &&
+        !usuario.mfa_habilitado
+      ) {
+        return res.status(403).json({
+          ok: false,
+          codigo: "MFA_SETUP_REQUIRED",
+          mensaje: "Debes configurar la autenticación en dos pasos.",
+          message: "Debes configurar la autenticación en dos pasos.",
         });
       }
 
@@ -209,3 +226,9 @@ export const firmarToken = (payload, expiresIn = "15m") => {
     expiresIn,
   });
 };
+
+export const verificarToken = (token) => jwt.verify(token, getJwtSecret(), {
+  algorithms: [JWT_ALGORITHM],
+  issuer: JWT_ISSUER,
+  audience: JWT_AUDIENCE,
+});

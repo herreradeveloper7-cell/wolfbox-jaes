@@ -180,6 +180,22 @@ export const loginGeneral = async (req, res) => {
       }
 
       usuario.permisos = await obtenerPermisosUsuario(pool, usuario.id);
+      if (usuario.tipo_usuario === "admin" && process.env.MFA_ADMIN_REQUIRED === "1") {
+        const configurado = Boolean(usuario.mfa_habilitado);
+        const desafio_mfa = firmarToken({
+          id: usuario.id,
+          email: usuario.correo,
+          tipo: "admin",
+          mfa_scope: configurado ? "login" : "setup",
+          mantenerSesion: Boolean(mantenerSesion),
+        }, "5m");
+        return res.status(200).json({
+          ok: true,
+          mfa_required: configurado,
+          mfa_setup_required: !configurado,
+          desafio_mfa,
+        });
+      }
       const usuarioResponse = buildUsuarioLoginResponse(usuario);
       const sesion = await crearSesion(pool, req, {
         tipoCuenta: "usuario",

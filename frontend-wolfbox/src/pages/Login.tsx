@@ -39,6 +39,13 @@ export default function LoginPage() {
         }
 
         setLoginError("");
+        if (data.mfa_required || data.mfa_setup_required) {
+          sessionStorage.setItem("mfaChallenge", data.desafio_mfa);
+          sessionStorage.setItem("mfaMode", data.mfa_setup_required ? "setup" : "login");
+          sessionStorage.setItem("mfaPersist", stayLoggedIn ? "1" : "0");
+          navigate("/mfa");
+          return;
+        }
         if (!data.token) {
           setLoginError("No se recibió token de autenticación. Intenta iniciar sesión nuevamente.");
           setLoading(false);

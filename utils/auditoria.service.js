@@ -1,6 +1,6 @@
 import { poolPromise, sql } from "../config/db.js";
 
-const CLAVES_SENSIBLES = /password|contrasena|contraseña|token|secret|authorization|cookie|api.?key|connection.?string|buffer|archivo/i;
+const CLAVES_SENSIBLES = /password|contrasena|contraseña|token|secret|secreto|authorization|cookie|api.?key|connection.?string|buffer|archivo|^codigo$|codigo.*mfa|codigo.*recuperacion/i;
 
 export const redactarParaAuditoria = (valor, profundidad = 0) => {
   if (valor === null || valor === undefined) return valor ?? null;
