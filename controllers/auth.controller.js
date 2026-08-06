@@ -21,7 +21,6 @@ import {
   leerRefreshCookie,
   rotarSesion,
   revocarSesionPorRefresh,
-  revocarSesionesCuenta,
 } from "../utils/session.service.js";
 import { responderPasswordInvalida, validarPasswordNueva } from "../utils/password-policy.js";
 
@@ -95,6 +94,17 @@ Ingresa al siguiente enlace para crear una nueva contraseña:
 {{reset_url}}
 
 Este enlace vence en {{expira_minutos}} minutos. Si no solicitaste este cambio, puedes ignorar este correo.`,
+});
+
+const crearPlantillaFallbackPasswordActualizada = () => ({
+  id: null,
+  email_remitente: process.env.BREVO_DEFAULT_SENDER_EMAIL,
+  asunto: "Tu contraseña de JAES Cargo fue actualizada",
+  cuerpo: `Hola {{cliente_nombre}},
+
+La contraseña de tu cuenta fue actualizada correctamente.
+
+Todas las sesiones que estaban abiertas fueron cerradas por seguridad. Si no realizaste este cambio, comunícate inmediatamente con JAES Cargo.`,
 });
 
 function generarCodigoReferencia(nombre) {
@@ -461,19 +471,27 @@ export const confirmarRecuperacionPassword = async (req, res) => {
     });
   }
 
+  let transaction;
+  let transactionStarted = false;
+
   try {
     const pool = await poolPromise;
 
     const passwordValida = await validarPasswordNueva(contrasena);
     if (!passwordValida.ok) return responderPasswordInvalida(res, passwordValida);
 
+    const hashedPassword = await bcrypt.hash(contrasena, 10);
     const tokenHash = hashToken(token);
-    const tokenResult = await pool
-      .request()
+    transaction = new sql.Transaction(pool);
+    await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+    transactionStarted = true;
+    const request = () => new sql.Request(transaction);
+
+    const tokenResult = await request()
       .input("token_hash", sql.NVarChar(128), tokenHash)
       .query(`
         SELECT TOP 1 id, tipo_cuenta, cuenta_id
-        FROM password_reset_tokens
+        FROM password_reset_tokens WITH (UPDLOCK, HOLDLOCK)
         WHERE token_hash = @token_hash
           AND usado = 0
           AND expira_en > SYSUTCDATETIME()
@@ -483,31 +501,57 @@ export const confirmarRecuperacionPassword = async (req, res) => {
     const reset = tokenResult.recordset[0];
 
     if (!reset) {
+      await transaction.rollback();
+      transactionStarted = false;
       return res.status(400).json({
         ok: false,
         mensaje: "El enlace es invalido o ya expiro.",
       });
     }
 
+    let cuenta;
     if (reset.tipo_cuenta === "cliente") {
-      const clienteResult = await pool
-        .request()
+      const clienteResult = await request()
         .input("id", sql.Int, reset.cuenta_id)
-        .query("SELECT TOP 1 estado FROM clientes WHERE id = @id");
+        .query(`
+          SELECT TOP 1
+            estado, correo, primer_nombre, segundo_nombre,
+            primer_apellido, segundo_apellido, nombre_empresa
+          FROM clientes WITH (UPDLOCK, HOLDLOCK)
+          WHERE id = @id
+        `);
+      cuenta = clienteResult.recordset[0];
 
-      if (!clienteEstaActivo(clienteResult.recordset[0])) {
+      if (!clienteEstaActivo(cuenta)) {
+        await transaction.rollback();
+        transactionStarted = false;
         return res.status(400).json({
           ok: false,
           mensaje: "El enlace es invalido o ya expiro.",
         });
       }
+    } else if (reset.tipo_cuenta === "usuario") {
+      const usuarioResult = await request()
+        .input("id", sql.Int, reset.cuenta_id)
+        .query(`
+          SELECT TOP 1 estado, correo, nombre
+          FROM usuarios WITH (UPDLOCK, HOLDLOCK)
+          WHERE id = @id
+        `);
+      cuenta = usuarioResult.recordset[0];
+      if (!cuenta || cuenta.estado !== "activo") {
+        await transaction.rollback();
+        transactionStarted = false;
+        return res.status(400).json({ ok: false, mensaje: "El enlace es invalido o ya expiro." });
+      }
+    } else {
+      await transaction.rollback();
+      transactionStarted = false;
+      return res.status(400).json({ ok: false, mensaje: "El enlace es invalido o ya expiro." });
     }
 
-    const hashedPassword = await bcrypt.hash(contrasena, 10);
-
     if (reset.tipo_cuenta === "usuario") {
-      await pool
-        .request()
+      await request()
         .input("id", sql.Int, reset.cuenta_id)
         .input("contrasena", sql.VarChar, hashedPassword)
         .query(`
@@ -516,8 +560,7 @@ export const confirmarRecuperacionPassword = async (req, res) => {
           WHERE id = @id
         `);
     } else {
-      await pool
-        .request()
+      await request()
         .input("id", sql.Int, reset.cuenta_id)
         .input("contrasena", sql.VarChar, hashedPassword)
         .query(`
@@ -527,30 +570,72 @@ export const confirmarRecuperacionPassword = async (req, res) => {
         `);
     }
 
-
-    await revocarSesionesCuenta(
-      pool,
-      reset.tipo_cuenta,
-      reset.cuenta_id,
-      "contrasena_actualizada"
-    );
-
-    await pool
-      .request()
+    const consumo = await request()
       .input("id", sql.Int, reset.id)
       .query(`
         UPDATE password_reset_tokens
         SET usado = 1,
             fecha_uso = SYSUTCDATETIME()
         WHERE id = @id
+          AND usado = 0
+          AND expira_en > SYSUTCDATETIME()
       `);
+
+    if (consumo.rowsAffected[0] !== 1) {
+      throw Object.assign(new Error("El token de recuperación ya fue consumido."), {
+        codigoPublico: "RESET_TOKEN_CONSUMED",
+      });
+    }
+
+    await request()
+      .input("tipo_cuenta", sql.NVarChar(20), reset.tipo_cuenta)
+      .input("cuenta_id", sql.Int, reset.cuenta_id)
+      .input("motivo", sql.NVarChar(100), "contrasena_actualizada")
+      .query(`
+        UPDATE sesiones_autenticacion
+        SET revocada_en = COALESCE(revocada_en, SYSUTCDATETIME()),
+            motivo_revocacion = COALESCE(motivo_revocacion, @motivo)
+        WHERE tipo_cuenta = @tipo_cuenta
+          AND cuenta_id = @cuenta_id
+          AND revocada_en IS NULL
+      `);
+
+    await transaction.commit();
+    transactionStarted = false;
+
+    const nombre = reset.tipo_cuenta === "cliente"
+      ? obtenerNombreCliente(cuenta)
+      : cuenta.nombre || "Usuario";
+    try {
+      const plantilla =
+        (await obtenerPlantillaPorEvento(pool, "password_actualizada")) ||
+        crearPlantillaFallbackPasswordActualizada();
+      await enviarEmailDesdePlantilla({
+        plantilla,
+        destinatarios: [{ email: cuenta.correo, name: nombre }],
+        variables: { cliente_nombre: nombre, email: cuenta.correo },
+        evento: "password_actualizada",
+      });
+    } catch (emailError) {
+      console.error("Password actualizada, pero fallo la notificacion:", emailError.message);
+    }
 
     return res.json({
       ok: true,
       mensaje: "Contrasena actualizada correctamente.",
     });
   } catch (error) {
+    if (transactionStarted) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error("Error revirtiendo recuperacion de password:", rollbackError);
+      }
+    }
     console.error("Error confirmando recuperacion de password:", error);
+    if (error.codigoPublico === "RESET_TOKEN_CONSUMED") {
+      return res.status(400).json({ ok: false, mensaje: "El enlace es invalido o ya expiro." });
+    }
     return res.status(500).json({
       ok: false,
       mensaje: "No fue posible actualizar la contrasena.",
