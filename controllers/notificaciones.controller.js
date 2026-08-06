@@ -1,5 +1,4 @@
 import { poolPromise, sql } from "../config/db.js";
-import { asegurarTablaNotificaciones } from "../utils/notificaciones.service.js";
 
 const obtenerUsuarioId = (req) => Number(req.usuario?.id || 0);
 
@@ -12,7 +11,6 @@ export const listarNotificaciones = async (req, res) => {
     }
 
     const pool = await poolPromise;
-    await asegurarTablaNotificaciones(pool);
 
     const result = await pool
       .request()
@@ -67,7 +65,6 @@ export const marcarNotificacionLeida = async (req, res) => {
     }
 
     const pool = await poolPromise;
-    await asegurarTablaNotificaciones(pool);
 
     await pool
       .request()
@@ -97,7 +94,6 @@ export const marcarTodasLeidas = async (req, res) => {
     }
 
     const pool = await poolPromise;
-    await asegurarTablaNotificaciones(pool);
 
     await pool
       .request()
@@ -128,7 +124,6 @@ export const archivarNotificacion = async (req, res) => {
     }
 
     const pool = await poolPromise;
-    await asegurarTablaNotificaciones(pool);
 
     await pool
       .request()

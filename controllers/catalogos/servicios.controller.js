@@ -5,35 +5,7 @@ import {
   validarRangosTarifa,
 } from "../../utils/tarifas.helpers.js";
 
-export const asegurarEstructuraTarifas = async (pool) => {
-  await pool.request().query(`
-    IF OBJECT_ID('dbo.servicio_tarifas_rangos', 'U') IS NULL
-    BEGIN
-      CREATE TABLE dbo.servicio_tarifas_rangos (
-        id INT IDENTITY(1,1) PRIMARY KEY,
-        servicio_id INT NOT NULL,
-        peso_desde DECIMAL(10,2) NOT NULL,
-        peso_hasta DECIMAL(10,2) NOT NULL,
-        valor_usd DECIMAL(10,2) NOT NULL,
-        orden INT NOT NULL CONSTRAINT DF_servicio_tarifas_rangos_orden DEFAULT 0,
-        CONSTRAINT FK_servicio_tarifas_rangos_servicio
-          FOREIGN KEY (servicio_id) REFERENCES dbo.servicios(id) ON DELETE CASCADE,
-        CONSTRAINT CK_servicio_tarifas_rangos_pesos CHECK (peso_desde >= 0 AND peso_hasta > peso_desde),
-        CONSTRAINT CK_servicio_tarifas_rangos_valor CHECK (valor_usd > 0)
-      );
-      CREATE INDEX IX_servicio_tarifas_rangos_servicio
-        ON dbo.servicio_tarifas_rangos (servicio_id, orden, peso_desde);
-    END
-
-    IF COL_LENGTH('dbo.solicitudes', 'flete_usd') IS NULL
-      ALTER TABLE dbo.solicitudes ADD flete_usd DECIMAL(10,2) NULL;
-    IF COL_LENGTH('dbo.solicitudes', 'seguro_usd') IS NULL
-      ALTER TABLE dbo.solicitudes ADD seguro_usd DECIMAL(10,2) NULL;
-  `);
-};
-
 export const obtenerRangosPorServicios = async (pool, ids) => {
-  await asegurarEstructuraTarifas(pool);
   if (!ids.length) return new Map();
   const request = pool.request();
   const parametros = ids.map((id, index) => {
@@ -82,7 +54,6 @@ const seguroMinimoValido = (valor) =>
 export const obtenerServicios = async (req, res) => {
   try {
     const pool = await poolPromise;
-    await asegurarEstructuraTarifas(pool);
     const result = await pool.request().query(`
       SELECT 
         id,
@@ -155,7 +126,6 @@ export const crearServicio = async (req, res) => {
     }
 
     const pool = await poolPromise;
-    await asegurarEstructuraTarifas(pool);
     const rangos = normalizarRangosTarifa(tarifas_rangos);
     if (tipo_tarifa === "rango") {
       const validacion = validarRangosTarifa(rangos);
@@ -262,7 +232,6 @@ export const actualizarServicio = async (req, res) => {
     }
 
     const pool = await poolPromise;
-    await asegurarEstructuraTarifas(pool);
     const rangos = normalizarRangosTarifa(tarifas_rangos);
     if (tipo_tarifa === "rango") {
       const validacion = validarRangosTarifa(rangos);
@@ -332,7 +301,6 @@ export const eliminarServicio = async (req, res) => {
     const { id } = req.params;
 
     const pool = await poolPromise;
-    await asegurarEstructuraTarifas(pool);
 
     const usados = await pool.request()
       .input("id", sql.Int, id)
@@ -363,7 +331,6 @@ export const obtenerServicioPorId = async (req, res) => {
     const { id } = req.params;
 
     const pool = await poolPromise;
-    await asegurarEstructuraTarifas(pool);
 
     const result = await pool.request()
       .input("id", sql.Int, id)
@@ -410,7 +377,6 @@ export const calcularTarifaServicio = async (req, res) => {
   try {
     const { servicio_id, servicio: configuracion, peso_total, valor_asegurado } = req.body;
     const pool = await poolPromise;
-    await asegurarEstructuraTarifas(pool);
 
     let servicio = configuracion;
     if (servicio_id) {

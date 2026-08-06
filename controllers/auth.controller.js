@@ -24,31 +24,6 @@ import {
   revocarSesionesCuenta,
 } from "../utils/session.service.js";
 
-let passwordResetTableReady = false;
-
-const asegurarTablaPasswordReset = async (pool) => {
-  if (passwordResetTableReady) return;
-
-  await pool.request().query(`
-    IF OBJECT_ID('dbo.password_reset_tokens', 'U') IS NULL
-    BEGIN
-      CREATE TABLE dbo.password_reset_tokens (
-        id INT IDENTITY(1,1) PRIMARY KEY,
-        tipo_cuenta NVARCHAR(30) NOT NULL,
-        cuenta_id INT NOT NULL,
-        email NVARCHAR(180) NOT NULL,
-        token_hash NVARCHAR(128) NOT NULL,
-        expira_en DATETIME2 NOT NULL,
-        usado BIT NOT NULL DEFAULT 0,
-        fecha_creacion DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-        fecha_uso DATETIME2 NULL
-      );
-    END;
-  `);
-
-  passwordResetTableReady = true;
-};
-
 const hashToken = (token) =>
   crypto.createHash("sha256").update(token).digest("hex");
 
@@ -93,26 +68,11 @@ const obtenerPlantillaPorEvento = async (pool, claveEvento) => {
       .request()
       .input("clave_evento", sql.NVarChar(120), claveEvento)
       .query(`
-        IF OBJECT_ID('dbo.plantillas_comunicacion', 'U') IS NULL
-        BEGIN
-          SELECT TOP 0
-            CAST(NULL AS INT) AS id,
-            CAST(NULL AS NVARCHAR(180)) AS email_remitente,
-            CAST(NULL AS NVARCHAR(250)) AS asunto,
-            CAST(NULL AS NVARCHAR(MAX)) AS cuerpo;
-        END
-        ELSE
-        BEGIN
-          SELECT TOP 1
-            id,
-            email_remitente,
-            asunto,
-            cuerpo
-          FROM plantillas_comunicacion
-          WHERE clave_evento = @clave_evento
-            AND activo = 1
-          ORDER BY fecha_actualizacion DESC, fecha_creacion DESC, id DESC;
-        END
+        SELECT TOP 1 id, email_remitente, asunto, cuerpo
+        FROM plantillas_comunicacion
+        WHERE clave_evento = @clave_evento
+          AND activo = 1
+        ORDER BY fecha_actualizacion DESC, fecha_creacion DESC, id DESC;
       `);
 
     return result.recordset[0] || null;
@@ -367,7 +327,6 @@ export const solicitarRecuperacionPassword = async (req, res) => {
 
   try {
     const pool = await poolPromise;
-    await asegurarTablaPasswordReset(pool);
 
     const usuarioResult = await pool
       .request()
@@ -484,7 +443,6 @@ export const confirmarRecuperacionPassword = async (req, res) => {
 
   try {
     const pool = await poolPromise;
-    await asegurarTablaPasswordReset(pool);
 
     const tokenHash = hashToken(token);
     const tokenResult = await pool

@@ -16,7 +16,6 @@ import {
   calcularSeguroServicio,
 } from "../utils/tarifas.helpers.js";
 import {
-  asegurarEstructuraTarifas,
   obtenerRangosPorServicios,
 } from "./catalogos/servicios.controller.js";
 import {
@@ -192,7 +191,6 @@ const crearPlantillaFallbackSolicitudFacturada = () => ({
 });
 
 const obtenerSolicitudParaCobro = async (pool, solicitudId) => {
-  await asegurarEstructuraTarifas(pool);
   const solicitudQuery = await pool
     .request()
     .input("id", sql.Int, solicitudId)
@@ -650,7 +648,6 @@ export const crearSolicitud = async (req, res) => {
     }
 
     const pool = await poolPromise;
-    await asegurarEstructuraTarifas(pool);
     transaction = new sql.Transaction(pool);
     await transaction.begin();
     transactionStarted = true;
@@ -1279,7 +1276,6 @@ export const eliminarSolicitud = async (req, res) => {
 
   try {
     const pool = await poolPromise;
-    await asegurarEstructuraTarifas(pool);
     transaction = new sql.Transaction(pool);
     await transaction.begin();
     transactionStarted = true;
@@ -1973,7 +1969,6 @@ export const editarSolicitudCompleta = async (req, res) => {
 
   try {
     const pool = await poolPromise;
-    await asegurarEstructuraTarifas(pool);
     transaction = new sql.Transaction(pool);
     await transaction.begin();
     transactionStarted = true;

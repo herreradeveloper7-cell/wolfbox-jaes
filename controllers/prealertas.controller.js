@@ -1,28 +1,5 @@
 import { poolPromise, sql } from "../config/db.js";
 
-const asegurarTablaPrealertas = async (pool) => {
-  await pool.request().query(`
-    IF OBJECT_ID('dbo.prealertas', 'U') IS NULL
-    BEGIN
-      CREATE TABLE dbo.prealertas (
-        id INT IDENTITY(1,1) PRIMARY KEY,
-        cliente_id INT NOT NULL,
-        tracking NVARCHAR(100) NOT NULL,
-        peso_lbs DECIMAL(10,2) NOT NULL,
-        contenido NVARCHAR(255) NOT NULL,
-        valor_declarado DECIMAL(12,2) NOT NULL,
-        valor_asegurado DECIMAL(12,2) NOT NULL,
-        observaciones NVARCHAR(500) NULL,
-        estado NVARCHAR(50) NOT NULL CONSTRAINT DF_prealertas_estado DEFAULT 'Prealertado',
-        fecha_creacion DATETIME2 NOT NULL CONSTRAINT DF_prealertas_fecha DEFAULT SYSUTCDATETIME()
-      );
-
-      CREATE INDEX IX_prealertas_cliente_fecha
-        ON dbo.prealertas (cliente_id, fecha_creacion DESC);
-    END
-  `);
-};
-
 const puedeConsultarCliente = (req, clienteId) =>
   ["admin", "usuario"].includes(req.usuario?.tipo) ||
   Number(req.usuario?.id) === Number(clienteId);
@@ -40,7 +17,6 @@ export const listarPrealertas = async (req, res) => {
     const offset = (pagina - 1) * limite;
 
     const pool = await poolPromise;
-    await asegurarTablaPrealertas(pool);
 
     const request = pool.request()
       .input("offset", sql.Int, offset)
@@ -175,7 +151,6 @@ export const crearPrealerta = async (req, res) => {
     } = req.body;
 
     const pool = await poolPromise;
-    await asegurarTablaPrealertas(pool);
 
     const result = await pool.request()
       .input("cliente_id", sql.Int, clienteId)
@@ -229,7 +204,6 @@ export const crearPrealerta = async (req, res) => {
 export const actualizarPrealerta = async (req, res) => {
   try {
     const pool = await poolPromise;
-    await asegurarTablaPrealertas(pool);
 
     const existente = await pool.request()
       .input("id", sql.Int, req.params.id)
@@ -275,7 +249,6 @@ export const actualizarPrealerta = async (req, res) => {
 export const eliminarPrealerta = async (req, res) => {
   try {
     const pool = await poolPromise;
-    await asegurarTablaPrealertas(pool);
 
     const existente = await pool.request()
       .input("id", sql.Int, req.params.id)
