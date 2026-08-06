@@ -5,6 +5,7 @@ import {
   obtenerPlantillaEmailPorEvento,
 } from "../utils/email.service.js";
 import { revocarSesionesCuenta } from "../utils/session.service.js";
+import { responderPasswordInvalida, validarPasswordNueva } from "../utils/password-policy.js";
 
 const WHATSAPP_SERVICIO = "+57 302 8600369";
 const WHATSAPP_SERVICIO_URL = "https://wa.me/573028600369";
@@ -142,6 +143,9 @@ export const crearUsuario = async (req, res) => {
     const { nombre, email, password, tipo, permisos, genero } = req.body;
 
     const pool = await poolPromise; 
+
+    const passwordValida = await validarPasswordNueva(password, { email, nombre });
+    if (!passwordValida.ok) return responderPasswordInvalida(res, passwordValida);
 
     const existe = await pool.request()
       .input("correo", sql.VarChar, email)
@@ -295,6 +299,8 @@ export const actualizarUsuario = async (req, res) => {
 
     let hashedPassword = null;
     if (password && password.trim() !== "") {
+      const passwordValida = await validarPasswordNueva(password, { email, nombre });
+      if (!passwordValida.ok) return responderPasswordInvalida(res, passwordValida);
       hashedPassword = await bcrypt.hash(password, 10);
     }
 
@@ -359,6 +365,8 @@ export const editarUsuario = async (req, res) => {
     }
 
     if (password && password.trim() !== "") {
+      const passwordValida = await validarPasswordNueva(password, { email, nombre });
+      if (!passwordValida.ok) return responderPasswordInvalida(res, passwordValida);
       const hashedPassword = await bcrypt.hash(password, 10);
       await pool.request()
         .input("id", sql.Int, id)

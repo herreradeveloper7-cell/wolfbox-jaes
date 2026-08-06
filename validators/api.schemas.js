@@ -50,12 +50,16 @@ const email = z.string().trim().email("Correo invalido");
 const permisos = z.array(z.string().trim().min(1)).optional().default([]);
 const rolUsuario = z.enum(["admin", "usuario"]);
 const genero = optionalString;
+const passwordNueva = z.string()
+  .min(12, "La contraseña debe tener al menos 12 caracteres")
+  .max(128, "La contraseña no puede superar 128 caracteres");
+const passwordNuevaOpcional = z.union([z.literal(""), passwordNueva]).optional();
 
 export const usuarioSchemas = {
   crear: z.object({
     nombre: requiredString("Nombre"),
     email,
-    password: requiredString("Contrasena"),
+    password: passwordNueva,
     tipo: rolUsuario,
     permisos,
     genero,
@@ -63,7 +67,7 @@ export const usuarioSchemas = {
   editar: z.object({
     nombre: requiredString("Nombre"),
     email,
-    password: optionalString,
+    password: passwordNuevaOpcional,
     tipo_usuario: rolUsuario,
     permisos,
     genero,
@@ -92,7 +96,7 @@ export const clienteSchemas = {
   }).passthrough(),
   registrar: z.object({
     email,
-    contrasena: requiredString("Contrasena"),
+    contrasena: passwordNueva,
     tipo_cliente: z.enum(["personal", "empresarial"]),
     tipoIdentificacion: requiredString("Tipo de identificacion"),
     numeroIdentificacion: requiredString("Numero de identificacion"),

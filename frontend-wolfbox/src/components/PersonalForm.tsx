@@ -363,6 +363,7 @@ export default function PersonalForm({ tipoCliente }: Props) {
             value={contrasena}
             onChange={(e) => setContrasena(e.target.value)}
             className={inputBase} 
+            minLength={12}
             required />
         </div>
   
@@ -373,6 +374,7 @@ export default function PersonalForm({ tipoCliente }: Props) {
             value={confirmarContrasena}
             onChange={(e) => setConfirmarContrasena(e.target.value)} 
             className={`${inputBase} ${!errores.contrasenaCoincide ? "border-red-500 focus:border-red-600 focus:ring-red-600/10" : ""}`} 
+            minLength={12}
             required />
           {!errores.contrasenaCoincide && (
             <p className={errorBase}>Las contraseñas no coinciden</p>

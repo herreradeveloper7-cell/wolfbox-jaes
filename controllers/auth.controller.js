@@ -23,6 +23,7 @@ import {
   revocarSesionPorRefresh,
   revocarSesionesCuenta,
 } from "../utils/session.service.js";
+import { responderPasswordInvalida, validarPasswordNueva } from "../utils/password-policy.js";
 
 const hashToken = (token) =>
   crypto.createHash("sha256").update(token).digest("hex");
@@ -107,6 +108,9 @@ export const registrarUsuario = async (req, res) => {
 
   try {
     const pool = await poolPromise;
+
+    const passwordValida = await validarPasswordNueva(contraseña, { email: correo, nombre });
+    if (!passwordValida.ok) return responderPasswordInvalida(res, passwordValida);
 
     const correoExistente = await pool.request()
       .input('correo', sql.NVarChar, correo)
@@ -434,15 +438,18 @@ export const confirmarRecuperacionPassword = async (req, res) => {
   const token = String(req.body.token || "").trim();
   const contrasena = String(req.body.contrasena || "");
 
-  if (!token || contrasena.length < 6) {
+  if (!token) {
     return res.status(400).json({
       ok: false,
-      mensaje: "Token y contrasena valida son requeridos.",
+      mensaje: "Token y contraseña válida son requeridos.",
     });
   }
 
   try {
     const pool = await poolPromise;
+
+    const passwordValida = await validarPasswordNueva(contrasena);
+    if (!passwordValida.ok) return responderPasswordInvalida(res, passwordValida);
 
     const tokenHash = hashToken(token);
     const tokenResult = await pool

@@ -1,5 +1,6 @@
 import { sql, poolPromise } from "../config/db.js";
 import bcrypt from "bcrypt";
+import { responderPasswordInvalida, validarPasswordNueva } from "../utils/password-policy.js";
 import { firmarToken } from "../middleware/auth.middleware.js";
 import fs from "fs";
 import path from "path";
@@ -191,6 +192,12 @@ export const registrarCliente = async (req, res) => {
       genero,
       tipo_cliente,
     } = req.body;
+
+    const passwordValida = await validarPasswordNueva(contrasena, {
+      email,
+      nombre: tipo_cliente === "personal" ? `${primerNombre || ""} ${primerApellido || ""}` : razonSocial,
+    });
+    if (!passwordValida.ok) return responderPasswordInvalida(res, passwordValida);
 
     const hashedPassword = await bcrypt.hash(contrasena, 10);
 

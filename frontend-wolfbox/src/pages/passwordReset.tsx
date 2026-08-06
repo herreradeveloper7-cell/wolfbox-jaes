@@ -57,8 +57,8 @@ export default function PasswordResetPage() {
     event.preventDefault();
     limpiarMensajes();
 
-    if (contrasena.length < 6) {
-      setError("La contraseña debe tener minimo 6 caracteres.");
+    if (contrasena.length < 12) {
+      setError("La contraseña debe tener mínimo 12 caracteres.");
       return;
     }
 
