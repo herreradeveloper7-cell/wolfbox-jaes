@@ -83,6 +83,20 @@ export default function DigitacionPaquetes() {
         return;
       }
 
+      if (
+        filtrosBusqueda.fechaInicial &&
+        filtrosBusqueda.fechaFinal &&
+        filtrosBusqueda.fechaInicial > filtrosBusqueda.fechaFinal
+      ) {
+        Swal.fire({
+          icon: "warning",
+          title: "Rango de fechas inválido",
+          text: "La fecha inicial no puede ser posterior a la fecha final.",
+          confirmButtonColor: "#991b1b",
+        });
+        return;
+      }
+
       try {
         const response = await fetch(
           "/api/paquetes/buscar",
@@ -103,7 +117,12 @@ export default function DigitacionPaquetes() {
         );
 
         const data = await response.json();
-        const resultados = data.ok && Array.isArray(data.paquetes) ? data.paquetes : [];
+
+        if (!response.ok || !data.ok) {
+          throw new Error(data.mensaje || "No se pudieron consultar los paquetes.");
+        }
+
+        const resultados = Array.isArray(data.paquetes) ? data.paquetes : [];
 
         setBusquedaAplicada(true);
         setPaquetesFiltrados(resultados);
@@ -123,7 +142,9 @@ export default function DigitacionPaquetes() {
         Swal.fire({
           icon: "error",
           title: "Error en la busqueda",
-          text: "No se pudieron consultar los paquetes. Intenta nuevamente.",
+          text: error instanceof Error
+            ? error.message
+            : "No se pudieron consultar los paquetes. Intenta nuevamente.",
           confirmButtonColor: "#991b1b",
         });
       }
@@ -151,7 +172,7 @@ export default function DigitacionPaquetes() {
       }
 
       try {
-        const res = await fetch(`/api/clientes/buscar/${texto}`);
+        const res = await fetch(`/api/clientes/buscar/${encodeURIComponent(texto.trim())}`);
         const data = await res.json();
 
         if (data.ok) {
@@ -171,7 +192,7 @@ export default function DigitacionPaquetes() {
       }
 
       try {
-        const res = await fetch(`/api/usuarios/buscar/${texto}`);
+        const res = await fetch(`/api/usuarios/buscar/${encodeURIComponent(texto.trim())}`);
         const data = await res.json();
 
         if (data.ok) {
@@ -192,6 +213,8 @@ export default function DigitacionPaquetes() {
       setMostrarTiendasSugeridas(false);
       setClienteNoExiste(false);
       setTrackingExistente(false);
+      setTrackingsExistentesFilas([]);
+      setValidandoTrackingsFilas(false);
       setReferenciaExistente(false);
       setModoEdicion(false);
       setCantidadCajas(1);
@@ -332,6 +355,8 @@ export default function DigitacionPaquetes() {
     };    
 
     const [trackingExistente, setTrackingExistente] = useState(false);
+    const [trackingsExistentesFilas, setTrackingsExistentesFilas] = useState<boolean[]>([]);
+    const [validandoTrackingsFilas, setValidandoTrackingsFilas] = useState(false);
     const [referenciaExistente, setReferenciaExistente] = useState(false);
 
     const [modoEdicion, setModoEdicion] = useState(false);
@@ -465,6 +490,49 @@ export default function DigitacionPaquetes() {
           confirmButtonColor: "#991b1b",
         });
         return;
+      }
+
+      if (!modoEdicion) {
+        const trackingsAValidar = [
+          paqueteFila.tracking,
+          ...filasAdicionales.map((fila) => fila.tracking),
+        ].map((tracking) => String(tracking).trim());
+
+        try {
+          const resultados = await Promise.all(
+            trackingsAValidar.map(async (tracking) => {
+              if (tracking.length <= 3) return false;
+
+              const res = await fetch(
+                `/api/paquetes/validar/tracking/${encodeURIComponent(tracking)}`
+              );
+              const data = await res.json();
+              return Boolean(data.existe);
+            })
+          );
+
+          setTrackingExistente(resultados[0] || false);
+          setTrackingsExistentesFilas(resultados.slice(1));
+
+          if (resultados.some(Boolean)) {
+            await Swal.fire({
+              icon: "warning",
+              title: "Tracking ya digitado",
+              text: "Revisa los trackings marcados antes de guardar.",
+              confirmButtonColor: "#991b1b",
+            });
+            return;
+          }
+        } catch (error) {
+          console.error("Error validando los trackings antes de guardar:", error);
+          await Swal.fire({
+            icon: "error",
+            title: "No se pudieron validar los trackings",
+            text: "Intenta nuevamente antes de guardar.",
+            confirmButtonColor: "#991b1b",
+          });
+          return;
+        }
       }
 
       const validacionPrincipal = validarPesoContraServicio(
@@ -734,23 +802,32 @@ export default function DigitacionPaquetes() {
           return;
       }
 
+      const controller = new AbortController();
       const delayDebounce = setTimeout(async () => {
         try {
-        const res = await fetch(`/api/clientes/buscar/${clienteInput}`);
+        const res = await fetch(
+          `/api/clientes/buscar/${encodeURIComponent(clienteInput.trim())}`,
+          { signal: controller.signal }
+        );
         const data = await res.json();
         if (data.ok) {
             setClientesSugeridos(data.clientes);
-            setClienteNoExiste(false);
+            setClienteNoExiste(data.clientes.length === 0);
         } else {
             setClientesSugeridos([]);
             setClienteNoExiste(true);
         }
         } catch (error) {
-        console.error("Error al buscar cliente:", error);
+          if (!(error instanceof DOMException && error.name === "AbortError")) {
+            console.error("Error al buscar cliente:", error);
+          }
         }
     }, 400);
     
-    return () => clearTimeout(delayDebounce);
+    return () => {
+      clearTimeout(delayDebounce);
+      controller.abort();
+    };
     }, [clienteInput]);
 
     useEffect(() => {
@@ -804,6 +881,10 @@ export default function DigitacionPaquetes() {
       cargarDestinatarios();
     }, [clienteInput]);   
 
+    const claveTrackingsAdicionales = filasAdicionales
+      .map((fila) => String(fila.tracking || "").trim())
+      .join("\u0000");
+
     useEffect(() => {
       const validarCampos = async () => {
         const tracking = paqueteFila.tracking.trim();
@@ -830,6 +911,48 @@ export default function DigitacionPaquetes() {
     
       return () => clearTimeout(delay);
     }, [paqueteFila.tracking, paqueteFila.referencia]);
+
+    useEffect(() => {
+      const trackings = filasAdicionales.map((fila) => String(fila.tracking || "").trim());
+      const controller = new AbortController();
+
+      if (!trackings.some((tracking) => tracking.length > 3)) {
+        setTrackingsExistentesFilas(trackings.map(() => false));
+        setValidandoTrackingsFilas(false);
+        return () => controller.abort();
+      }
+
+      setValidandoTrackingsFilas(true);
+      const delay = setTimeout(async () => {
+        try {
+          const resultados = await Promise.all(
+            trackings.map(async (tracking) => {
+              if (tracking.length <= 3) return false;
+
+              const res = await fetch(
+                `/api/paquetes/validar/tracking/${encodeURIComponent(tracking)}`,
+                { signal: controller.signal }
+              );
+              const data = await res.json();
+              return Boolean(data.existe);
+            })
+          );
+
+          setTrackingsExistentesFilas(resultados);
+        } catch (error: unknown) {
+          if (!(error instanceof DOMException && error.name === "AbortError")) {
+            console.error("Error validando los trackings adicionales:", error);
+          }
+        } finally {
+          if (!controller.signal.aborted) setValidandoTrackingsFilas(false);
+        }
+      }, 400);
+
+      return () => {
+        clearTimeout(delay);
+        controller.abort();
+      };
+    }, [claveTrackingsAdicionales]);
 
     const limpiarNumeroNegativo = (valor: string) => {
       if (valor === "") return "";
@@ -1450,6 +1573,9 @@ export default function DigitacionPaquetes() {
                                   <img src={iconRandom} alt="Generar" className="w-5 h-5" />
                                 </button>
                               </div>
+                              {trackingsExistentesFilas[index] && (
+                                <p className="text-xs text-red-600 mt-1">⚠️ Este tracking ya existe</p>
+                              )}
                             </td>
 
                             <td className="px-2 py-1">
@@ -1581,10 +1707,20 @@ export default function DigitacionPaquetes() {
                 
                   <button
                     onClick={handleGuardarPaquete}
-                    disabled={!modoEdicion && (trackingExistente || referenciaExistente)}
+                    disabled={
+                      !modoEdicion &&
+                      (trackingExistente ||
+                        referenciaExistente ||
+                        trackingsExistentesFilas.some(Boolean) ||
+                        validandoTrackingsFilas)
+                    }
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition
                     shadow-md ${
-                      !modoEdicion && (trackingExistente || referenciaExistente)
+                      !modoEdicion &&
+                      (trackingExistente ||
+                        referenciaExistente ||
+                        trackingsExistentesFilas.some(Boolean) ||
+                        validandoTrackingsFilas)
                         ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                         : "bg-green-900 text-white hover:bg-green-950 hover:shadow-lg hover:scale-[1.02] cursor-pointer"
                     }`}

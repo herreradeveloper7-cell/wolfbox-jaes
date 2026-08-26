@@ -592,6 +592,12 @@ export const buscarCliente = async (req, res) => {
           OR segundo_nombre LIKE @valor
           OR primer_apellido LIKE @valor
           OR segundo_apellido LIKE @valor
+          OR CONCAT_WS(' ',
+            NULLIF(LTRIM(RTRIM(primer_nombre)), ''),
+            NULLIF(LTRIM(RTRIM(segundo_nombre)), ''),
+            NULLIF(LTRIM(RTRIM(primer_apellido)), ''),
+            NULLIF(LTRIM(RTRIM(segundo_apellido)), '')
+          ) LIKE @valor
           OR nombre_empresa LIKE @valor
           OR correo LIKE @valor
         ORDER BY fecha_creacion DESC

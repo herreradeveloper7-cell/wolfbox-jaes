@@ -440,6 +440,9 @@ export default function ModalVerDetalleSolicitud({
                             Tienda
                           </th>
                           <th className="px-3 sm:px-5 py-3 sm:py-4 text-left font-semibold">
+                            Estado
+                          </th>
+                          <th className="px-3 sm:px-5 py-3 sm:py-4 text-left font-semibold">
                               Fecha digitación
                             </th>
                           <th className="px-3 sm:px-5 py-3 sm:py-4 text-center font-semibold">Peso</th>
@@ -464,6 +467,12 @@ export default function ModalVerDetalleSolicitud({
                               <div className="max-w-[180px] truncate rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-bold text-gray-700">
                                 {p.tienda || "—"}
                               </div>
+                            </td>
+
+                            <td className="px-3 sm:px-5 py-3 sm:py-4">
+                              <span className="inline-flex whitespace-nowrap rounded-full border border-red-900/15 bg-red-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-red-950">
+                                {p.estado || "Sin estado"}
+                              </span>
                             </td>
 
                             <td className="px-3 sm:px-5 py-3 sm:py-4">

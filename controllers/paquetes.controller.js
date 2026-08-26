@@ -769,14 +769,30 @@ export const buscarPaquetesFiltrados = async (req, res) => {
       where.push(`
         (
           c.codigo_referencia LIKE @cliente OR
-          c.primer_nombre LIKE @cliente OR
-          c.segundo_nombre LIKE @cliente OR
-          c.primer_apellido LIKE @cliente OR
-          c.segundo_apellido LIKE @cliente OR
-          c.nombre_empresa LIKE @cliente
+          c.nombre_empresa LIKE @cliente OR
+          CONCAT_WS(' ',
+            NULLIF(LTRIM(RTRIM(c.primer_nombre)), ''),
+            NULLIF(LTRIM(RTRIM(c.segundo_nombre)), ''),
+            NULLIF(LTRIM(RTRIM(c.primer_apellido)), ''),
+            NULLIF(LTRIM(RTRIM(c.segundo_apellido)), '')
+          ) LIKE @cliente OR
+          NOT EXISTS (
+            SELECT 1
+            FROM STRING_SPLIT(@clienteTermino, ' ') termino
+            WHERE LTRIM(RTRIM(termino.value)) <> ''
+              AND CONCAT_WS(' ',
+                NULLIF(LTRIM(RTRIM(c.primer_nombre)), ''),
+                NULLIF(LTRIM(RTRIM(c.segundo_nombre)), ''),
+                NULLIF(LTRIM(RTRIM(c.primer_apellido)), ''),
+                NULLIF(LTRIM(RTRIM(c.segundo_apellido)), ''),
+                NULLIF(LTRIM(RTRIM(c.nombre_empresa)), ''),
+                NULLIF(LTRIM(RTRIM(c.codigo_referencia)), '')
+              ) NOT LIKE '%' + LTRIM(RTRIM(termino.value)) + '%'
+          )
         )
       `);
       request.input("cliente", sql.NVarChar, `%${cliente}%`);
+      request.input("clienteTermino", sql.NVarChar, cliente);
     }
 
     if (usuario) {
@@ -840,7 +856,9 @@ export const buscarPaquetesFiltrados = async (req, res) => {
             ISNULL(c.nombre_empresa, 'Sin nombre')
         END AS cliente
       FROM paquetes p
-      JOIN clientes c ON p.cliente_id = c.id
+      LEFT JOIN clientes c
+        ON c.id = p.cliente_id
+        OR (p.cliente_id IS NULL AND c.codigo_referencia = p.codigo_referencia)
       LEFT JOIN servicios s ON p.servicio_id = s.id
       LEFT JOIN estados_catalogo e ON e.id = p.estado_id
       LEFT JOIN destinatarios d ON p.destinatario_id = d.id
