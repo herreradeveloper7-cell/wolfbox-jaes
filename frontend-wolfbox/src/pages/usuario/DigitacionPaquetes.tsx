@@ -83,6 +83,20 @@ export default function DigitacionPaquetes() {
         return;
       }
 
+      if (
+        filtrosBusqueda.fechaInicial &&
+        filtrosBusqueda.fechaFinal &&
+        filtrosBusqueda.fechaInicial > filtrosBusqueda.fechaFinal
+      ) {
+        Swal.fire({
+          icon: "warning",
+          title: "Rango de fechas inválido",
+          text: "La fecha inicial no puede ser posterior a la fecha final.",
+          confirmButtonColor: "#991b1b",
+        });
+        return;
+      }
+
       try {
         const response = await fetch(
           "/api/paquetes/buscar",
@@ -103,7 +117,12 @@ export default function DigitacionPaquetes() {
         );
 
         const data = await response.json();
-        const resultados = data.ok && Array.isArray(data.paquetes) ? data.paquetes : [];
+
+        if (!response.ok || !data.ok) {
+          throw new Error(data.mensaje || "No se pudieron consultar los paquetes.");
+        }
+
+        const resultados = Array.isArray(data.paquetes) ? data.paquetes : [];
 
         setBusquedaAplicada(true);
         setPaquetesFiltrados(resultados);
@@ -123,7 +142,9 @@ export default function DigitacionPaquetes() {
         Swal.fire({
           icon: "error",
           title: "Error en la busqueda",
-          text: "No se pudieron consultar los paquetes. Intenta nuevamente.",
+          text: error instanceof Error
+            ? error.message
+            : "No se pudieron consultar los paquetes. Intenta nuevamente.",
           confirmButtonColor: "#991b1b",
         });
       }
@@ -151,7 +172,7 @@ export default function DigitacionPaquetes() {
       }
 
       try {
-        const res = await fetch(`/api/clientes/buscar/${texto}`);
+        const res = await fetch(`/api/clientes/buscar/${encodeURIComponent(texto.trim())}`);
         const data = await res.json();
 
         if (data.ok) {
@@ -171,7 +192,7 @@ export default function DigitacionPaquetes() {
       }
 
       try {
-        const res = await fetch(`/api/usuarios/buscar/${texto}`);
+        const res = await fetch(`/api/usuarios/buscar/${encodeURIComponent(texto.trim())}`);
         const data = await res.json();
 
         if (data.ok) {
@@ -781,23 +802,32 @@ export default function DigitacionPaquetes() {
           return;
       }
 
+      const controller = new AbortController();
       const delayDebounce = setTimeout(async () => {
         try {
-        const res = await fetch(`/api/clientes/buscar/${clienteInput}`);
+        const res = await fetch(
+          `/api/clientes/buscar/${encodeURIComponent(clienteInput.trim())}`,
+          { signal: controller.signal }
+        );
         const data = await res.json();
         if (data.ok) {
             setClientesSugeridos(data.clientes);
-            setClienteNoExiste(false);
+            setClienteNoExiste(data.clientes.length === 0);
         } else {
             setClientesSugeridos([]);
             setClienteNoExiste(true);
         }
         } catch (error) {
-        console.error("Error al buscar cliente:", error);
+          if (!(error instanceof DOMException && error.name === "AbortError")) {
+            console.error("Error al buscar cliente:", error);
+          }
         }
     }, 400);
     
-    return () => clearTimeout(delayDebounce);
+    return () => {
+      clearTimeout(delayDebounce);
+      controller.abort();
+    };
     }, [clienteInput]);
 
     useEffect(() => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import UserDashboardLayout from "../layouts/UserDashboardLayout";
 import ClientDashboardLayout from "../layouts/ClientDashboardLayout";
@@ -90,19 +90,24 @@ export default function SolicitarDespachos() {
   const [mostrarModal, setMostrarModal] = useState(false);
   const [paquetesSeleccionadosDatos, setPaquetesSeleccionadosDatos] = useState<any[]>([]);
   const [modalDetalle, setModalDetalle] = useState<any>(null);
+  const busquedaClienteId = useRef(0);
 
   const navigate = useNavigate();
 
 
   const buscarCliente = async (valor: string) => {
     setSearch(valor);
+    const busquedaActual = ++busquedaClienteId.current;
 
     if (valor.trim().length === 0) {
       setClientes([]);
       return;
     }
 
-    if (valor.trim().length < 3) return;
+    if (valor.trim().length < 3) {
+      setClientes([]);
+      return;
+    }
 
     try {
       const encoded = encodeURIComponent(valor);
@@ -110,12 +115,15 @@ export default function SolicitarDespachos() {
       `/api/clientes/buscar/${encoded}`
       );
 
+        if (busquedaActual !== busquedaClienteId.current) return;
+
         if (data.ok && Array.isArray(data.clientes)) {
           setClientes(data.clientes);
         } else {
           setClientes([]);
         }
     } catch (error) {
+      if (busquedaActual !== busquedaClienteId.current) return;
       console.error("❌ Error buscando cliente:", error);
       setClientes([]);
     }
@@ -123,6 +131,7 @@ export default function SolicitarDespachos() {
 
 
   const seleccionarCliente = async (cliente: any) => {
+    busquedaClienteId.current += 1;
     const codigoReferencia =
       cliente.codigo_referencia || cliente.codigoReferencia || cliente.codigo;
 

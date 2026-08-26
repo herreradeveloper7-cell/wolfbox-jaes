@@ -5,8 +5,9 @@ import { readFileSync } from "node:fs";
 const readRoute = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 
 const assertProtectedAfterRouterUse = (source, protectedRouteSnippet) => {
-  const authIndex = source.indexOf("router.use(autenticarToken");
-  const routeIndex = source.indexOf(protectedRouteSnippet);
+  const sourceNormalizado = source.replace(/\r\n/g, "\n");
+  const authIndex = sourceNormalizado.indexOf("router.use(autenticarToken");
+  const routeIndex = sourceNormalizado.indexOf(protectedRouteSnippet);
 
   assert.ok(authIndex >= 0, "La ruta debe declarar router.use(autenticarToken)");
   assert.ok(routeIndex >= 0, `No se encontro ${protectedRouteSnippet}`);
