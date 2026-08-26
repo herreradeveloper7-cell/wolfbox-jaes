@@ -192,6 +192,8 @@ export default function DigitacionPaquetes() {
       setMostrarTiendasSugeridas(false);
       setClienteNoExiste(false);
       setTrackingExistente(false);
+      setTrackingsExistentesFilas([]);
+      setValidandoTrackingsFilas(false);
       setReferenciaExistente(false);
       setModoEdicion(false);
       setCantidadCajas(1);
@@ -332,6 +334,8 @@ export default function DigitacionPaquetes() {
     };    
 
     const [trackingExistente, setTrackingExistente] = useState(false);
+    const [trackingsExistentesFilas, setTrackingsExistentesFilas] = useState<boolean[]>([]);
+    const [validandoTrackingsFilas, setValidandoTrackingsFilas] = useState(false);
     const [referenciaExistente, setReferenciaExistente] = useState(false);
 
     const [modoEdicion, setModoEdicion] = useState(false);
@@ -465,6 +469,49 @@ export default function DigitacionPaquetes() {
           confirmButtonColor: "#991b1b",
         });
         return;
+      }
+
+      if (!modoEdicion) {
+        const trackingsAValidar = [
+          paqueteFila.tracking,
+          ...filasAdicionales.map((fila) => fila.tracking),
+        ].map((tracking) => String(tracking).trim());
+
+        try {
+          const resultados = await Promise.all(
+            trackingsAValidar.map(async (tracking) => {
+              if (tracking.length <= 3) return false;
+
+              const res = await fetch(
+                `/api/paquetes/validar/tracking/${encodeURIComponent(tracking)}`
+              );
+              const data = await res.json();
+              return Boolean(data.existe);
+            })
+          );
+
+          setTrackingExistente(resultados[0] || false);
+          setTrackingsExistentesFilas(resultados.slice(1));
+
+          if (resultados.some(Boolean)) {
+            await Swal.fire({
+              icon: "warning",
+              title: "Tracking ya digitado",
+              text: "Revisa los trackings marcados antes de guardar.",
+              confirmButtonColor: "#991b1b",
+            });
+            return;
+          }
+        } catch (error) {
+          console.error("Error validando los trackings antes de guardar:", error);
+          await Swal.fire({
+            icon: "error",
+            title: "No se pudieron validar los trackings",
+            text: "Intenta nuevamente antes de guardar.",
+            confirmButtonColor: "#991b1b",
+          });
+          return;
+        }
       }
 
       const validacionPrincipal = validarPesoContraServicio(
@@ -804,6 +851,10 @@ export default function DigitacionPaquetes() {
       cargarDestinatarios();
     }, [clienteInput]);   
 
+    const claveTrackingsAdicionales = filasAdicionales
+      .map((fila) => String(fila.tracking || "").trim())
+      .join("\u0000");
+
     useEffect(() => {
       const validarCampos = async () => {
         const tracking = paqueteFila.tracking.trim();
@@ -830,6 +881,48 @@ export default function DigitacionPaquetes() {
     
       return () => clearTimeout(delay);
     }, [paqueteFila.tracking, paqueteFila.referencia]);
+
+    useEffect(() => {
+      const trackings = filasAdicionales.map((fila) => String(fila.tracking || "").trim());
+      const controller = new AbortController();
+
+      if (!trackings.some((tracking) => tracking.length > 3)) {
+        setTrackingsExistentesFilas(trackings.map(() => false));
+        setValidandoTrackingsFilas(false);
+        return () => controller.abort();
+      }
+
+      setValidandoTrackingsFilas(true);
+      const delay = setTimeout(async () => {
+        try {
+          const resultados = await Promise.all(
+            trackings.map(async (tracking) => {
+              if (tracking.length <= 3) return false;
+
+              const res = await fetch(
+                `/api/paquetes/validar/tracking/${encodeURIComponent(tracking)}`,
+                { signal: controller.signal }
+              );
+              const data = await res.json();
+              return Boolean(data.existe);
+            })
+          );
+
+          setTrackingsExistentesFilas(resultados);
+        } catch (error: unknown) {
+          if (!(error instanceof DOMException && error.name === "AbortError")) {
+            console.error("Error validando los trackings adicionales:", error);
+          }
+        } finally {
+          if (!controller.signal.aborted) setValidandoTrackingsFilas(false);
+        }
+      }, 400);
+
+      return () => {
+        clearTimeout(delay);
+        controller.abort();
+      };
+    }, [claveTrackingsAdicionales]);
 
     const limpiarNumeroNegativo = (valor: string) => {
       if (valor === "") return "";
@@ -1450,6 +1543,9 @@ export default function DigitacionPaquetes() {
                                   <img src={iconRandom} alt="Generar" className="w-5 h-5" />
                                 </button>
                               </div>
+                              {trackingsExistentesFilas[index] && (
+                                <p className="text-xs text-red-600 mt-1">⚠️ Este tracking ya existe</p>
+                              )}
                             </td>
 
                             <td className="px-2 py-1">
@@ -1581,10 +1677,20 @@ export default function DigitacionPaquetes() {
                 
                   <button
                     onClick={handleGuardarPaquete}
-                    disabled={!modoEdicion && (trackingExistente || referenciaExistente)}
+                    disabled={
+                      !modoEdicion &&
+                      (trackingExistente ||
+                        referenciaExistente ||
+                        trackingsExistentesFilas.some(Boolean) ||
+                        validandoTrackingsFilas)
+                    }
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition
                     shadow-md ${
-                      !modoEdicion && (trackingExistente || referenciaExistente)
+                      !modoEdicion &&
+                      (trackingExistente ||
+                        referenciaExistente ||
+                        trackingsExistentesFilas.some(Boolean) ||
+                        validandoTrackingsFilas)
                         ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                         : "bg-green-900 text-white hover:bg-green-950 hover:shadow-lg hover:scale-[1.02] cursor-pointer"
                     }`}

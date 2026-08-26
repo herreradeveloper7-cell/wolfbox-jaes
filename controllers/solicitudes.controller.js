@@ -1453,10 +1453,12 @@ export const obtenerDetalleSolicitud = async (req, res) => {
           p.contenido,
           p.asegurado,
           p.tienda,
+          ec.nombre AS estado,
           CONVERT(varchar, p.fecha_registro, 120) AS fecha_digitacion,
           p.agrupado_bit,
           p.hawb_padre
         FROM paquetes p
+        LEFT JOIN estados_catalogo ec ON ec.id = p.estado_id
         WHERE p.solicitud_id = @id
       `);
 
