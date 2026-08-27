@@ -16,6 +16,7 @@ import {
   enviarEmailDesdePlantilla,
   obtenerPlantillaEmailPorEvento,
 } from "../utils/email.service.js";
+import { calcularSeguroServicio } from "../utils/tarifas.helpers.js";
 
 const obtenerBaseFrontend = () =>
   (
@@ -138,7 +139,9 @@ const validarRestriccionesServicio = async (pool, servicio_id, peso) => {
         id,
         nombre,
         aplica_peso_maximo,
-        peso_maximo
+        peso_maximo,
+        porcentaje_seguro,
+        seguro_minimo_usd
       FROM servicios
       WHERE id = @servicio_id
     `);
@@ -198,7 +201,6 @@ export const registrarPaqueteConDeps = async (req, res, deps) => {
     ancho,
     alto,
     largo,
-    asegurado,
     declaracion_valor,
     ubicacion,
     posicion_arancelaria,
@@ -276,6 +278,13 @@ export const registrarPaqueteConDeps = async (req, res, deps) => {
       });
     }
 
+    const seguroCalculado = Number(
+      calcularSeguroServicio(
+        validacionServicio.servicio,
+        Number(declaracion_valor || 0)
+      ).toFixed(2)
+    );
+
     const destinatarioIdInt = Number(destinatario_id);
 
     if (!destinatario_id || Number.isNaN(destinatarioIdInt) || destinatarioIdInt <= 0) {
@@ -310,7 +319,7 @@ export const registrarPaqueteConDeps = async (req, res, deps) => {
       .input('ancho', dbSql.Int, optionalIntOrZero(ancho))
       .input('alto', dbSql.Int, optionalIntOrZero(alto))
       .input('largo', dbSql.Int, optionalIntOrZero(largo))
-      .input('asegurado', dbSql.Decimal(10, 2), asegurado || 0.00)
+      .input('asegurado', dbSql.Decimal(10, 2), seguroCalculado)
       .input('declaracion_valor', dbSql.NVarChar, normalizeDeclaracionValor(declaracion_valor))
       .input('ubicacion', dbSql.NVarChar, sqlStringOrNull(ubicacion))
       .input('punto_control', dbSql.NVarChar, 'Casilleros bodega')
@@ -969,6 +978,13 @@ export const editarPaquete = async (req, res) => {
       });
     }
 
+    const seguroCalculado = Number(
+      calcularSeguroServicio(
+        validacionServicio.servicio,
+        Number(declaracion_valor || 0)
+      ).toFixed(2)
+    );
+
     if (!destinatario_id || Number.isNaN(destinatarioIdInt) || destinatarioIdInt <= 0) {
       return res.status(400).json({
         mensaje: "Debe seleccionar un destinatario válido para el paquete."
@@ -988,6 +1004,7 @@ export const editarPaquete = async (req, res) => {
       .input('ancho', sql.Int, optionalIntOrZero(ancho))
       .input('alto', sql.Int, optionalIntOrZero(alto))
       .input('largo', sql.Int, optionalIntOrZero(largo))
+      .input('asegurado', sql.Decimal(10, 2), seguroCalculado)
       .input('declaracion_valor', sql.NVarChar, normalizeDeclaracionValor(declaracion_valor))
       .input('ubicacion', sql.NVarChar, sqlStringOrNull(ubicacion))
       .input('posicion_arancelaria', sql.NVarChar, sqlStringOrNull(posicion_arancelaria))
@@ -1006,6 +1023,7 @@ export const editarPaquete = async (req, res) => {
           ancho = @ancho,
           alto = @alto,
           largo = @largo,
+          asegurado = @asegurado,
           declaracion_valor = @declaracion_valor,
           ubicacion = @ubicacion,
           posicion_arancelaria = @posicion_arancelaria,

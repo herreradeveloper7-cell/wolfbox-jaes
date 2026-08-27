@@ -46,7 +46,10 @@ test("registrarPaqueteConDeps registra paquete e historial en una transaccion", 
       poolPromise: Promise.resolve({}),
       sql: mock.sql,
       generarHAWBUnico: async () => "COJA000000000001",
-      validarRestriccionesServicio: async () => ({ ok: true }),
+      validarRestriccionesServicio: async () => ({
+        ok: true,
+        servicio: { porcentaje_seguro: 10, seguro_minimo_usd: 10 },
+      }),
     }
   );
 
@@ -58,6 +61,7 @@ test("registrarPaqueteConDeps registra paquete e historial en una transaccion", 
 
   const insertPaquete = mock.calls.find((call) => call.queryText.includes("INSERT INTO paquetes"));
   assert.equal(insertPaquete.inputs.declaracion_valor.value, "125000");
+  assert.equal(insertPaquete.inputs.asegurado.value, 12500);
   assert.equal(insertPaquete.inputs.tienda.value, null);
   assert.equal(insertPaquete.inputs.ancho.value, 0);
 
