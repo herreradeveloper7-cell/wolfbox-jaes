@@ -27,6 +27,7 @@ export default function DigitacionPaquetes() {
     const [tiendasSugeridas, setTiendasSugeridas] = useState<string[]>([]);
     const [mostrarTiendasSugeridas, setMostrarTiendasSugeridas] = useState(false);
     const [clienteNoExiste, setClienteNoExiste] = useState(false);
+    const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<number | null>(null);
     const [filtrosBusqueda, setFiltrosBusqueda] = useState({
       trackingHawb: "",
       referencia: "",
@@ -212,6 +213,7 @@ export default function DigitacionPaquetes() {
       setTiendasSugeridas([]);
       setMostrarTiendasSugeridas(false);
       setClienteNoExiste(false);
+      setClienteSeleccionadoId(null);
       setTrackingExistente(false);
       setTrackingsExistentesFilas([]);
       setValidandoTrackingsFilas(false);
@@ -781,6 +783,8 @@ export default function DigitacionPaquetes() {
             "Sin nombre";
 
           setClienteInput(`${paquete.codigo_referencia} - ${nombreCliente}`);
+          setClienteSeleccionadoId(Number(cliente.id));
+          setClienteNoExiste(false);
           
           const rDest = await fetch(`/api/destinatarios/${cliente.id}`);
           const dataDest = await rDest.json();
@@ -796,6 +800,12 @@ export default function DigitacionPaquetes() {
     };
     
     useEffect(() => {
+      if (clienteSeleccionadoId !== null) {
+        setClientesSugeridos([]);
+        setClienteNoExiste(false);
+        return;
+      }
+
       if (clienteInput.length < 3) {
           setClientesSugeridos([]);
           setClienteNoExiste(false);
@@ -828,7 +838,7 @@ export default function DigitacionPaquetes() {
       clearTimeout(delayDebounce);
       controller.abort();
     };
-    }, [clienteInput]);
+    }, [clienteInput, clienteSeleccionadoId]);
 
     useEffect(() => {
       const codigoCasillero = (clienteInput || "").split(" - ")[0]?.trim();
@@ -1164,6 +1174,8 @@ export default function DigitacionPaquetes() {
                           value={clienteInput}
                           onChange={(e) => {
                             setClienteInput(e.target.value);
+                            setClienteSeleccionadoId(null);
+                            setClienteNoExiste(false);
                             setPaqueteFila((prev: any) => ({ ...prev, destinatario_id: "" }));
                             setErroresCampos(prev => ({ ...prev, cliente: false }));
                           }}
@@ -1190,6 +1202,8 @@ export default function DigitacionPaquetes() {
                                 key={index}
                                 onClick={() => {
                                   setClienteInput(`${cliente.codigo_referencia} - ${cliente.nombre}`);
+                                  setClienteSeleccionadoId(Number(cliente.id));
+                                  setClienteNoExiste(false);
                                   setPaqueteFila((prev: any) => ({ ...prev, destinatario_id: "" }));
                                   setClientesSugeridos([]);
                                 }}
