@@ -722,6 +722,18 @@ export default function SolicitarDespachos() {
           solicitud={modalDetalle}
           onClose={() => setModalDetalle(null)}
           puedeEnviarCobro={!clientePortal}
+          onCobroEnviado={(fechaEnvio) => {
+            setSolicitudes((prev) =>
+              prev.map((item) =>
+                item.id === modalDetalle.id
+                  ? { ...item, cobro_email_enviado_en: fechaEnvio }
+                  : item
+              )
+            );
+            setModalDetalle((prev: Solicitud | null) =>
+              prev ? { ...prev, cobro_email_enviado_en: fechaEnvio } : prev
+            );
+          }}
         />
       )}
 

@@ -15,6 +15,7 @@ export interface Solicitud {
   guia_agrupada?: string | null;
   comprobante_pago_url?: string | null;
   comprobante?: string | null;
+  cobro_email_enviado_en?: string | null;
 
 }
 
