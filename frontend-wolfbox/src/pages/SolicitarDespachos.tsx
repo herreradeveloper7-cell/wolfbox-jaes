@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import UserDashboardLayout from "../layouts/UserDashboardLayout";
 import ClientDashboardLayout from "../layouts/ClientDashboardLayout";
@@ -12,6 +12,7 @@ import { openAuthenticatedPdf } from "../utils/openAuthenticatedPdf";
 
 import { useNavigate } from "react-router-dom";
 import ModalEditarSolicitud from "../components/solicitudes/ModalEditarSolicitud";
+import BuscarClientes from "../components/clientes/BuscarClientes";
 
 export default function SolicitarDespachos() {
   const clientePortal = useMemo(() => {
@@ -81,7 +82,6 @@ export default function SolicitarDespachos() {
   };
 
   const [search, setSearch] = useState("");
-  const [clientes, setClientes] = useState<any[]>([]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState<any>(null);
   const [paquetesCliente, setPaquetesCliente] = useState<any[]>([]);
   const [seleccionados, setSeleccionados] = useState<number[]>([]);
@@ -90,54 +90,16 @@ export default function SolicitarDespachos() {
   const [mostrarModal, setMostrarModal] = useState(false);
   const [paquetesSeleccionadosDatos, setPaquetesSeleccionadosDatos] = useState<any[]>([]);
   const [modalDetalle, setModalDetalle] = useState<any>(null);
-  const busquedaClienteId = useRef(0);
 
   const navigate = useNavigate();
 
 
-  const buscarCliente = async (valor: string) => {
-    setSearch(valor);
-    const busquedaActual = ++busquedaClienteId.current;
-
-    if (valor.trim().length === 0) {
-      setClientes([]);
-      return;
-    }
-
-    if (valor.trim().length < 3) {
-      setClientes([]);
-      return;
-    }
-
-    try {
-      const encoded = encodeURIComponent(valor);
-      const { data } = await axios.get(
-      `/api/clientes/buscar/${encoded}`
-      );
-
-        if (busquedaActual !== busquedaClienteId.current) return;
-
-        if (data.ok && Array.isArray(data.clientes)) {
-          setClientes(data.clientes);
-        } else {
-          setClientes([]);
-        }
-    } catch (error) {
-      if (busquedaActual !== busquedaClienteId.current) return;
-      console.error("❌ Error buscando cliente:", error);
-      setClientes([]);
-    }
-  };
-
-
   const seleccionarCliente = async (cliente: any) => {
-    busquedaClienteId.current += 1;
     const codigoReferencia =
       cliente.codigo_referencia || cliente.codigoReferencia || cliente.codigo;
 
     setLoadingPaquetes(true);
     setClienteSeleccionado({ ...cliente, codigo_referencia: codigoReferencia });
-    setClientes([]);
     setSearch(`${cliente.nombre} (${codigoReferencia})`);
 
     try {
@@ -436,43 +398,12 @@ export default function SolicitarDespachos() {
             </p>
           </div>
           <div className="relative">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-              className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-red-900/60"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21 21l-4.35-4.35M9 17a8 8 0 100-16 8 8 0 000 16z"
-              />
-            </svg>
-
-            <input
-              type="text"
-              className="relative w-full rounded-2xl border border-gray-200 bg-slate-50/80 py-3 pl-12 pr-4 text-sm font-semibold text-gray-800 shadow-inner outline-none transition-all duration-200 placeholder:text-gray-400 hover:border-gray-300 focus:border-red-950 focus:bg-white focus:ring-4 focus:ring-red-950/10"
-              placeholder="Buscar cliente por nombre o código de casillero..."
+            <BuscarClientes
               value={search}
-              onChange={(e) => buscarCliente(e.target.value)}
+              onChange={setSearch}
+              onSelect={seleccionarCliente}
+              placeholder="Buscar cliente por nombre o código de casillero..."
             />
-
-            {clientes.length > 0 && (
-              <div className="absolute z-30 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-slate-400/30">
-                {clientes.map((c) => (
-                  <p
-                    key={c.codigo_referencia}
-                    className="flex items-center justify-between gap-4 border-b border-gray-100 px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-red-50/70 transition-all last:border-b-0"
-                    onClick={() => seleccionarCliente(c)}
-                  >
-                    <span className="font-semibold text-gray-800">{c.nombre}</span>{" "}
-                    <span className="text-gray-500">— {c.codigo_referencia}</span>
-                  </p>
-                ))}
-              </div>
-            )}
           </div>
         </div>
         )}

@@ -14,16 +14,27 @@ interface Props {
   value: string;
   onChange: (value: string) => void;
   onSelect: (cliente: Cliente) => void;
+  placeholder?: string;
+  minCaracteres?: number;
 }
 
-export default function BuscarClientes({ value, onChange, onSelect }: Props) {
+export default function BuscarClientes({
+  value,
+  onChange,
+  onSelect,
+  placeholder = "Buscar por nombre o código de casillero...",
+  minCaracteres = 3,
+}: Props) {
   const [sugerencias, setSugerencias] = useState<Cliente[]>([]);
   const [mostrarDropdown, setMostrarDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [sinResultados, setSinResultados] = useState(false);
+  const [errorBusqueda, setErrorBusqueda] = useState(false);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef<any>(null);
+  const requestRef = useRef(0);
 
   const [dropdownStyle, setDropdownStyle] = useState({
     top: 0,
@@ -78,14 +89,23 @@ export default function BuscarClientes({ value, onChange, onSelect }: Props) {
     };
   }, []);
 
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    requestRef.current += 1;
+  }, []);
+
   const buscarClientes = (texto: string) => {
     onChange(texto);
+    setSinResultados(false);
+    setErrorBusqueda(false);
 
     if (timerRef.current) clearTimeout(timerRef.current);
+    const requestActual = ++requestRef.current;
 
-    if (texto.trim().length < 2) {
+    if (texto.trim().length < minCaracteres) {
       setSugerencias([]);
       setMostrarDropdown(false);
+      setLoading(false);
       return;
     }
 
@@ -99,14 +119,19 @@ export default function BuscarClientes({ value, onChange, onSelect }: Props) {
 
         const clientes = Array.isArray(data) ? data : data.clientes || [];
 
+        if (requestActual !== requestRef.current) return;
+
         setSugerencias(clientes);
         setMostrarDropdown(clientes.length > 0);
+        setSinResultados(clientes.length === 0);
       } catch (error) {
+        if (requestActual !== requestRef.current) return;
         console.error("❌ Error buscando clientes:", error);
         setSugerencias([]);
         setMostrarDropdown(false);
+        setErrorBusqueda(true);
       } finally {
-        setLoading(false);
+        if (requestActual === requestRef.current) setLoading(false);
       }
     }, 300);
   };
@@ -116,6 +141,9 @@ export default function BuscarClientes({ value, onChange, onSelect }: Props) {
     onSelect(cliente);
     setSugerencias([]);
     setMostrarDropdown(false);
+    setSinResultados(false);
+    setErrorBusqueda(false);
+    requestRef.current += 1;
   };
 
   return (
@@ -128,9 +156,21 @@ export default function BuscarClientes({ value, onChange, onSelect }: Props) {
         onFocus={() => {
           if (sugerencias.length > 0) setMostrarDropdown(true);
         }}
-        placeholder="Buscar por nombre o código de casillero..."
+        placeholder={placeholder}
         className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm outline-none transition-all duration-200 placeholder:text-gray-400 hover:border-gray-400 focus:border-[#5a0c0c] focus:ring-4 focus:ring-[#5a0c0c]/10"
       />
+
+      {sinResultados && !loading && (
+        <p className="mt-2 px-1 text-sm font-semibold text-red-600" role="status">
+          ⚠️ Cliente no registrado.
+        </p>
+      )}
+
+      {errorBusqueda && !loading && (
+        <p className="mt-2 px-1 text-sm font-semibold text-amber-700" role="alert">
+          No fue posible consultar los clientes. Intenta nuevamente.
+        </p>
+      )}
 
       {(loading || (mostrarDropdown && sugerencias.length > 0)) &&
       dropdownStyle.width > 0 &&

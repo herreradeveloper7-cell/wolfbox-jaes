@@ -8,6 +8,7 @@ import TablaConciliacionPagos from "../../components/conciliacionPagos/TablaConc
 import Swal from "sweetalert2";
 import { openAuthenticatedPdf } from "../../utils/openAuthenticatedPdf";
 import axios from "axios";
+import BuscarClientes from "../../components/clientes/BuscarClientes";
 
 export default function ConciliacionPago() {
     const navigate = useNavigate();
@@ -22,8 +23,6 @@ export default function ConciliacionPago() {
     });
 
 
-    const [clientes, setClientes] = useState<any[]>([]);
-    const [mostrarClientes, setMostrarClientes] = useState(false);
 
     const buscarConFiltros = async (filtrosBusqueda = filtros) => {
         
@@ -84,39 +83,6 @@ export default function ConciliacionPago() {
 
         }
 
-    };
-
-    const buscarCliente = async (texto: string) => {
-
-        setFiltros(prev => ({
-            ...prev,
-            cliente: texto
-        }));
-
-        if (texto.length < 2) {
-            setClientes([]);
-            setMostrarClientes(false);
-            return;
-        }
-
-        try {
-
-            const res = await fetch(`/api/clientes/buscar/${texto}`);
-            const data = await res.json();
-
-            if (data.ok) {
-                setClientes(data.clientes);
-                setMostrarClientes(true);
-            } else {
-                setClientes([]);
-                setMostrarClientes(false);
-            }
-
-        } catch (error) {
-            console.error("Error buscando clientes", error);
-            setClientes([]);
-            setMostrarClientes(false);
-        }
     };
 
     const handleCancelar = () => {
@@ -305,42 +271,23 @@ export default function ConciliacionPago() {
                     </div>
 
                     <div className="relative rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50/80 p-5 shadow-sm">
-                    {mostrarClientes && clientes.length > 0 && (
-                        <div className="absolute left-5 right-5 top-[92px] z-[9999] max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-2xl">
-                        {clientes.map((c: any) => (
-                            <div
-                            key={c.id}
-                            className="cursor-pointer px-4 py-3 text-sm transition hover:bg-red-50"
-                            onClick={() => {
-                                setFiltros({
-                                ...filtros,
-                                cliente: c.codigo_referencia,
-                                });
-
-                                setMostrarClientes(false);
-                            }}
-                            >
-                            <span className="font-semibold text-red-950">
-                                {c.codigo_referencia}
-                            </span>
-                            <span className="text-gray-400"> — </span>
-                            <span className="font-semibold text-gray-700">{c.nombre}</span>
-                            </div>
-                        ))}
-                        </div>
-                    )}
-
                     <label className="text-sm font-bold text-gray-700">
                         Cliente / Casillero
                     </label>
 
-                    <input
-                        type="text"
+                    <div className="mt-2">
+                      <BuscarClientes
                         placeholder="Buscar cliente o casillero"
-                        className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm outline-none transition-all duration-200 placeholder:text-gray-400 hover:border-gray-400 focus:border-red-950 focus:ring-4 focus:ring-red-950/10"
                         value={filtros.cliente}
-                        onChange={(e) => buscarCliente(e.target.value)}
-                    />
+                        onChange={(cliente) => setFiltros((prev) => ({ ...prev, cliente }))}
+                        onSelect={(cliente) =>
+                          setFiltros((prev) => ({
+                            ...prev,
+                            cliente: cliente.codigo_referencia,
+                          }))
+                        }
+                      />
+                    </div>
                     </div>
 
                     <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50/80 p-5 shadow-sm">

@@ -1,4 +1,5 @@
 import React from "react";
+import BuscarClientes from "../clientes/BuscarClientes";
 
 interface BusquedaPaquetesProps {
   filtros: {
@@ -25,9 +26,7 @@ interface BusquedaPaquetesProps {
 export default function BusquedaPaquetes({
   filtros,
   onChangeFiltros,
-  clientesSugeridos = [],
   usuariosSugeridos = [],
-  onBuscarCliente,
   onSeleccionarCliente,
   onBuscarUsuario,
   onSeleccionarUsuario,
@@ -145,35 +144,14 @@ return (
           Cliente / Codigo de suite
         </label>
 
-        <input
-          type="text"
-          name="cliente"
+        <BuscarClientes
           value={filtros.cliente || ""}
-          onChange={(e) => {
-            handleInputChange(e);
-            onBuscarCliente?.(e.target.value);
-          }}
+          onChange={(cliente) =>
+            onChangeFiltros((prev: any) => ({ ...prev, cliente }))
+          }
+          onSelect={(cliente) => onSeleccionarCliente?.(cliente)}
           placeholder="Buscar cliente o codigo de suite"
-          className="w-full px-3 py-2 rounded-xl text-sm bg-white shadow-sm transition border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-900/20 focus:border-red-900 hover:border-gray-400"
         />
-
-        {clientesSugeridos.length > 0 && (
-          <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-            {clientesSugeridos.map((cliente, index) => (
-              <button
-                key={index}
-                type="button"
-                onClick={() => onSeleccionarCliente?.(cliente)}
-                className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 transition"
-              >
-                {cliente.nombre_completo || cliente.nombre || cliente.cliente}
-                {cliente.codigo_referencia && (
-                  <span className="text-gray-400"> - {cliente.codigo_referencia}</span>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="flex flex-col gap-1 relative">
