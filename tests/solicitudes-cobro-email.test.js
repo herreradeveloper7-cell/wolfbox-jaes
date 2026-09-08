@@ -44,3 +44,18 @@ test("la tabla de solicitudes muestra el indicador de cobro a todos", () => {
   assert.match(table, /Cobro enviado al correo del cliente/);
   assert.match(table, /Cobro pendiente de enviar al cliente/);
 });
+
+test("el backfill marca solo solicitudes anteriores a una fecha de corte fija", () => {
+  const migration = readSource(
+    "../migrations/20260908_backfill_cobros_email_historicos.sql"
+  );
+
+  assert.match(migration, /DECLARE @fecha_corte DATETIME2/);
+  assert.match(migration, /N'2026-09-08T15:47:43'/);
+  assert.match(migration, /WHERE cobro_email_enviado_en IS NULL/);
+  assert.match(
+    migration,
+    /TRY_CONVERT\(DATETIME2, fecha\) <= @fecha_corte/
+  );
+  assert.doesNotMatch(migration, /SYSUTCDATETIME\(\)/);
+});
