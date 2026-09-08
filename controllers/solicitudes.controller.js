@@ -968,6 +968,7 @@ export const obtenerSolicitudes = async (req, res) => {
       s.medio_pago,
       s.observaciones,
       s.comprobante_pago_url,
+      s.cobro_email_enviado_en,
       CONCAT(c.primer_nombre, ' ', c.primer_apellido) AS cliente,
 
       MAX(
@@ -1037,6 +1038,7 @@ export const obtenerSolicitudes = async (req, res) => {
         s.medio_pago,
         s.observaciones,
         s.comprobante_pago_url,
+        s.cobro_email_enviado_en,
         c.primer_nombre,
         c.primer_apellido
 
@@ -1810,10 +1812,24 @@ export const enviarCobroSolicitud = async (req, res) => {
       ],
     });
 
+    const fechaEnvioResult = await pool
+      .request()
+      .input("solicitud_id", sql.Int, solicitudId)
+      .query(`
+        UPDATE solicitudes
+        SET cobro_email_enviado_en = SYSUTCDATETIME()
+        OUTPUT inserted.cobro_email_enviado_en
+        WHERE id = @solicitud_id;
+      `);
+
+    const cobroEmailEnviadoEn =
+      fechaEnvioResult.recordset?.[0]?.cobro_email_enviado_en || null;
+
     return res.json({
       ok: true,
       mensaje: "Cobro enviado correctamente al cliente.",
       destinatario: solicitud.cliente_correo,
+      cobro_email_enviado_en: cobroEmailEnviadoEn,
     });
   } catch (error) {
     console.error("Error enviando cobro de solicitud:", error);

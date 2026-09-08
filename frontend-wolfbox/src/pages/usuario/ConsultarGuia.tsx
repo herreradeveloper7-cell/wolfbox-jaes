@@ -6,6 +6,7 @@ import iconHome from "../../assets/home-svgrepo-com.svg";
 import iconSearch from "../../assets/search-alt-svgrepo-com.svg";
 import resetIcon from "../../assets/reset-icon-com.svg";
 import axios from "axios";
+import BuscarClientes from "../../components/clientes/BuscarClientes";
 
 type GuiaRow = {
   id: string;
@@ -43,7 +44,6 @@ const ConsultarGuia: React.FC = () => {
   const [search, setSearch] = useState("");
   const [, setTotal] = useState(0);
   const [mensaje, setMensaje] = useState("");
-  const [clientesSugeridos, setClientesSugeridos] = useState<any[]>([]);
 
   
 
@@ -121,35 +121,6 @@ const ConsultarGuia: React.FC = () => {
 
     fetchTiendas();
   }, []);
-
-  useEffect(() => {
-
-  if (!filtros.cliente || filtros.cliente.length < 2) {
-    setClientesSugeridos([]);
-    return;
-  }
-
-  const delay = setTimeout(async () => {
-
-    try {
-
-      const res = await axios.get(
-        `/api/clientes/buscar/${encodeURIComponent(filtros.cliente)}`
-      );
-
-      if (res.data.ok) {
-        setClientesSugeridos(res.data.clientes);
-      }
-
-    } catch (error) {
-      console.error("❌ Error buscando clientes:", error);
-    }
-
-  }, 400);
-
-  return () => clearTimeout(delay);
-
-}, [filtros.cliente]);
 
   const fetchResults = async () => {
   setLoading(true);
@@ -414,21 +385,19 @@ const handleSearchClick = () => {
                 <div className="flex flex-col gap-3">
                   <div className="flex flex-col gap-1">
                     <label className="text-sm font-semibold text-gray-600 tracking-tighter">Cliente</label>
-                    <input
-                      name="cliente"
+                    <BuscarClientes
                       value={filtros.cliente}
-                      onChange={handleChange}
-                      list="clientes-list"
+                      onChange={(cliente) =>
+                        setFiltros((prev) => ({ ...prev, cliente }))
+                      }
+                      onSelect={(cliente) =>
+                        setFiltros((prev) => ({
+                          ...prev,
+                          cliente: cliente.codigo_referencia,
+                        }))
+                      }
                       placeholder="Código o nombre"
-                      className={inputBase}
                     />
-                    <datalist id="clientes-list">
-                      {clientesSugeridos.map((cliente) => (
-                        <option key={cliente.id} value={cliente.codigo_referencia}>
-                          {cliente.codigo_referencia} - {cliente.nombre}
-                        </option>
-                      ))}
-                    </datalist>
                   </div>
                 </div>
               </div>

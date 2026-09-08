@@ -75,10 +75,12 @@ export default function ModalVerDetalleSolicitud({
   solicitud,
   onClose,
   puedeEnviarCobro = true,
+  onCobroEnviado,
 }: {
   solicitud: any;
   onClose: () => void;
   puedeEnviarCobro?: boolean;
+  onCobroEnviado?: (fechaEnvio: string) => void;
 }) {
   const [detalle, setDetalle] = useState<any>({
     solicitud: null,
@@ -253,6 +255,10 @@ export default function ModalVerDetalleSolicitud({
           : "El correo fue enviado correctamente.",
         "success"
       );
+
+      if (data?.cobro_email_enviado_en) {
+        onCobroEnviado?.(data.cobro_email_enviado_en);
+      }
     } catch (error: any) {
       console.error("Error enviando cobro:", error);
       Swal.fire(

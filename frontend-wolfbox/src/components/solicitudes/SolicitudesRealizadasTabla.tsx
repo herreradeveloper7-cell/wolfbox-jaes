@@ -5,7 +5,7 @@ import iconTrash from "../../assets/trash-svgrepo-com.svg";
 import iconEdit from "../../assets/pencil-edit-button-svgrepo-com.svg";
 import iconOptions from "../../assets/detail-interface-list-svgrepo-com.svg";
 import iconPrinter from "../../assets/printer-free-6-svgrepo-com.svg";
-import { BadgeCheck, ReceiptText, UploadCloud } from "lucide-react";
+import { BadgeCheck, MailCheck, MailX, ReceiptText, UploadCloud } from "lucide-react";
 
 interface Props {
   solicitudes: Solicitud[];
@@ -28,7 +28,7 @@ export default function SolicitudesRealizadasTabla({
 }: Props) {
   const listaSegura = Array.isArray(solicitudes) ? solicitudes : [];
   const mostrarCargaComprobante = modoCliente && Boolean(onSubirComprobante);
-  const totalColumnas = mostrarCargaComprobante ? 10 : 9;
+  const totalColumnas = mostrarCargaComprobante ? 11 : 10;
 
   const solicitudesFiltradas = listaSegura.filter(
     (s) => (s.estado || "").trim().toLowerCase() !== "anulado"
@@ -169,6 +169,7 @@ export default function SolicitudesRealizadasTabla({
             <col className="w-[136px]" />
             <col className="w-[104px]" />
             <col className="w-[92px]" />
+            <col className="w-[96px]" />
             {mostrarCargaComprobante && <col className="w-[138px]" />}
             <col className="w-[112px]" />
             <col className="w-[160px]" />
@@ -182,6 +183,7 @@ export default function SolicitudesRealizadasTabla({
               <th className="px-3 py-3 text-center">Opciones</th>
               <th className="px-3 py-3 text-left">Solicitud</th>
               <th className="px-3 py-3 text-center">Control</th>
+              <th className="px-3 py-3 text-center">Cobro</th>
               {mostrarCargaComprobante && (
                 <th className="px-3 py-3 text-center">Comprobante</th>
               )}
@@ -202,6 +204,7 @@ export default function SolicitudesRealizadasTabla({
                 );
                 const estaAutorizada =
                   String(s.estado || "").trim().toLowerCase() === "autorizado";
+                const cobroEnviado = Boolean(s.cobro_email_enviado_en);
 
                 return (
                 <tr key={s.id} className="transition-all duration-200 hover:bg-red-50/50">
@@ -293,6 +296,32 @@ export default function SolicitudesRealizadasTabla({
                         <BadgeCheck size={16} strokeWidth={2.4} />
                       </span>
                     </div>
+                  </td>
+
+                  <td className="px-3 py-3 text-center align-middle">
+                    <span
+                      title={
+                        cobroEnviado
+                          ? "Cobro enviado al correo del cliente"
+                          : "Cobro pendiente de enviar al cliente"
+                      }
+                      aria-label={
+                        cobroEnviado
+                          ? "Cobro enviado por correo"
+                          : "Cobro no enviado por correo"
+                      }
+                      className={`${statusIconBase} ${
+                        cobroEnviado
+                          ? "border-emerald-600/25 bg-emerald-50 text-emerald-700"
+                          : "border-red-600/25 bg-red-50 text-red-700"
+                      }`}
+                    >
+                      {cobroEnviado ? (
+                        <MailCheck size={17} strokeWidth={2.5} />
+                      ) : (
+                        <MailX size={17} strokeWidth={2.5} />
+                      )}
+                    </span>
                   </td>
 
                   {mostrarCargaComprobante && (
