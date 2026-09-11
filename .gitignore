@@ -1,3 +1,7 @@
-node_modules
+node_modules/
 .env
-dist
+backup/
+uploads/
+*.log
+frontend-wolfbox/node_modules/
+frontend-wolfbox/dist/
