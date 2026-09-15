@@ -49,7 +49,7 @@ const connectWithRetry = async (attempt = 1) => {
     });
 
     pool = await nextPool.connect();
-    console.log("Conectado a Azure SQL");
+    console.log("Conectado SQL server Wolfbox");
     return pool;
   } catch (error) {
     await closePool();
