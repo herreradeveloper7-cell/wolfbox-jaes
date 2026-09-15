@@ -8,6 +8,32 @@ import path from "path";
 
 let blobServiceClient = null;
 
+const crearErrorStorage = (message, cause) => {
+  const error = new Error(message, { cause });
+  error.name = "StorageConfigurationError";
+  error.code = "STORAGE_UNAVAILABLE";
+  error.statusCode = 503;
+  return error;
+};
+
+const normalizarErrorStorage = (error) => {
+  if (error?.statusCode === 404 || error?.code === "ResourceNotFound") {
+    return crearErrorStorage(
+      "El almacenamiento de comprobantes no esta disponible. Verifica la cuenta y el contenedor configurados en Azure Storage.",
+      error
+    );
+  }
+
+  if (error?.statusCode === 403 || error?.code === "AuthorizationFailure") {
+    return crearErrorStorage(
+      "Azure Storage rechazo las credenciales o permisos configurados para los comprobantes.",
+      error
+    );
+  }
+
+  return error;
+};
+
 const getContainerName = () =>
   process.env.AZURE_STORAGE_CONTAINER || "wolfbox-files";
 
@@ -47,15 +73,18 @@ export const subirArchivoPrivado = async ({
   }
 
   const containerClient = client.getContainerClient(getContainerName());
-  await containerClient.createIfNotExists();
-
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
-  await blockBlobClient.uploadData(buffer, {
-    blobHTTPHeaders: {
-      blobContentType: contentType,
-    },
-  });
+  try {
+    await containerClient.createIfNotExists();
+    await blockBlobClient.uploadData(buffer, {
+      blobHTTPHeaders: {
+        blobContentType: contentType,
+      },
+    });
+  } catch (error) {
+    throw normalizarErrorStorage(error);
+  }
 
   return {
     provider: "azure_blob",

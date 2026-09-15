@@ -14,8 +14,8 @@ const config = {
     idleTimeoutMillis: Number(process.env.DB_POOL_IDLE_TIMEOUT) || 300000,
   },
   options: {
-    encrypt: true,
-    trustServerCertificate: false,
+    encrypt: process.env.DB_ENCRYPT === "true",
+    trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE === "true",
   },
 };
 
@@ -49,7 +49,7 @@ const connectWithRetry = async (attempt = 1) => {
     });
 
     pool = await nextPool.connect();
-    console.log("Conectado a Azure SQL");
+    console.log("Conectado SQL server Wolfbox");
     return pool;
   } catch (error) {
     await closePool();

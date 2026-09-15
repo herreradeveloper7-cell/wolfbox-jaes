@@ -286,6 +286,9 @@ export const quitarAutorizacionSolicitud = async (req, res) => {
 };
 
 export const subirComprobante = async (req, res) => {
+  let nuevoBlobName = null;
+  let comprobantePersistido = false;
+
   try {
     const { id } = req.params;
 
@@ -316,23 +319,11 @@ export const subirComprobante = async (req, res) => {
     const comprobanteActual =
       existente.recordset[0].comprobante_pago_url || existente.recordset[0].comprobante;
 
-    if (comprobanteActual) {
-      const blobAnterior = blobNameDesdeValor(comprobanteActual);
-
-      if (blobAnterior) {
-        eliminarArchivoPrivado(blobAnterior).catch((error) => {
-          console.error("Error eliminando comprobante anterior en Azure:", error);
-        });
-      } else {
-        const rutaAnterior = String(comprobanteActual).replace(/^https?:\/\/[^/]+/i, "");
-        eliminarArchivoComprobante(rutaAnterior);
-      }
-    }
-
     let rutaArchivo = `/uploads/comprobantes/${req.file.filename}`;
 
     if (azureStorageDisponible()) {
       const blobName = `comprobantes/solicitud-${id}/${req.file.filename}`;
+      nuevoBlobName = blobName;
       const resultadoStorage = await subirArchivoPrivado({
         buffer: req.file.buffer,
         blobName,
@@ -356,6 +347,20 @@ export const subirComprobante = async (req, res) => {
           comprobante = @comprobante
       WHERE id = @id
     `);
+    comprobantePersistido = true;
+
+    if (comprobanteActual && comprobanteActual !== rutaArchivo) {
+      const blobAnterior = blobNameDesdeValor(comprobanteActual);
+
+      if (blobAnterior) {
+        eliminarArchivoPrivado(blobAnterior).catch((error) => {
+          console.error("Error eliminando comprobante anterior en Azure:", error);
+        });
+      } else {
+        const rutaAnterior = String(comprobanteActual).replace(/^https?:\/\/[^/]+/i, "");
+        eliminarArchivoComprobante(rutaAnterior);
+      }
+    }
 
     const detalle = await pool
       .request()
@@ -402,10 +407,20 @@ export const subirComprobante = async (req, res) => {
     });
 
   } catch (error) {
+    if (nuevoBlobName && !comprobantePersistido) {
+      eliminarArchivoPrivado(nuevoBlobName).catch(() => {});
+    }
+    if (!comprobantePersistido && req.file?.filename) {
+      eliminarArchivoComprobante(`/uploads/comprobantes/${req.file.filename}`);
+    }
     console.error("❌ Error subiendo comprobante:", error);
 
-    res.status(500).json({
-      mensaje: "Error al subir comprobante"
+    res.status(error.statusCode || 500).json({
+      codigo: error.code || "UPLOAD_ERROR",
+      mensaje:
+        error.code === "STORAGE_UNAVAILABLE"
+          ? error.message
+          : "Error al subir comprobante",
     });
   }
 };
