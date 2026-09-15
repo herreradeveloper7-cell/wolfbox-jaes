@@ -6,64 +6,46 @@ const config = {
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   port: Number(process.env.DB_PORT) || 1433,
-  connectionTimeout: Number(process.env.DB_CONNECTION_TIMEOUT) || 30000,
-  requestTimeout: Number(process.env.DB_REQUEST_TIMEOUT) || 60000,
+
+  connectionTimeout:
+    Number(process.env.DB_CONNECTION_TIMEOUT) || 30000,
+
+  requestTimeout:
+    Number(process.env.DB_REQUEST_TIMEOUT) || 60000,
+
   pool: {
     max: Number(process.env.DB_POOL_MAX) || 10,
     min: Number(process.env.DB_POOL_MIN) || 1,
-    idleTimeoutMillis: Number(process.env.DB_POOL_IDLE_TIMEOUT) || 300000,
+    idleTimeoutMillis:
+      Number(process.env.DB_POOL_IDLE_TIMEOUT) || 300000,
   },
+
   options: {
     encrypt: process.env.DB_ENCRYPT === "true",
-    trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE === "true",
+    trustServerCertificate:
+      process.env.DB_TRUST_SERVER_CERTIFICATE === "true",
   },
 };
 
-let pool;
-let connectingPromise;
+let pool = null;
+let connectingPromise = null;
 let testPoolPromise = null;
 let keepAliveStarted = false;
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const createPool = async () => {
+  const newPool = new sql.ConnectionPool(config);
 
-const closePool = async () => {
-  if (!pool) return;
+  newPool.on("error", (error) => {
+    console.error("Error en pool SQL Server:", error);
+  });
 
-  try {
-    await pool.close();
-  } catch (error) {
-    console.error("Error cerrando pool SQL:", error);
-  } finally {
-    pool = null;
-  }
-};
+  await newPool.connect();
 
-const connectWithRetry = async (attempt = 1) => {
-  try {
-    const nextPool = new sql.ConnectionPool(config);
+  console.log(
+    `Conectado SQL Server ${config.server}:${config.port}/${config.database}`
+  );
 
-    nextPool.on("error", (error) => {
-      console.error("Error en pool Azure SQL:", error);
-      pool = null;
-      connectingPromise = null;
-    });
-
-    pool = await nextPool.connect();
-    console.log("Conectado SQL server Wolfbox");
-    return pool;
-  } catch (error) {
-    await closePool();
-
-    if (attempt < 3) {
-      const delay = attempt * 1500;
-      console.warn(`Reintentando conexion Azure SQL (${attempt}/3) en ${delay}ms`, error.message);
-      await sleep(delay);
-      return connectWithRetry(attempt + 1);
-    }
-
-    console.error("Error de conexion a Azure SQL:", error);
-    throw error;
-  }
+  return newPool;
 };
 
 const getPool = async () => {
@@ -75,54 +57,83 @@ const getPool = async () => {
     return pool;
   }
 
-  if (!connectingPromise) {
-    connectingPromise = connectWithRetry().finally(() => {
+  if (connectingPromise) {
+    return connectingPromise;
+  }
+
+  connectingPromise = createPool()
+    .then((connectedPool) => {
+      pool = connectedPool;
+      return pool;
+    })
+    .finally(() => {
       connectingPromise = null;
     });
-  }
 
   return connectingPromise;
 };
 
 export const warmUpDatabase = async () => {
   const startedAt = Date.now();
-  const nextPool = await getPool();
-  await nextPool.request().query("SELECT 1 AS ok");
-  const elapsed = Date.now() - startedAt;
-  console.log(`Azure SQL warm-up OK en ${elapsed}ms`);
+
+  const currentPool = await getPool();
+
+  await currentPool
+    .request()
+    .query("SELECT 1 AS ok");
+
+  console.log(
+    `SQL Server warm-up OK en ${Date.now() - startedAt}ms`
+  );
 };
 
 export const iniciarDbKeepAlive = ({
-  intervaloMs = Number(process.env.DB_KEEPALIVE_INTERVAL_MS) || 240000,
+  intervaloMs =
+    Number(process.env.DB_KEEPALIVE_INTERVAL_MS) || 240000,
 } = {}) => {
   if (
     keepAliveStarted ||
     process.env.NODE_ENV === "test" ||
     process.env.DB_KEEPALIVE_DISABLED === "true"
-  ) return;
+  ) {
+    return;
+  }
 
   keepAliveStarted = true;
 
   warmUpDatabase().catch((error) => {
-    console.error("Warm-up inicial Azure SQL fallo:", error.message);
+    console.error(
+      "Warm-up inicial SQL Server falló:",
+      error.message
+    );
   });
 
   setInterval(() => {
     warmUpDatabase().catch((error) => {
-      console.error("Keep-alive Azure SQL fallo:", error.message);
+      console.error(
+        "Keep-alive SQL Server falló:",
+        error.message
+      );
     });
   }, intervaloMs).unref?.();
 };
 
 export const poolPromise = {
-  then: (resolve, reject) => getPool().then(resolve, reject),
-  catch: (reject) => getPool().catch(reject),
-  finally: (callback) => getPool().finally(callback),
+  then: (resolve, reject) =>
+    getPool().then(resolve, reject),
+
+  catch: (reject) =>
+    getPool().catch(reject),
+
+  finally: (callback) =>
+    getPool().finally(callback),
 };
 
 export const __setPoolPromiseForTests = (nextPoolPromise) => {
   if (process.env.NODE_ENV !== "test") {
-    throw new Error("__setPoolPromiseForTests solo puede usarse en NODE_ENV=test");
+    throw new Error(
+      "__setPoolPromiseForTests solo puede usarse en NODE_ENV=test"
+    );
   }
 
   testPoolPromise = nextPoolPromise;
