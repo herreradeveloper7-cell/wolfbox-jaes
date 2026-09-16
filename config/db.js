@@ -8,16 +8,26 @@ const config = {
   port: Number(process.env.DB_PORT) || 1433,
 
   connectionTimeout:
-    Number(process.env.DB_CONNECTION_TIMEOUT) || 30000,
+    Number(process.env.DB_CONNECTION_TIMEOUT) || 10000,
 
   requestTimeout:
-    Number(process.env.DB_REQUEST_TIMEOUT) || 60000,
+    Number(process.env.DB_REQUEST_TIMEOUT) || 15000,
 
   pool: {
-    max: Number(process.env.DB_POOL_MAX) || 10,
-    min: Number(process.env.DB_POOL_MIN) || 1,
+    max: Number(process.env.DB_POOL_MAX) || 30,
+    min: Number(process.env.DB_POOL_MIN) || 5,
     idleTimeoutMillis:
-      Number(process.env.DB_POOL_IDLE_TIMEOUT) || 300000,
+      Number(process.env.DB_POOL_IDLE_TIMEOUT) || 30000,
+    acquireTimeoutMillis:
+      Number(process.env.DB_POOL_ACQUIRE_TIMEOUT) || 10000,
+    createTimeoutMillis:
+      Number(process.env.DB_POOL_CREATE_TIMEOUT) || 10000,
+    destroyTimeoutMillis:
+      Number(process.env.DB_POOL_DESTROY_TIMEOUT) || 5000,
+    reapIntervalMillis:
+      Number(process.env.DB_POOL_REAP_INTERVAL) || 1000,
+    createRetryIntervalMillis:
+      Number(process.env.DB_POOL_CREATE_RETRY_INTERVAL) || 200,
   },
 
   options: {
