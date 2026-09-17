@@ -3,6 +3,7 @@
 Full-stack logistics management platform developed for **JAES Cargo Internacional** to centralize shipment operations, customer management and internal logistics workflows.
 
 Wolfbox is an active production application designed to support day-to-day logistics operations through a centralized web platform.
+wolfbox-jaes.vercel.app
 
 ---
 
