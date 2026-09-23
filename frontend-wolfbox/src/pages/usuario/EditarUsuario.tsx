@@ -6,6 +6,8 @@ import iconHome from "../../assets/home-svgrepo-com.svg";
 import iconHombre from "../../assets/malecostume-svgrepo-com.svg";
 import iconMujer from "../../assets/female-svgrepo-com.svg";
 import Swal from "sweetalert2";
+import PasswordRequirements from "../../components/PasswordRequirements";
+import { passwordCumpleRequisitos } from "../../utils/passwordPolicy";
 
 export default function EditarUsuario() {
   const { id } = useParams();
@@ -136,8 +138,12 @@ export default function EditarUsuario() {
     e.preventDefault();
     if (!id || emailExistente || isSubmitting) return;
 
-    if (formData.password && formData.password.length < 12) {
-      await Swal.fire("Contraseña muy corta", "La nueva contraseña debe tener mínimo 12 caracteres.", "warning");
+    if (formData.password && !passwordCumpleRequisitos(formData.password)) {
+      await Swal.fire(
+        "Contraseña incompleta",
+        "Debe tener mínimo 8 caracteres, una mayúscula y un carácter especial.",
+        "warning"
+      );
       return;
     }
 
@@ -290,6 +296,9 @@ export default function EditarUsuario() {
                           placeholder="Dejalo vacio si no cambia"
                           className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-red-900 focus:bg-white focus:ring-4 focus:ring-red-900/10"
                         />
+                        {formData.password && (
+                          <PasswordRequirements password={formData.password} />
+                        )}
                       </div>
 
                       <div>

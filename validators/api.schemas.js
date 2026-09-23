@@ -51,8 +51,10 @@ const permisos = z.array(z.string().trim().min(1)).optional().default([]);
 const rolUsuario = z.enum(["admin", "usuario"]);
 const genero = optionalString;
 const passwordNueva = z.string()
-  .min(12, "La contraseña debe tener al menos 12 caracteres")
-  .max(128, "La contraseña no puede superar 128 caracteres");
+  .min(8, "La contraseña debe tener al menos 8 caracteres")
+  .max(128, "La contraseña no puede superar 128 caracteres")
+  .regex(/[A-ZÁÉÍÓÚÜÑ]/u, "La contraseña debe incluir al menos una letra mayúscula")
+  .regex(/[^\p{L}\p{N}\s]/u, "La contraseña debe incluir al menos un carácter especial");
 const passwordNuevaOpcional = z.union([z.literal(""), passwordNueva]).optional();
 
 export const usuarioSchemas = {

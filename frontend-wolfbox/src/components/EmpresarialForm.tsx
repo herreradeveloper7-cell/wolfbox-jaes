@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from "react";
+import PasswordRequirements from "./PasswordRequirements";
+import { passwordCumpleRequisitos } from "../utils/passwordPolicy";
 interface Props {
   tipoCliente: string;
 }
@@ -53,6 +55,7 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
     const [termsAccepted, setTermsAccepted] = useState(false);
     
     const navigate = useNavigate();
+    const contrasenaValida = passwordCumpleRequisitos(contrasena);
 
     useEffect(() => {
       setErrores(prev => ({
@@ -72,6 +75,8 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
         }));
         return;
       }
+
+      if (!contrasenaValida) return;
 
       const data = {
         razonSocial,
@@ -128,7 +133,7 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
           state: { codigoReferencia: result.codigoReferencia }
         });
         } else {
-          alert("❌ Error: " + result.message);
+          alert("❌ Error: " + (result.mensaje || result.message || "No fue posible crear la cuenta."));
         }
       } catch (err) {
         console.error("Error en el registro:", err);
@@ -384,8 +389,9 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
         value={contrasena}
         onChange={(e) => setContrasena(e.target.value)}
         className={inputBase} 
-        minLength={12}
+        minLength={8}
         required />
+        <PasswordRequirements password={contrasena} />
       </div>
   
       <div>
@@ -395,7 +401,7 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
           value={confirmarContrasena}
           onChange={(e) => setConfirmarContrasena(e.target.value)}
           className={`${inputBase} ${!errores.contrasenaCoincide ? 'border-red-500 focus:border-red-600 focus:ring-red-600/10' : ''}`}
-          minLength={12}
+          minLength={8}
           required
         />
         {!errores.contrasenaCoincide && (
@@ -573,10 +579,10 @@ export default function EmpresarialForm({ tipoCliente }: Props) {
         <button
           type="submit"
           disabled={
-            !termsAccepted || !errores.emailCoincide || !errores.contrasenaCoincide || !errores.fechaNacimientoValida
+            !termsAccepted || !errores.emailCoincide || !errores.contrasenaCoincide || !errores.fechaNacimientoValida || !contrasenaValida
           }
           className={`rounded-xl px-6 py-2.5 text-sm font-black text-white shadow-lg transition-all ${
-            !termsAccepted || !errores.emailCoincide || !errores.contrasenaCoincide || !errores.fechaNacimientoValida
+            !termsAccepted || !errores.emailCoincide || !errores.contrasenaCoincide || !errores.fechaNacimientoValida || !contrasenaValida
               ? 'bg-gray-400 cursor-default shadow-none'
               : 'bg-gradient-to-r from-red-950 to-red-900 shadow-red-950/20 hover:-translate-y-0.5 hover:from-red-900 hover:to-red-800 hover:shadow-xl cursor-pointer'
           }`}
