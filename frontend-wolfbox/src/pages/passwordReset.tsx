@@ -1,6 +1,8 @@
 import { FormEvent, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import logo from "../assets/logoJaesHome.png";
+import PasswordRequirements from "../components/PasswordRequirements";
+import { passwordCumpleRequisitos } from "../utils/passwordPolicy";
 
 export default function PasswordResetPage() {
   const navigate = useNavigate();
@@ -57,8 +59,8 @@ export default function PasswordResetPage() {
     event.preventDefault();
     limpiarMensajes();
 
-    if (contrasena.length < 12) {
-      setError("La contraseña debe tener mínimo 12 caracteres.");
+    if (!passwordCumpleRequisitos(contrasena)) {
+      setError("La contraseña todavía no cumple todos los requisitos.");
       return;
     }
 
@@ -194,9 +196,11 @@ export default function PasswordResetPage() {
                             setContrasena(event.target.value);
                             limpiarMensajes();
                           }}
-                          placeholder="Minimo 6 caracteres"
+                          placeholder="Mínimo 8 caracteres"
+                          minLength={8}
                           className="w-full rounded-2xl border border-gray-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-slate-700 shadow-inner outline-none transition-all duration-300 placeholder:text-slate-400 hover:border-gray-300 focus:border-red-900 focus:bg-white focus:ring-4 focus:ring-red-900/10"
                         />
+                        <PasswordRequirements password={contrasena} />
                       </div>
 
                       <div>

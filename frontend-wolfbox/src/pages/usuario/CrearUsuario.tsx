@@ -4,6 +4,8 @@ import UserDashboardLayout from "../../layouts/UserDashboardLayout";
 import { useNavigate } from "react-router-dom";
 import iconHome from "../../assets/home-svgrepo-com.svg";
 import Swal from "sweetalert2";
+import PasswordRequirements from "../../components/PasswordRequirements";
+import { passwordCumpleRequisitos } from "../../utils/passwordPolicy";
 
 
 export default function CrearUsuario() {
@@ -171,11 +173,11 @@ export default function CrearUsuario() {
       return;
     }
 
-    if (formData.password.length < 12) {
+    if (!passwordCumpleRequisitos(formData.password)) {
       Swal.fire({
         icon: "warning",
-        title: "Contraseña muy corta",
-        text: "Debe tener mínimo 12 caracteres",
+        title: "Contraseña incompleta",
+        text: "Debe tener mínimo 8 caracteres, una mayúscula y un carácter especial.",
         confirmButtonColor: "#b91c1c",
       });
       return;
@@ -324,19 +326,7 @@ export default function CrearUsuario() {
                 required
               />
 
-              {formData.password && (
-                <div className="mt-1">
-                  {formData.password.length < 12 && (
-                    <p className="text-red-600 text-xs font-semibold">Seguridad: ❌ Débil</p>
-                  )}
-                  {formData.password.length >= 12 && formData.password.length < 16 && (
-                    <p className="text-yellow-500 text-xs font-semibold">Seguridad: 🟡 Media</p>
-                  )}
-                  {formData.password.length >= 16 && (
-                    <p className="text-green-600 text-xs font-semibold">Seguridad: 🟢 Alta</p>
-                  )}
-                </div>
-              )}
+              <PasswordRequirements password={formData.password} />
 
               {errors.password && (
                 <p className="text-red-600 text-xs mt-1 font-medium">{errors.password}</p>
